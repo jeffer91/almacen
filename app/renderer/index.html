@@ -55,10 +55,10 @@
             <p class="lead">¿Qué deseas hacer?</p>
           </div>
           <div class="status-card" aria-live="polite">
-            <span class="status-dot" aria-hidden="true"></span>
+            <span class="status-dot status-dot-neutral" id="local-db-dot" aria-hidden="true"></span>
             <div>
-              <strong>Perfil local listo</strong>
-              <span>Esta computadora recuerda quién la utiliza.</span>
+              <strong id="local-db-title">Comprobando base local</strong>
+              <span id="local-db-message">Espera un momento.</span>
             </div>
           </div>
         </div>
@@ -135,29 +135,55 @@
             <p>Aplicación de escritorio</p>
           </article>
 
-          <article class="admin-card admin-card-pending">
-            <p class="admin-card-label">Base local SQLite</p>
-            <h2>Pendiente</h2>
-            <p>Se implementará en el próximo bloque.</p>
+          <article class="admin-card admin-card-database" id="admin-database-card">
+            <div class="admin-card-heading-row">
+              <div>
+                <p class="admin-card-label">Base local SQLite</p>
+                <h2 id="admin-database-status">Comprobando</h2>
+              </div>
+              <span class="admin-state-badge admin-state-neutral" id="admin-database-badge">Revisando</span>
+            </div>
+            <p id="admin-database-details">Leyendo el estado de la base de esta computadora.</p>
+            <dl class="admin-metrics">
+              <div>
+                <dt>Esquema</dt>
+                <dd id="admin-database-schema">—</dd>
+              </div>
+              <div>
+                <dt>Tablas</dt>
+                <dd id="admin-database-tables">—</dd>
+              </div>
+              <div>
+                <dt>Tamaño</dt>
+                <dd id="admin-database-size">—</dd>
+              </div>
+              <div>
+                <dt>Última prueba</dt>
+                <dd id="admin-database-last-check">—</dd>
+              </div>
+            </dl>
+            <button class="button button-secondary admin-card-button" id="admin-database-test-button" type="button">
+              Probar base local
+            </button>
           </article>
 
           <article class="admin-card admin-card-pending">
             <p class="admin-card-label">Sincronización externa</p>
             <h2>Pendiente</h2>
-            <p>Se activará después de la base local.</p>
+            <p>Se activará después de completar la configuración del dispositivo.</p>
           </article>
 
           <article class="admin-card admin-card-pending">
-            <p class="admin-card-label">Diagnóstico técnico</p>
-            <h2>Pendiente</h2>
-            <p>Se conectará con las pruebas de la etapa 1.</p>
+            <p class="admin-card-label">Diagnóstico completo</p>
+            <h2>En desarrollo</h2>
+            <p>La prueba de la base local ya está disponible.</p>
           </article>
         </div>
 
         <section class="admin-next-section">
           <h2>Funciones administrativas que siguen</h2>
           <div class="admin-next-list">
-            <span>Base local</span>
+            <span>Configuración del equipo</span>
             <span>Pruebas de conexión</span>
             <span>Estado de equipos</span>
             <span>Mensajes y pop-ups</span>
