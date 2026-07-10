@@ -8,12 +8,11 @@ Aplicación de escritorio local-first para compartir productos, costos y precios
 
 ## Estado actual
 
-Etapa 1 en desarrollo. Versión actual: `0.7.0`.
+Etapa 1 en verificación final. Versión actual: `0.8.0`.
 
 Ya está implementado:
 
 - Proyecto base con Electron.
-- Configuración para generar instalador de Windows.
 - Ventana principal con aislamiento de contexto y sin acceso directo a Node.js desde la interfaz.
 - Selección inicial de Edgar, Gloria o Jefferson.
 - Perfil fijo guardado localmente por computadora.
@@ -51,6 +50,12 @@ Ya está implementado:
 - Verificación de integridad, claves foráneas, esquema y checksum SHA-256.
 - Retención de 10 respaldos automáticos y 20 manuales.
 - Listado y apertura de la carpeta local de respaldos.
+- Configuración de instalador NSIS para Windows x64.
+- Compilación automatizada del instalador mediante GitHub Actions.
+- Verificación del contenido de `app.asar`.
+- Instalación silenciosa de prueba en Windows.
+- Generación de hash SHA-256 y reporte JSON del instalador.
+- Publicación del instalador verificado como artefacto de GitHub durante 30 días.
 - Pruebas automáticas en Linux y Windows.
 - Pruebas para contraseña, sesión, migraciones, persistencia, preferencias, diagnósticos, arranque, perfiles y respaldos.
 
@@ -80,18 +85,38 @@ npm start
 npm test
 ```
 
-## Generar instalador de Windows
+## Generar y verificar el instalador de Windows
 
-```bash
+En Windows:
+
+```powershell
 npm install
-npm run build:win
+npm run release:win
 ```
 
-El instalador se generará dentro de la carpeta `dist`.
+También puede ejecutarse por partes:
+
+```powershell
+npm run build:win
+npm run verify:win
+```
+
+Los resultados se generan dentro de `dist`:
+
+```text
+Almacen-Familiar-Setup-<version>-x64.exe
+installer-verification.json
+asar-files.txt
+```
 
 ## Estructura actual
 
 ```text
+.github/
+└── workflows/
+    ├── tests.yml
+    └── windows-installer.yml
+
 app/
 ├── main/
 │   ├── main.js
@@ -126,6 +151,12 @@ app/
         ├── diagnostics.css
         └── backups.css
 
+build/
+└── README.md
+
+scripts/
+└── verify-windows-build.ps1
+
 tests/
 ├── admin-auth.test.js
 ├── local-database.test.js
@@ -139,7 +170,8 @@ docs/
 ├── device-preferences.md
 ├── diagnostics.md
 ├── startup-and-profiles.md
-└── backups.md
+├── backups.md
+└── windows-installer.md
 ```
 
 ## Base local actual
@@ -158,14 +190,28 @@ Tablas creadas:
 - `diagnostic_checks`;
 - `screen_reports`.
 
-La documentación técnica se encuentra en:
+## Consideraciones del primer instalador
+
+- Todavía no se utiliza un certificado de firma de código.
+- Windows puede mostrar una advertencia de editor desconocido.
+- El primer instalador utiliza el icono predeterminado de Electron.
+- La firma y el icono institucional se incorporarán antes de una distribución pública definitiva.
+
+## Documentación técnica
 
 - `docs/database.md`;
 - `docs/device-preferences.md`;
 - `docs/diagnostics.md`;
 - `docs/startup-and-profiles.md`;
-- `docs/backups.md`.
+- `docs/backups.md`;
+- `docs/windows-installer.md`.
 
-## Próximo bloque de la etapa 1
+## Próxima etapa
 
-1. Compilación y verificación del primer instalador de Windows.
+La siguiente etapa inicia el catálogo comercial:
+
+1. Productos.
+2. Variaciones.
+3. Fotografías locales y sincronizables.
+4. Estados activos, inactivos y retirados.
+5. Historial no destructivo.
