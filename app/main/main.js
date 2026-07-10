@@ -8,6 +8,7 @@ Función o funciones:
 - Leer y guardar el perfil fijo de cada computadora.
 - Gestionar el acceso administrativo protegido y su sesión temporal.
 - Inicializar, probar y cerrar correctamente la base local SQLite.
+- Aplicar y guardar preferencias visuales y del equipo.
 ========================================================= */
 
 "use strict";
@@ -23,6 +24,12 @@ const {
 } = require("./admin-auth-store");
 const { AdminSessionManager } = require("./admin-session");
 const { LocalDatabaseService } = require("./database/local-database-service");
+const {
+  defaultsForProfile,
+  getDevicePreferences,
+  saveDevicePreferences,
+  saveTextSize
+} = require("./device-preferences");
 
 let mainWindow = null;
 const adminSession = new AdminSessionManager();
@@ -46,6 +53,27 @@ async function initializeLocalDatabase(profile = null) {
   } catch (error) {
     console.error("No fue posible iniciar la base local:", error);
     return localDatabase.getSummary();
+  }
+}
+
+function currentPreferences(profile) {
+  try {
+    return getDevicePreferences(localDatabase, profile);
+  } catch (error) {
+    console.error("No fue posible leer las preferencias del equipo:", error);
+    return defaultsForProfile(profile);
+  }
+}
+
+function applyWindowPreferences(preferences) {
+  if (!mainWindow || mainWindow.isDestroyed()) {
+    return;
+  }
+
+  if (preferences?.startMaximized) {
+    mainWindow.maximize();
+  } else if (mainWindow.isMaximized()) {
+    mainWindow.unmaximize();
   }
 }
 
@@ -78,7 +106,7 @@ async function buildAdminStatus() {
   }
 }
 
-function createMainWindow() {
+function createMainWindow(preferences = null) {
   mainWindow = new BrowserWindow({
     width: 1280,
     height: 820,
@@ -100,6 +128,7 @@ function createMainWindow() {
   mainWindow.loadFile(path.join(__dirname, "../renderer/index.html"));
 
   mainWindow.once("ready-to-show", () => {
+    applyWindowPreferences(preferences);
     mainWindow?.show();
   });
 
@@ -148,11 +177,104 @@ function registerIpcHandlers() {
       } else {
         localDatabase.registerDeviceProfile(profile, app.getVersion());
       }
+
+      currentPreferences(profile);
     } catch (error) {
       console.error("El perfil se guardó, pero no pudo registrarse en la base local:", error);
     }
 
     return profile;
+  });
+
+  ipcMain.handle("device:get-preferences", async () => {
+    const profile = await readProfile(app.getPath("userData"));
+
+    if (!profile) {
+      return failure(
+        "PROFILE_REQUIRED",
+        "Primero debes elegir quién utilizará esta computadora."
+      );
+    }
+
+    return success({
+      preferences: currentPreferences(profile),
+      device: {
+        id: profile.deviceId,
+        systemName: os.hostname(),
+        platform: process.platform,
+        profileId: profile.id,
+        profileName: profile.displayName,
+        channelName: profile.channelName
+      }
+    });
+  });
+
+  ipcMain.handle("device:set-text-size", async (_event, textSize) => {
+    const profile = await readProfile(app.getPath("userData"));
+
+    if (!profile) {
+      return failure(
+        "PROFILE_REQUIRED",
+        "Primero debes elegir quién utilizará esta computadora."
+      );
+    }
+
+    try {
+      const preferences = saveTextSize(localDatabase, profile, textSize);
+      return success({ preferences });
+    } catch (error) {
+      console.error("No fue posible guardar el tamaño de letra:", error);
+      return failure(
+        error.code || "PREFERENCES_SAVE_FAILED",
+        error.message || "No se pudo guardar el tamaño de letra."
+      );
+    }
+  });
+
+  ipcMain.handle("device:update-preferences", async (_event, preferences) => {
+    if (!adminSession.isUnlocked()) {
+      return failure(
+        "ADMIN_SESSION_REQUIRED",
+        "La sesión administrativa terminó. Ingresa nuevamente.",
+        { status: await buildAdminStatus() }
+      );
+    }
+
+    const profile = await readProfile(app.getPath("userData"));
+
+    if (!profile) {
+      return failure(
+        "PROFILE_REQUIRED",
+        "Este equipo todavía no tiene un perfil configurado.",
+        { status: await buildAdminStatus() }
+      );
+    }
+
+    try {
+      const saved = saveDevicePreferences(localDatabase, profile, preferences);
+      applyWindowPreferences(saved);
+      adminSession.touch();
+
+      return success({
+        preferences: saved,
+        device: {
+          id: profile.deviceId,
+          systemName: os.hostname(),
+          platform: process.platform,
+          profileId: profile.id,
+          profileName: profile.displayName,
+          channelName: profile.channelName
+        },
+        status: await buildAdminStatus()
+      });
+    } catch (error) {
+      console.error("No fue posible guardar la configuración del equipo:", error);
+      return failure(
+        error.code || "PREFERENCES_SAVE_FAILED",
+        error.message || "No se pudo guardar la configuración del equipo.",
+        { status: await buildAdminStatus() }
+      );
+    }
   });
 
   ipcMain.handle("database:get-summary", () => {
@@ -325,18 +447,22 @@ function registerIpcHandlers() {
 
     const profile = await readProfile(app.getPath("userData"));
     const sessionStatus = adminSession.touch();
+    const preferences = currentPreferences(profile);
 
     return success({
       dashboard: {
         appName: app.getName(),
         appVersion: app.getVersion(),
-        deviceName: os.hostname(),
+        deviceName: preferences.friendlyName,
+        systemDeviceName: os.hostname(),
         platform: process.platform,
         profile,
+        preferences,
         session: sessionStatus,
         database: localDatabase.getAdminStatus(),
         modules: {
           localDatabase: localDatabase.getSummary().healthy ? "ready" : "attention",
+          devicePreferences: "ready",
           synchronization: "pending",
           diagnostics: "partial"
         }
@@ -349,12 +475,13 @@ function registerIpcHandlers() {
 app.whenReady().then(async () => {
   const profile = await readProfile(app.getPath("userData"));
   await initializeLocalDatabase(profile);
+  const preferences = currentPreferences(profile);
   registerIpcHandlers();
-  createMainWindow();
+  createMainWindow(preferences);
 
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) {
-      createMainWindow();
+      createMainWindow(currentPreferences(profile));
     }
   });
 });
