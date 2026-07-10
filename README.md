@@ -8,7 +8,7 @@ Aplicación de escritorio local-first para compartir productos, costos y precios
 
 ## Estado actual
 
-Etapa 1 en desarrollo. Versión actual: `0.6.0`.
+Etapa 1 en desarrollo. Versión actual: `0.7.0`.
 
 Ya está implementado:
 
@@ -46,8 +46,13 @@ Ya está implementado:
 - Recuperación de configuraciones dañadas mediante respaldo local.
 - Verificación de escritura después de guardar un perfil.
 - Bloqueo de cambios de usuario fuera de Administración.
+- Respaldos automáticos diarios de SQLite.
+- Creación manual de respaldos desde Administración.
+- Verificación de integridad, claves foráneas, esquema y checksum SHA-256.
+- Retención de 10 respaldos automáticos y 20 manuales.
+- Listado y apertura de la carpeta local de respaldos.
 - Pruebas automáticas en Linux y Windows.
-- Pruebas para contraseña, sesión, migraciones, persistencia, preferencias, diagnósticos, arranque y perfiles.
+- Pruebas para contraseña, sesión, migraciones, persistencia, preferencias, diagnósticos, arranque, perfiles y respaldos.
 
 ## Regla temporal de configuración administrativa
 
@@ -98,6 +103,8 @@ app/
 │   │   └── startup-service.js
 │   ├── diagnostics/
 │   │   └── diagnostics-service.js
+│   ├── backups/
+│   │   └── backup-service.js
 │   └── database/
 │       ├── connection.js
 │       ├── migrations.js
@@ -110,25 +117,29 @@ app/
     ├── app.js
     ├── preferences.js
     ├── diagnostics.js
+    ├── backups.js
     └── styles/
         ├── global.css
         ├── easy-mode.css
         ├── admin.css
         ├── preferences.css
-        └── diagnostics.css
+        ├── diagnostics.css
+        └── backups.css
 
 tests/
 ├── admin-auth.test.js
 ├── local-database.test.js
 ├── device-preferences.test.js
 ├── diagnostics.test.js
-└── startup-profile.test.js
+├── startup-profile.test.js
+└── backups.test.js
 
 docs/
 ├── database.md
 ├── device-preferences.md
 ├── diagnostics.md
-└── startup-and-profiles.md
+├── startup-and-profiles.md
+└── backups.md
 ```
 
 ## Base local actual
@@ -152,9 +163,9 @@ La documentación técnica se encuentra en:
 - `docs/database.md`;
 - `docs/device-preferences.md`;
 - `docs/diagnostics.md`;
-- `docs/startup-and-profiles.md`.
+- `docs/startup-and-profiles.md`;
+- `docs/backups.md`.
 
-## Próximos bloques de la etapa 1
+## Próximo bloque de la etapa 1
 
-1. Respaldos básicos de la base local.
-2. Compilación y verificación del primer instalador de Windows.
+1. Compilación y verificación del primer instalador de Windows.
