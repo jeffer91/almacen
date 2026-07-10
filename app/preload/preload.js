@@ -8,6 +8,7 @@ Función o funciones:
 - Gestionar el acceso administrativo sin exponer archivos locales.
 - Consultar y probar la base local desde canales autorizados.
 - Leer y guardar preferencias visuales y del equipo.
+- Reportar pantallas y ejecutar diagnósticos generales.
 ========================================================= */
 
 "use strict";
@@ -25,6 +26,10 @@ const api = Object.freeze({
     ipcRenderer.invoke("device:update-preferences", preferences),
   getDatabaseSummary: () => ipcRenderer.invoke("database:get-summary"),
   runDatabaseDiagnostic: () => ipcRenderer.invoke("database:run-diagnostic"),
+  reportScreenDiagnostics: (reports) =>
+    ipcRenderer.invoke("diagnostics:report-screens", reports),
+  getDiagnosticsSummary: () => ipcRenderer.invoke("diagnostics:get-summary"),
+  runFullDiagnostics: () => ipcRenderer.invoke("diagnostics:run"),
   getAdminStatus: () => ipcRenderer.invoke("admin:get-status"),
   setupAdminPassword: (password, confirmation) =>
     ipcRenderer.invoke("admin:setup", { password, confirmation }),
