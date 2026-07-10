@@ -40,7 +40,7 @@ test("el primer arranque abre configuración e inicializa SQLite", async () => {
     const database = new LocalDatabaseService();
     const startup = await inspectStartup({
       userDataPath: directory,
-      appVersion: "0.6.0",
+      appVersion: "0.9.0",
       databaseService: database
     });
 
@@ -49,7 +49,7 @@ test("el primer arranque abre configuración e inicializa SQLite", async () => {
     assert.equal(startup.profileStatus, "missing");
     assert.equal(startup.database.initialized, true);
     assert.equal(startup.database.healthy, true);
-    assert.equal(startup.database.schemaVersion, 3);
+    assert.equal(startup.database.schemaVersion, 4);
     database.close();
   });
 });
@@ -60,7 +60,7 @@ test("un perfil guardado abre inicio con sus preferencias recomendadas", async (
     const database = new LocalDatabaseService();
     const startup = await inspectStartup({
       userDataPath: directory,
-      appVersion: "0.6.0",
+      appVersion: "0.9.0",
       databaseService: database
     });
 
@@ -106,7 +106,7 @@ test("una configuración dañada se detecta, respalda y reemplaza", async () => 
     const database = new LocalDatabaseService();
     const startup = await inspectStartup({
       userDataPath: directory,
-      appVersion: "0.6.0",
+      appVersion: "0.9.0",
       databaseService: database
     });
 
