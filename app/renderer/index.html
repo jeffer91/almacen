@@ -10,6 +10,7 @@
   <link rel="stylesheet" href="./styles/admin.css">
   <link rel="stylesheet" href="./styles/preferences.css">
   <link rel="stylesheet" href="./styles/diagnostics.css">
+  <link rel="stylesheet" href="./styles/backups.css">
 </head>
 <body>
   <div class="app-shell">
@@ -186,7 +187,7 @@
           <article class="admin-card admin-card-pending">
             <p class="admin-card-label">Sincronización externa</p>
             <h2>Pendiente</h2>
-            <p>Se activará después del diagnóstico general.</p>
+            <p>Se activará en una etapa posterior.</p>
           </article>
         </div>
 
@@ -246,14 +247,63 @@
           </div>
         </section>
 
+        <section class="backups-panel" id="backups-panel" data-status="warning" aria-labelledby="backups-title">
+          <div class="backups-header">
+            <div>
+              <p class="admin-card-label">Respaldos locales</p>
+              <h2 id="backups-title">Protección de la base SQLite</h2>
+              <p class="backups-description" id="backups-description">
+                Consultando las copias guardadas en esta computadora.
+              </p>
+            </div>
+            <div class="backups-actions">
+              <span class="admin-state-badge admin-state-warning" id="backups-badge">Pendiente</span>
+              <button class="button button-primary" id="backups-create-button" type="button">
+                Crear respaldo ahora
+              </button>
+              <button class="button button-secondary" id="backups-verify-button" type="button" disabled>
+                Verificar último
+              </button>
+              <button class="button button-secondary" id="backups-folder-button" type="button">
+                Abrir carpeta
+              </button>
+            </div>
+          </div>
+
+          <div class="backups-summary-grid">
+            <div class="backups-summary-item">
+              <span>Estado</span>
+              <strong id="backups-status">Sin respaldos</strong>
+            </div>
+            <div class="backups-summary-item">
+              <span>Total</span>
+              <strong id="backups-total">0</strong>
+            </div>
+            <div class="backups-summary-item">
+              <span>Automáticos</span>
+              <strong id="backups-automatic">0</strong>
+            </div>
+            <div class="backups-summary-item">
+              <span>Manuales</span>
+              <strong id="backups-manual">0</strong>
+            </div>
+            <div class="backups-summary-item">
+              <span>Último respaldo</span>
+              <strong id="backups-latest">Sin respaldo</strong>
+            </div>
+          </div>
+
+          <h3 class="backups-list-title">Respaldos recientes</h3>
+          <ul class="backups-list" id="backups-list"></ul>
+        </section>
+
         <section class="admin-next-section">
           <h2>Funciones administrativas que siguen</h2>
           <div class="admin-next-list">
-            <span>Pruebas de arranque</span>
-            <span>Respaldos locales</span>
             <span>Instalador de Windows</span>
             <span>Sincronización externa</span>
             <span>Mensajes y pop-ups</span>
+            <span>Historial de productos</span>
           </div>
         </section>
       </section>
@@ -414,5 +464,6 @@
   <script src="./app.js"></script>
   <script src="./preferences.js"></script>
   <script src="./diagnostics.js"></script>
+  <script src="./backups.js"></script>
 </body>
 </html>
