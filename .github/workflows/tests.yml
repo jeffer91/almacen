@@ -13,9 +13,16 @@ permissions:
 
 jobs:
   tests:
-    name: Node.js y SQLite
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
+    name: Node.js y SQLite en ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 12
+
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-latest
+          - windows-latest
 
     steps:
       - name: Descargar repositorio
