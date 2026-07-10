@@ -1,0 +1,199 @@
+/* =========================================================
+Nombre completo: preferences.css
+Ruta o ubicación: /app/renderer/styles/preferences.css
+Función o funciones:
+- Aplicar tamaños de letra configurables.
+- Aplicar contraste alto y movimiento reducido.
+- Diseñar el formulario de configuración del equipo.
+- Mantener controles grandes y legibles.
+========================================================= */
+
+html[data-text-size="normal"] {
+  font-size: 18px;
+}
+
+html[data-text-size="large"] {
+  font-size: 20px;
+}
+
+html[data-text-size="xlarge"] {
+  font-size: 22px;
+}
+
+html[data-high-contrast="true"] {
+  --surface: #ffffff;
+  --surface-soft: #e9edf4;
+  --text: #05070a;
+  --text-soft: #202735;
+  --border: #515967;
+  --primary: #003f9a;
+  --primary-strong: #002f73;
+  --focus: #ffb000;
+  --shadow: 0 14px 34px rgba(0, 0, 0, 0.2);
+}
+
+html[data-high-contrast="true"] body {
+  background: #f2f4f7;
+}
+
+html[data-high-contrast="true"] .profile-card,
+html[data-high-contrast="true"] .action-card,
+html[data-high-contrast="true"] .admin-card,
+html[data-high-contrast="true"] .status-card,
+html[data-high-contrast="true"] .center-card {
+  border-width: 3px;
+}
+
+html[data-reduced-motion="true"] *,
+html[data-reduced-motion="true"] *::before,
+html[data-reduced-motion="true"] *::after {
+  scroll-behavior: auto !important;
+  transition-duration: 0.01ms !important;
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+}
+
+.topbar-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.view-button {
+  min-width: 132px;
+}
+
+.device-preferences-dialog {
+  width: min(760px, calc(100% - 36px));
+}
+
+.preferences-section {
+  margin-top: 24px;
+}
+
+.preferences-section-title {
+  margin: 0 0 12px;
+  font-size: 1.05rem;
+  font-weight: 850;
+}
+
+.text-size-options {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.text-size-option {
+  position: relative;
+  display: flex;
+  min-height: 104px;
+  cursor: pointer;
+}
+
+.text-size-option input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+
+.text-size-option-content {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
+  padding: 18px;
+  border: 2px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface);
+  text-align: center;
+}
+
+.text-size-option-content strong {
+  color: var(--text);
+}
+
+.text-size-option-content span {
+  color: var(--text-soft);
+  font-size: 0.9rem;
+}
+
+.text-size-option input:checked + .text-size-option-content {
+  border-color: var(--primary);
+  background: #edf4ff;
+  box-shadow: 0 0 0 3px rgba(23, 78, 166, 0.16);
+}
+
+.text-size-option input:focus-visible + .text-size-option-content {
+  outline: 4px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.preference-toggle-list {
+  display: grid;
+  gap: 12px;
+}
+
+.preference-toggle {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface-soft);
+  cursor: pointer;
+}
+
+.preference-toggle input {
+  flex: 0 0 auto;
+  width: 24px;
+  height: 24px;
+  margin-top: 2px;
+  accent-color: var(--primary);
+}
+
+.preference-toggle-content {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.preference-toggle-content strong {
+  color: var(--text);
+}
+
+.preference-toggle-content span {
+  color: var(--text-soft);
+  font-size: 0.92rem;
+}
+
+.admin-device-card {
+  display: flex;
+  flex-direction: column;
+}
+
+.admin-device-card .admin-card-button {
+  margin-top: auto;
+}
+
+@media (max-width: 820px) {
+  .text-size-options {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 720px) {
+  .topbar-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .view-button,
+  .topbar-admin {
+    min-width: 0;
+    width: 100%;
+  }
+}
