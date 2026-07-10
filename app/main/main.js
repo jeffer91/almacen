@@ -9,6 +9,7 @@ Función o funciones:
 - Gestionar el acceso administrativo protegido y su sesión temporal.
 - Inicializar, probar y cerrar correctamente la base local SQLite.
 - Aplicar y guardar preferencias visuales y del equipo.
+- Ejecutar y consultar diagnósticos de aplicación y pantallas.
 ========================================================= */
 
 "use strict";
@@ -24,6 +25,7 @@ const {
 } = require("./admin-auth-store");
 const { AdminSessionManager } = require("./admin-session");
 const { LocalDatabaseService } = require("./database/local-database-service");
+const { DiagnosticsService } = require("./diagnostics/diagnostics-service");
 const {
   defaultsForProfile,
   getDevicePreferences,
@@ -34,6 +36,7 @@ const {
 let mainWindow = null;
 const adminSession = new AdminSessionManager();
 const localDatabase = new LocalDatabaseService();
+const diagnostics = new DiagnosticsService(localDatabase);
 
 function success(data = {}) {
   return { ok: true, ...data };
@@ -75,6 +78,17 @@ function applyWindowPreferences(preferences) {
   } else if (mainWindow.isMaximized()) {
     mainWindow.unmaximize();
   }
+}
+
+function windowState() {
+  const available = Boolean(mainWindow && !mainWindow.isDestroyed());
+
+  return {
+    available,
+    visible: available ? mainWindow.isVisible() : false,
+    focused: available ? mainWindow.isFocused() : false,
+    maximized: available ? mainWindow.isMaximized() : false
+  };
 }
 
 async function buildAdminStatus() {
@@ -311,6 +325,79 @@ function registerIpcHandlers() {
     }
   });
 
+  ipcMain.handle("diagnostics:report-screens", (_event, reports) => {
+    try {
+      const saved = diagnostics.reportScreens(reports);
+      return success({ savedCount: saved.length });
+    } catch (error) {
+      console.error("No fue posible guardar el reporte de pantallas:", error);
+      return failure(
+        error.code || "SCREEN_REPORT_FAILED",
+        error.message || "No se pudo guardar el reporte de pantallas."
+      );
+    }
+  });
+
+  ipcMain.handle("diagnostics:get-summary", async () => {
+    if (!adminSession.isUnlocked()) {
+      return failure(
+        "ADMIN_SESSION_REQUIRED",
+        "La sesión administrativa terminó. Ingresa nuevamente.",
+        { status: await buildAdminStatus() }
+      );
+    }
+
+    try {
+      return success({
+        diagnostics: diagnostics.getSummary(),
+        status: await buildAdminStatus()
+      });
+    } catch (error) {
+      console.error("No fue posible leer los diagnósticos:", error);
+      return failure(
+        error.code || "DIAGNOSTICS_READ_FAILED",
+        error.message || "No se pudieron leer los diagnósticos.",
+        { status: await buildAdminStatus() }
+      );
+    }
+  });
+
+  ipcMain.handle("diagnostics:run", async () => {
+    if (!adminSession.isUnlocked()) {
+      return failure(
+        "ADMIN_SESSION_REQUIRED",
+        "La sesión administrativa terminó. Ingresa nuevamente.",
+        { status: await buildAdminStatus() }
+      );
+    }
+
+    try {
+      const profile = await readProfile(app.getPath("userData"));
+      const preferences = currentPreferences(profile);
+      const result = diagnostics.run({
+        appVersion: app.getVersion(),
+        profile,
+        preferences,
+        windowState: windowState()
+      });
+      adminSession.touch();
+
+      return success({
+        result,
+        diagnostics: diagnostics.getSummary(),
+        database: localDatabase.getAdminStatus(),
+        status: await buildAdminStatus()
+      });
+    } catch (error) {
+      console.error("No fue posible ejecutar el diagnóstico general:", error);
+      return failure(
+        error.code || "DIAGNOSTICS_RUN_FAILED",
+        error.message || "No se pudo ejecutar el diagnóstico general.",
+        { status: await buildAdminStatus() }
+      );
+    }
+  });
+
   ipcMain.handle("admin:get-status", async () => {
     return success({ status: await buildAdminStatus() });
   });
@@ -448,6 +535,13 @@ function registerIpcHandlers() {
     const profile = await readProfile(app.getPath("userData"));
     const sessionStatus = adminSession.touch();
     const preferences = currentPreferences(profile);
+    let diagnosticSummary = null;
+
+    try {
+      diagnosticSummary = diagnostics.getSummary();
+    } catch (error) {
+      console.error("No fue posible leer el resumen de diagnóstico:", error);
+    }
 
     return success({
       dashboard: {
@@ -460,11 +554,12 @@ function registerIpcHandlers() {
         preferences,
         session: sessionStatus,
         database: localDatabase.getAdminStatus(),
+        diagnostics: diagnosticSummary,
         modules: {
           localDatabase: localDatabase.getSummary().healthy ? "ready" : "attention",
           devicePreferences: "ready",
           synchronization: "pending",
-          diagnostics: "partial"
+          diagnostics: diagnosticSummary?.latest ? "ready" : "attention"
         }
       },
       status: await buildAdminStatus()
@@ -479,9 +574,10 @@ app.whenReady().then(async () => {
   registerIpcHandlers();
   createMainWindow(preferences);
 
-  app.on("activate", () => {
+  app.on("activate", async () => {
     if (BrowserWindow.getAllWindows().length === 0) {
-      createMainWindow(currentPreferences(profile));
+      const activeProfile = await readProfile(app.getPath("userData"));
+      createMainWindow(currentPreferences(activeProfile));
     }
   });
 });
