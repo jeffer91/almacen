@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="es">
+<html lang="es" data-text-size="normal" data-high-contrast="false" data-reduced-motion="false">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -8,6 +8,7 @@
   <link rel="stylesheet" href="./styles/global.css">
   <link rel="stylesheet" href="./styles/easy-mode.css">
   <link rel="stylesheet" href="./styles/admin.css">
+  <link rel="stylesheet" href="./styles/preferences.css">
 </head>
 <body>
   <div class="app-shell">
@@ -20,9 +21,14 @@
         </div>
       </div>
 
-      <button class="button button-secondary topbar-admin" id="admin-button" type="button">
-        Administración
-      </button>
+      <div class="topbar-actions">
+        <button class="button button-secondary view-button" id="view-button" type="button" disabled>
+          Letra
+        </button>
+        <button class="button button-secondary topbar-admin" id="admin-button" type="button">
+          Administración
+        </button>
+      </div>
     </header>
 
     <main class="main-content">
@@ -135,6 +141,15 @@
             <p>Aplicación de escritorio</p>
           </article>
 
+          <article class="admin-card admin-device-card">
+            <p class="admin-card-label">Configuración del equipo</p>
+            <h2 id="admin-device-friendly-name">Computadora del almacén</h2>
+            <p id="admin-device-preference-summary">Leyendo preferencias visuales.</p>
+            <button class="button button-secondary admin-card-button" id="admin-device-configure-button" type="button">
+              Configurar equipo
+            </button>
+          </article>
+
           <article class="admin-card admin-card-database" id="admin-database-card">
             <div class="admin-card-heading-row">
               <div>
@@ -170,7 +185,7 @@
           <article class="admin-card admin-card-pending">
             <p class="admin-card-label">Sincronización externa</p>
             <h2>Pendiente</h2>
-            <p>Se activará después de completar la configuración del dispositivo.</p>
+            <p>Se activará después del diagnóstico general.</p>
           </article>
 
           <article class="admin-card admin-card-pending">
@@ -183,7 +198,7 @@
         <section class="admin-next-section">
           <h2>Funciones administrativas que siguen</h2>
           <div class="admin-next-list">
-            <span>Configuración del equipo</span>
+            <span>Pruebas de pantallas</span>
             <span>Pruebas de conexión</span>
             <span>Estado de equipos</span>
             <span>Mensajes y pop-ups</span>
@@ -258,8 +273,94 @@
     </form>
   </dialog>
 
+  <dialog class="dialog device-preferences-dialog" id="device-preferences-dialog">
+    <form class="dialog-content" id="device-preferences-form" novalidate>
+      <p class="eyebrow">Configuración del equipo</p>
+      <h2>Vista y funcionamiento</h2>
+      <p>Estos cambios quedan guardados solamente en esta computadora.</p>
+
+      <label class="form-field" for="device-friendly-name">
+        <span>Nombre fácil del equipo</span>
+        <input
+          class="text-input"
+          id="device-friendly-name"
+          type="text"
+          maxlength="60"
+          autocomplete="off"
+          required
+        >
+      </label>
+
+      <section class="preferences-section" aria-labelledby="text-size-title">
+        <h3 class="preferences-section-title" id="text-size-title">Tamaño de la letra</h3>
+        <div class="text-size-options">
+          <label class="text-size-option">
+            <input type="radio" name="device-text-size" value="normal">
+            <span class="text-size-option-content">
+              <strong>Normal</strong>
+              <span>Para la pantalla administrativa.</span>
+            </span>
+          </label>
+          <label class="text-size-option">
+            <input type="radio" name="device-text-size" value="large">
+            <span class="text-size-option-content">
+              <strong>Grande</strong>
+              <span>Recomendada para Edgar y Gloria.</span>
+            </span>
+          </label>
+          <label class="text-size-option">
+            <input type="radio" name="device-text-size" value="xlarge">
+            <span class="text-size-option-content">
+              <strong>Muy grande</strong>
+              <span>Máxima facilidad de lectura.</span>
+            </span>
+          </label>
+        </div>
+      </section>
+
+      <section class="preferences-section" aria-labelledby="visual-options-title">
+        <h3 class="preferences-section-title" id="visual-options-title">Otras opciones</h3>
+        <div class="preference-toggle-list">
+          <label class="preference-toggle">
+            <input id="device-high-contrast" type="checkbox">
+            <span class="preference-toggle-content">
+              <strong>Contraste alto</strong>
+              <span>Oscurece el texto y marca mejor los bordes.</span>
+            </span>
+          </label>
+          <label class="preference-toggle">
+            <input id="device-reduced-motion" type="checkbox">
+            <span class="preference-toggle-content">
+              <strong>Reducir movimientos</strong>
+              <span>Evita animaciones y cambios visuales innecesarios.</span>
+            </span>
+          </label>
+          <label class="preference-toggle">
+            <input id="device-start-maximized" type="checkbox">
+            <span class="preference-toggle-content">
+              <strong>Abrir en pantalla completa</strong>
+              <span>La aplicación utilizará todo el espacio disponible.</span>
+            </span>
+          </label>
+        </div>
+      </section>
+
+      <p class="form-error hidden" id="device-preferences-error" role="alert"></p>
+
+      <div class="dialog-actions">
+        <button class="button button-secondary" id="device-preferences-cancel" type="button">
+          Cancelar
+        </button>
+        <button class="button button-primary" id="device-preferences-save" type="submit">
+          Guardar configuración
+        </button>
+      </div>
+    </form>
+  </dialog>
+
   <div class="toast hidden" id="toast" role="status" aria-live="polite"></div>
 
   <script src="./app.js"></script>
+  <script src="./preferences.js"></script>
 </body>
 </html>
