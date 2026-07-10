@@ -29,6 +29,7 @@ Función o funciones:
     homeScreen: document.getElementById("home-screen"),
     viewButton: document.getElementById("view-button"),
     adminConfigureButton: document.getElementById("admin-device-configure-button"),
+    adminDeviceName: document.getElementById("admin-device-name"),
     adminDeviceFriendlyName: document.getElementById("admin-device-friendly-name"),
     adminDevicePreferenceSummary: document.getElementById("admin-device-preference-summary"),
     dialog: document.getElementById("device-preferences-dialog"),
@@ -98,6 +99,10 @@ Función o funciones:
       elements.viewButton.disabled = false;
       elements.viewButton.textContent = `Letra: ${TEXT_SIZE_LABELS[preferences.textSize]}`;
       elements.viewButton.title = "Cambiar el tamaño de la letra";
+    }
+
+    if (elements.adminDeviceName) {
+      elements.adminDeviceName.textContent = preferences.friendlyName;
     }
 
     if (elements.adminDeviceFriendlyName) {
