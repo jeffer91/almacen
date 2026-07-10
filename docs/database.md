@@ -72,6 +72,18 @@ Cola preparada para la futura sincronización progresiva con bases externas.
 
 Conserva el resultado de la última prueba de integridad local.
 
+### `diagnostic_runs`
+
+Conserva cada ejecución del diagnóstico general, su estado, duración, versión y cantidades de resultados.
+
+### `diagnostic_checks`
+
+Guarda las comprobaciones individuales de aplicación, perfil, preferencias, base y pantallas.
+
+### `screen_reports`
+
+Mantiene el último reporte técnico enviado por cada pantalla de la interfaz.
+
 ## Diagnóstico administrativo
 
 El botón **Probar base local** comprueba:
@@ -86,7 +98,16 @@ El botón **Probar base local** comprueba:
 - tamaño del archivo;
 - cantidades básicas de registros.
 
-El diagnóstico solo puede ejecutarse durante una sesión administrativa activa.
+El botón **Ejecutar diagnóstico general** también revisa:
+
+- ventana principal;
+- versión instalada;
+- perfil y canal del equipo;
+- preferencias visuales;
+- comunicación segura;
+- controles obligatorios de cada pantalla.
+
+Los diagnósticos completos solo pueden consultarse o ejecutarse durante una sesión administrativa activa.
 
 ## Eliminación y recuperación
 
