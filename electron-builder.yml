@@ -1,0 +1,27 @@
+appId: com.villarreal.almacenfamiliar
+productName: Almacén Familiar
+copyright: Copyright © 2026 Jefferson Villarreal
+
+asar: true
+
+directories:
+  output: dist
+
+files:
+  - app/**/*
+  - package.json
+
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+  artifactName: ${productName}-Setup-${version}.${ext}
+
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: always
+  createStartMenuShortcut: true
+  shortcutName: Almacén Familiar
+  uninstallDisplayName: Almacén Familiar
