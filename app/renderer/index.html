@@ -7,6 +7,7 @@
   <title>Almacén Familiar</title>
   <link rel="stylesheet" href="./styles/global.css">
   <link rel="stylesheet" href="./styles/easy-mode.css">
+  <link rel="stylesheet" href="./styles/admin.css">
 </head>
 <body>
   <div class="app-shell">
@@ -56,8 +57,8 @@
           <div class="status-card" aria-live="polite">
             <span class="status-dot" aria-hidden="true"></span>
             <div>
-              <strong>Base local lista</strong>
-              <span>El perfil está guardado en esta computadora.</span>
+              <strong>Perfil local listo</strong>
+              <span>Esta computadora recuerda quién la utiliza.</span>
             </div>
           </div>
         </div>
@@ -88,6 +89,82 @@
           </button>
         </div>
       </section>
+
+      <section class="screen hidden admin-screen" id="admin-screen" aria-labelledby="admin-title">
+        <div class="admin-page-header">
+          <div>
+            <p class="eyebrow">Centro de control</p>
+            <h1 id="admin-title">Administración</h1>
+            <p class="lead">Acceso exclusivo de Jefferson.</p>
+          </div>
+
+          <div class="admin-header-actions">
+            <button class="button button-secondary" id="admin-back-button" type="button">
+              Volver al inicio
+            </button>
+            <button class="button button-primary" id="admin-logout-button" type="button">
+              Cerrar administración
+            </button>
+          </div>
+        </div>
+
+        <div class="admin-session-banner" aria-live="polite">
+          <div>
+            <strong>Sesión administrativa activa</strong>
+            <span id="admin-session-text">Se cerrará después de 15 minutos sin actividad.</span>
+          </div>
+          <span class="admin-secure-badge">Protegida</span>
+        </div>
+
+        <div class="admin-grid">
+          <article class="admin-card">
+            <p class="admin-card-label">Equipo</p>
+            <h2 id="admin-device-name">—</h2>
+            <p id="admin-device-platform">—</p>
+          </article>
+
+          <article class="admin-card">
+            <p class="admin-card-label">Perfil configurado</p>
+            <h2 id="admin-profile-name">—</h2>
+            <p id="admin-profile-channel">—</p>
+          </article>
+
+          <article class="admin-card">
+            <p class="admin-card-label">Versión instalada</p>
+            <h2 id="admin-app-version">—</h2>
+            <p>Aplicación de escritorio</p>
+          </article>
+
+          <article class="admin-card admin-card-pending">
+            <p class="admin-card-label">Base local SQLite</p>
+            <h2>Pendiente</h2>
+            <p>Se implementará en el próximo bloque.</p>
+          </article>
+
+          <article class="admin-card admin-card-pending">
+            <p class="admin-card-label">Sincronización externa</p>
+            <h2>Pendiente</h2>
+            <p>Se activará después de la base local.</p>
+          </article>
+
+          <article class="admin-card admin-card-pending">
+            <p class="admin-card-label">Diagnóstico técnico</p>
+            <h2>Pendiente</h2>
+            <p>Se conectará con las pruebas de la etapa 1.</p>
+          </article>
+        </div>
+
+        <section class="admin-next-section">
+          <h2>Funciones administrativas que siguen</h2>
+          <div class="admin-next-list">
+            <span>Base local</span>
+            <span>Pruebas de conexión</span>
+            <span>Estado de equipos</span>
+            <span>Mensajes y pop-ups</span>
+            <span>Historial y alertas</span>
+          </div>
+        </section>
+      </section>
     </main>
   </div>
 
@@ -99,6 +176,58 @@
       <div class="dialog-actions">
         <button class="button button-secondary" value="cancel">Volver</button>
         <button class="button button-primary" id="confirm-profile" value="default">Sí, guardar</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog class="dialog admin-dialog" id="admin-dialog">
+    <form class="dialog-content" id="admin-form" novalidate>
+      <p class="eyebrow" id="admin-dialog-eyebrow">Acceso protegido</p>
+      <h2 id="admin-dialog-title">Ingresar a Administración</h2>
+      <p id="admin-dialog-message">Escribe la contraseña de Jefferson.</p>
+
+      <div id="admin-password-fields">
+        <label class="form-field" for="admin-password">
+          <span>Contraseña</span>
+          <input
+            class="text-input"
+            id="admin-password"
+            name="password"
+            type="password"
+            minlength="8"
+            maxlength="128"
+            autocomplete="current-password"
+            required
+          >
+        </label>
+
+        <label class="form-field hidden" id="admin-confirmation-field" for="admin-confirmation">
+          <span>Repetir contraseña</span>
+          <input
+            class="text-input"
+            id="admin-confirmation"
+            name="confirmation"
+            type="password"
+            minlength="8"
+            maxlength="128"
+            autocomplete="new-password"
+          >
+        </label>
+
+        <label class="password-visibility" for="show-admin-password">
+          <input id="show-admin-password" type="checkbox">
+          <span>Mostrar contraseña</span>
+        </label>
+      </div>
+
+      <div class="security-note hidden" id="admin-security-note" role="note"></div>
+      <p class="form-error hidden" id="admin-form-error" role="alert"></p>
+
+      <div class="dialog-actions">
+        <button class="button button-secondary" id="admin-cancel-button" type="button">Volver</button>
+        <button class="button button-primary" id="admin-submit-button" type="submit">
+          Ingresar
+        </button>
       </div>
     </form>
   </dialog>
