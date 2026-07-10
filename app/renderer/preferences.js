@@ -6,6 +6,7 @@ Función o funciones:
 - Permitir a Edgar y Gloria cambiar rápidamente el tamaño de letra.
 - Mostrar y guardar la configuración completa desde Administración.
 - Mantener la vista actualizada sin recargar la aplicación.
+- Detectar cuándo termina la configuración inicial del perfil.
 ========================================================= */
 
 "use strict";
@@ -25,6 +26,7 @@ Función o funciones:
   };
 
   const elements = {
+    homeScreen: document.getElementById("home-screen"),
     viewButton: document.getElementById("view-button"),
     adminConfigureButton: document.getElementById("admin-device-configure-button"),
     adminDeviceFriendlyName: document.getElementById("admin-device-friendly-name"),
@@ -240,6 +242,23 @@ Función o funciones:
     }
   }
 
+  function observeProfileSetup() {
+    if (!elements.homeScreen) {
+      return;
+    }
+
+    const observer = new MutationObserver(() => {
+      if (!elements.homeScreen.classList.contains("hidden")) {
+        loadPreferences({ quiet: true });
+      }
+    });
+
+    observer.observe(elements.homeScreen, {
+      attributes: true,
+      attributeFilter: ["class"]
+    });
+  }
+
   function bindEvents() {
     elements.viewButton?.addEventListener("click", cycleTextSize);
     elements.adminConfigureButton?.addEventListener("click", openDialog);
@@ -250,6 +269,7 @@ Función o funciones:
     });
 
     window.addEventListener("focus", () => loadPreferences({ quiet: true }));
+    observeProfileSetup();
   }
 
   function start() {
