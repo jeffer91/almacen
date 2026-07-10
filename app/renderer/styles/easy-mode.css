@@ -1,0 +1,53 @@
+/* =========================================================
+Nombre completo: easy-mode.css
+Ruta o ubicación: /app/renderer/styles/easy-mode.css
+Función o funciones:
+- Aumentar legibilidad para Edgar y Gloria.
+- Mantener controles grandes y fáciles de reconocer.
+- Reducir elementos visuales innecesarios.
+========================================================= */
+
+body {
+  font-size: 19px;
+}
+
+.profile-card,
+.action-card,
+.button {
+  touch-action: manipulation;
+}
+
+.profile-card,
+.action-card {
+  user-select: none;
+}
+
+.profile-card:active,
+.action-card:active,
+.button:active {
+  transform: translateY(1px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition: none !important;
+    animation: none !important;
+  }
+}
+
+@media (prefers-contrast: more) {
+  :root {
+    --border: #6f7787;
+    --text-soft: #303a4e;
+  }
+
+  .profile-card,
+  .action-card,
+  .status-card,
+  .center-card {
+    border-width: 3px;
+  }
+}
