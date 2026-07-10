@@ -7,7 +7,7 @@ Función o funciones:
 - Guardar configuraciones locales por dispositivo.
 - Ejecutar pruebas de integridad y claves foráneas.
 - Entregar un resumen técnico para el Centro de control.
-- Verificar las tablas de diagnósticos y pantallas.
+- Verificar las tablas de diagnósticos, pantallas y catálogo.
 ========================================================= */
 
 "use strict";
@@ -30,7 +30,12 @@ const REQUIRED_TABLES = Object.freeze([
   "system_health",
   "diagnostic_runs",
   "diagnostic_checks",
-  "screen_reports"
+  "screen_reports",
+  "products",
+  "product_variants",
+  "product_photos",
+  "product_links",
+  "catalog_events"
 ]);
 
 function nowIso() {
@@ -260,7 +265,12 @@ class LocalDatabaseService {
         "sync_queue",
         "diagnostic_runs",
         "diagnostic_checks",
-        "screen_reports"
+        "screen_reports",
+        "products",
+        "product_variants",
+        "product_photos",
+        "product_links",
+        "catalog_events"
       ]) {
         const row = this.database.prepare(`SELECT COUNT(*) AS total FROM ${table}`).get();
         counts[table] = Number(row.total);
