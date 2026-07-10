@@ -7,6 +7,7 @@ Función o funciones:
 - Exponer operaciones seguras mediante IPC.
 - Leer y guardar el perfil fijo de cada computadora.
 - Gestionar el acceso administrativo protegido y su sesión temporal.
+- Inicializar, probar y cerrar correctamente la base local SQLite.
 ========================================================= */
 
 "use strict";
@@ -21,9 +22,11 @@ const {
   verifyAdminPassword
 } = require("./admin-auth-store");
 const { AdminSessionManager } = require("./admin-session");
+const { LocalDatabaseService } = require("./database/local-database-service");
 
 let mainWindow = null;
 const adminSession = new AdminSessionManager();
+const localDatabase = new LocalDatabaseService();
 
 function success(data = {}) {
   return { ok: true, ...data };
@@ -31,6 +34,19 @@ function success(data = {}) {
 
 function failure(code, message, data = {}) {
   return { ok: false, code, message, ...data };
+}
+
+async function initializeLocalDatabase(profile = null) {
+  try {
+    return localDatabase.initialize({
+      userDataPath: app.getPath("userData"),
+      appVersion: app.getVersion(),
+      profile
+    });
+  } catch (error) {
+    console.error("No fue posible iniciar la base local:", error);
+    return localDatabase.getSummary();
+  }
 }
 
 async function buildAdminStatus() {
@@ -124,7 +140,53 @@ function registerIpcHandlers() {
   });
 
   ipcMain.handle("profile:save", async (_event, profileId) => {
-    return saveProfile(app.getPath("userData"), profileId);
+    const profile = await saveProfile(app.getPath("userData"), profileId);
+
+    try {
+      if (!localDatabase.getSummary().initialized) {
+        await initializeLocalDatabase(profile);
+      } else {
+        localDatabase.registerDeviceProfile(profile, app.getVersion());
+      }
+    } catch (error) {
+      console.error("El perfil se guardó, pero no pudo registrarse en la base local:", error);
+    }
+
+    return profile;
+  });
+
+  ipcMain.handle("database:get-summary", () => {
+    return success({ database: localDatabase.getSummary() });
+  });
+
+  ipcMain.handle("database:run-diagnostic", async () => {
+    if (!adminSession.isUnlocked()) {
+      return failure(
+        "ADMIN_SESSION_REQUIRED",
+        "La sesión administrativa terminó. Ingresa nuevamente.",
+        { status: await buildAdminStatus() }
+      );
+    }
+
+    try {
+      const diagnostic = localDatabase.runDiagnostic();
+      adminSession.touch();
+      return success({
+        diagnostic,
+        database: localDatabase.getAdminStatus(),
+        status: await buildAdminStatus()
+      });
+    } catch (error) {
+      console.error("No fue posible probar la base local:", error);
+      return failure(
+        error.code || "DATABASE_DIAGNOSTIC_FAILED",
+        error.message || "No se pudo probar la base local.",
+        {
+          database: localDatabase.getAdminStatus(),
+          status: await buildAdminStatus()
+        }
+      );
+    }
   });
 
   ipcMain.handle("admin:get-status", async () => {
@@ -272,10 +334,11 @@ function registerIpcHandlers() {
         platform: process.platform,
         profile,
         session: sessionStatus,
+        database: localDatabase.getAdminStatus(),
         modules: {
-          localDatabase: "pending",
+          localDatabase: localDatabase.getSummary().healthy ? "ready" : "attention",
           synchronization: "pending",
-          diagnostics: "pending"
+          diagnostics: "partial"
         }
       },
       status: await buildAdminStatus()
@@ -283,7 +346,9 @@ function registerIpcHandlers() {
   });
 }
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
+  const profile = await readProfile(app.getPath("userData"));
+  await initializeLocalDatabase(profile);
   registerIpcHandlers();
   createMainWindow();
 
@@ -292,6 +357,10 @@ app.whenReady().then(() => {
       createMainWindow();
     }
   });
+});
+
+app.on("before-quit", () => {
+  localDatabase.close();
 });
 
 app.on("window-all-closed", () => {
