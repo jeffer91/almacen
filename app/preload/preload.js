@@ -10,6 +10,7 @@ Función o funciones:
 - Leer y guardar preferencias visuales y del equipo.
 - Reportar pantallas y ejecutar diagnósticos generales.
 - Consultar el estado coordinado del arranque.
+- Crear, verificar y abrir respaldos locales.
 ========================================================= */
 
 "use strict";
@@ -28,6 +29,10 @@ const api = Object.freeze({
     ipcRenderer.invoke("device:update-preferences", preferences),
   getDatabaseSummary: () => ipcRenderer.invoke("database:get-summary"),
   runDatabaseDiagnostic: () => ipcRenderer.invoke("database:run-diagnostic"),
+  getBackupsSummary: () => ipcRenderer.invoke("backups:get-summary"),
+  createBackup: () => ipcRenderer.invoke("backups:create"),
+  verifyBackup: (fileName) => ipcRenderer.invoke("backups:verify", fileName),
+  openBackupsFolder: () => ipcRenderer.invoke("backups:open-folder"),
   reportScreenDiagnostics: (reports) =>
     ipcRenderer.invoke("diagnostics:report-screens", reports),
   getDiagnosticsSummary: () => ipcRenderer.invoke("diagnostics:get-summary"),
