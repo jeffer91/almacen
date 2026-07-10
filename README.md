@@ -8,7 +8,7 @@ Aplicación de escritorio local-first para compartir productos, costos y precios
 
 ## Estado actual
 
-Etapa 1 en desarrollo. Versión actual: `0.4.0`.
+Etapa 1 en desarrollo. Versión actual: `0.5.0`.
 
 Ya está implementado:
 
@@ -38,7 +38,10 @@ Ya está implementado:
 - Contraste alto y movimiento reducido.
 - Apertura maximizada configurable.
 - Valores visuales recomendados automáticamente para Edgar y Gloria.
-- Pruebas automáticas para contraseña, sesión, migraciones, persistencia y preferencias.
+- Diagnóstico general de aplicación, perfil, preferencias, base y pantallas.
+- Reporte automático de controles obligatorios de cada pantalla.
+- Historial local de diagnósticos con resultados y duración.
+- Pruebas automáticas para contraseña, sesión, migraciones, persistencia, preferencias y diagnósticos.
 
 ## Regla temporal de configuración administrativa
 
@@ -85,6 +88,8 @@ app/
 │   ├── admin-auth-store.js
 │   ├── admin-session.js
 │   ├── device-preferences.js
+│   ├── diagnostics/
+│   │   └── diagnostics-service.js
 │   └── database/
 │       ├── connection.js
 │       ├── migrations.js
@@ -96,20 +101,24 @@ app/
     ├── index.html
     ├── app.js
     ├── preferences.js
+    ├── diagnostics.js
     └── styles/
         ├── global.css
         ├── easy-mode.css
         ├── admin.css
-        └── preferences.css
+        ├── preferences.css
+        └── diagnostics.css
 
 tests/
 ├── admin-auth.test.js
 ├── local-database.test.js
-└── device-preferences.test.js
+├── device-preferences.test.js
+└── diagnostics.test.js
 
 docs/
 ├── database.md
-└── device-preferences.md
+├── device-preferences.md
+└── diagnostics.md
 ```
 
 ## Base local actual
@@ -123,16 +132,19 @@ Tablas creadas:
 - `device_settings`;
 - `audit_events`;
 - `sync_queue`;
-- `system_health`.
+- `system_health`;
+- `diagnostic_runs`;
+- `diagnostic_checks`;
+- `screen_reports`.
 
 La documentación técnica se encuentra en:
 
 - `docs/database.md`;
-- `docs/device-preferences.md`.
+- `docs/device-preferences.md`;
+- `docs/diagnostics.md`.
 
 ## Próximos bloques de la etapa 1
 
-1. Diagnóstico general de aplicación y pantallas.
-2. Pruebas del arranque y selección de perfil.
-3. Respaldos básicos de la base local.
-4. Compilación y verificación del primer instalador de Windows.
+1. Pruebas del arranque y selección de perfil.
+2. Respaldos básicos de la base local.
+3. Compilación y verificación del primer instalador de Windows.
