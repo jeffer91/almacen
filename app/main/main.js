@@ -10,6 +10,7 @@ Función o funciones:
 - Inicializar, probar y cerrar correctamente la base local SQLite.
 - Aplicar y guardar preferencias visuales y del equipo.
 - Ejecutar y consultar diagnósticos de aplicación y pantallas.
+- Coordinar y exponer el estado verificado del arranque.
 ========================================================= */
 
 "use strict";
@@ -26,6 +27,7 @@ const {
 const { AdminSessionManager } = require("./admin-session");
 const { LocalDatabaseService } = require("./database/local-database-service");
 const { DiagnosticsService } = require("./diagnostics/diagnostics-service");
+const { inspectStartup } = require("./startup/startup-service");
 const {
   defaultsForProfile,
   getDevicePreferences,
@@ -34,6 +36,8 @@ const {
 } = require("./device-preferences");
 
 let mainWindow = null;
+let startupReport = null;
+
 const adminSession = new AdminSessionManager();
 const localDatabase = new LocalDatabaseService();
 const diagnostics = new DiagnosticsService(localDatabase);
@@ -44,6 +48,16 @@ function success(data = {}) {
 
 function failure(code, message, data = {}) {
   return { ok: false, code, message, ...data };
+}
+
+async function refreshStartupReport() {
+  startupReport = await inspectStartup({
+    userDataPath: app.getPath("userData"),
+    appVersion: app.getVersion(),
+    databaseService: localDatabase
+  });
+
+  return startupReport;
 }
 
 async function initializeLocalDatabase(profile = null) {
@@ -176,6 +190,14 @@ function registerIpcHandlers() {
     platform: process.platform
   }));
 
+  ipcMain.handle("startup:get-state", async () => {
+    if (!startupReport) {
+      await refreshStartupReport();
+    }
+
+    return success({ startup: startupReport });
+  });
+
   ipcMain.handle("profile:list", () => Object.values(PROFILES));
 
   ipcMain.handle("profile:get", async () => {
@@ -193,6 +215,7 @@ function registerIpcHandlers() {
       }
 
       currentPreferences(profile);
+      await refreshStartupReport();
     } catch (error) {
       console.error("El perfil se guardó, pero no pudo registrarse en la base local:", error);
     }
@@ -268,6 +291,10 @@ function registerIpcHandlers() {
       const saved = saveDevicePreferences(localDatabase, profile, preferences);
       applyWindowPreferences(saved);
       adminSession.touch();
+
+      if (startupReport) {
+        startupReport = { ...startupReport, preferences: saved };
+      }
 
       return success({
         preferences: saved,
@@ -552,10 +579,12 @@ function registerIpcHandlers() {
         platform: process.platform,
         profile,
         preferences,
+        startup: startupReport,
         session: sessionStatus,
         database: localDatabase.getAdminStatus(),
         diagnostics: diagnosticSummary,
         modules: {
+          startup: startupReport?.status === "ready" ? "ready" : "attention",
           localDatabase: localDatabase.getSummary().healthy ? "ready" : "attention",
           devicePreferences: "ready",
           synchronization: "pending",
@@ -568,16 +597,14 @@ function registerIpcHandlers() {
 }
 
 app.whenReady().then(async () => {
-  const profile = await readProfile(app.getPath("userData"));
-  await initializeLocalDatabase(profile);
-  const preferences = currentPreferences(profile);
+  await refreshStartupReport();
   registerIpcHandlers();
-  createMainWindow(preferences);
+  createMainWindow(startupReport?.preferences || defaultsForProfile(null));
 
   app.on("activate", async () => {
     if (BrowserWindow.getAllWindows().length === 0) {
-      const activeProfile = await readProfile(app.getPath("userData"));
-      createMainWindow(currentPreferences(activeProfile));
+      await refreshStartupReport();
+      createMainWindow(startupReport?.preferences || defaultsForProfile(null));
     }
   });
 });
