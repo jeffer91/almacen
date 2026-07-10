@@ -7,6 +7,7 @@ Función o funciones:
 - Guardar el perfil elegido mediante la API segura de Electron.
 - Presentar la pantalla principal adaptada al usuario.
 - Gestionar el acceso administrativo, la sesión y el cierre por inactividad.
+- Mostrar y ejecutar pruebas de la base local SQLite.
 ========================================================= */
 
 "use strict";
@@ -19,7 +20,8 @@ Función o funciones:
     currentScreen: "loading",
     adminMode: "login",
     adminUnlocked: false,
-    lastAdminTouchAt: 0
+    lastAdminTouchAt: 0,
+    databaseSummary: null
   };
 
   const elements = {
@@ -31,6 +33,9 @@ Función o funciones:
     appVersion: document.getElementById("app-version"),
     welcomeTitle: document.getElementById("welcome-title"),
     channelName: document.getElementById("channel-name"),
+    localDbDot: document.getElementById("local-db-dot"),
+    localDbTitle: document.getElementById("local-db-title"),
+    localDbMessage: document.getElementById("local-db-message"),
     adminButton: document.getElementById("admin-button"),
     profileDialog: document.getElementById("confirmation-dialog"),
     profileDialogTitle: document.getElementById("dialog-title"),
@@ -58,6 +63,15 @@ Función o funciones:
     adminProfileName: document.getElementById("admin-profile-name"),
     adminProfileChannel: document.getElementById("admin-profile-channel"),
     adminAppVersion: document.getElementById("admin-app-version"),
+    adminDatabaseCard: document.getElementById("admin-database-card"),
+    adminDatabaseStatus: document.getElementById("admin-database-status"),
+    adminDatabaseBadge: document.getElementById("admin-database-badge"),
+    adminDatabaseDetails: document.getElementById("admin-database-details"),
+    adminDatabaseSchema: document.getElementById("admin-database-schema"),
+    adminDatabaseTables: document.getElementById("admin-database-tables"),
+    adminDatabaseSize: document.getElementById("admin-database-size"),
+    adminDatabaseLastCheck: document.getElementById("admin-database-last-check"),
+    adminDatabaseTestButton: document.getElementById("admin-database-test-button"),
     toast: document.getElementById("toast")
   };
 
@@ -101,6 +115,120 @@ Función o funciones:
 
   function profileInitials(profile) {
     return profile.displayName.slice(0, 1).toUpperCase();
+  }
+
+  function formatDateTime(isoDate) {
+    if (!isoDate) {
+      return "Sin prueba";
+    }
+
+    const date = new Date(isoDate);
+    if (Number.isNaN(date.getTime())) {
+      return "Fecha no disponible";
+    }
+
+    return new Intl.DateTimeFormat("es-EC", {
+      dateStyle: "short",
+      timeStyle: "short"
+    }).format(date);
+  }
+
+  function formatBytes(bytes) {
+    const value = Number(bytes);
+
+    if (!Number.isFinite(value) || value < 0) {
+      return "—";
+    }
+
+    if (value < 1024) {
+      return `${value} B`;
+    }
+
+    if (value < 1024 * 1024) {
+      return `${(value / 1024).toFixed(1)} KB`;
+    }
+
+    return `${(value / (1024 * 1024)).toFixed(2)} MB`;
+  }
+
+  function platformName(platform) {
+    const names = {
+      win32: "Windows",
+      darwin: "macOS",
+      linux: "Linux"
+    };
+
+    return names[platform] || platform || "Sistema no identificado";
+  }
+
+  function databaseVisualStatus(database) {
+    if (database?.healthy) {
+      return {
+        title: "Base local funcionando",
+        message: `Esquema ${database.schemaVersion}. Datos guardados en esta computadora.`,
+        badge: "Correcta",
+        className: "healthy"
+      };
+    }
+
+    if (database?.status === "warning") {
+      return {
+        title: "Base local con advertencias",
+        message: "La información está disponible, pero Jefferson debe revisar el diagnóstico.",
+        badge: "Advertencia",
+        className: "warning"
+      };
+    }
+
+    if (database?.status === "error" || database?.startupError) {
+      return {
+        title: "Problema con la base local",
+        message: database.startupError?.message || "No se pudo comprobar la base local.",
+        badge: "Error",
+        className: "error"
+      };
+    }
+
+    return {
+      title: "Base local pendiente",
+      message: "Todavía no se ha completado la comprobación.",
+      badge: "Pendiente",
+      className: "neutral"
+    };
+  }
+
+  function renderHomeDatabaseStatus(database) {
+    state.databaseSummary = database || null;
+    const visual = databaseVisualStatus(database);
+
+    elements.localDbTitle.textContent = visual.title;
+    elements.localDbMessage.textContent = visual.message;
+    elements.localDbDot.className = `status-dot status-dot-${visual.className}`;
+  }
+
+  function renderAdminDatabase(database) {
+    const diagnostic = database?.diagnostic || null;
+    const visual = databaseVisualStatus(database);
+    const tableCount = Array.isArray(diagnostic?.tables) ? diagnostic.tables.length : null;
+
+    elements.adminDatabaseStatus.textContent = visual.title;
+    elements.adminDatabaseDetails.textContent = database?.startupError?.message ||
+      (diagnostic?.healthy
+        ? `Integridad correcta, claves foráneas correctas y modo ${String(diagnostic.journalMode || "WAL").toUpperCase()}.`
+        : visual.message);
+    elements.adminDatabaseSchema.textContent = database?.schemaVersion
+      ? `v${database.schemaVersion}`
+      : "—";
+    elements.adminDatabaseTables.textContent = tableCount === null ? "—" : String(tableCount);
+    elements.adminDatabaseSize.textContent = formatBytes(diagnostic?.fileSizeBytes);
+    elements.adminDatabaseLastCheck.textContent = formatDateTime(
+      diagnostic?.checkedAt || database?.lastCheckAt
+    );
+    elements.adminDatabaseBadge.textContent = visual.badge;
+    elements.adminDatabaseBadge.className =
+      `admin-state-badge admin-state-${visual.className}`;
+    elements.adminDatabaseCard.dataset.status = visual.className;
+    elements.adminDatabaseTestButton.disabled = !database?.initialized;
   }
 
   function renderProfiles() {
@@ -160,6 +288,21 @@ Función o funciones:
     showScreen(elements.homeScreen, "home");
   }
 
+  async function refreshDatabaseSummary() {
+    try {
+      const response = await window.almacen.getDatabaseSummary();
+      renderHomeDatabaseStatus(response.database || null);
+      return response.database || null;
+    } catch (error) {
+      console.error("No fue posible consultar la base local:", error);
+      renderHomeDatabaseStatus({
+        status: "error",
+        startupError: { message: "No se pudo leer el estado de la base local." }
+      });
+      return null;
+    }
+  }
+
   async function confirmSelectedProfile(event) {
     event.preventDefault();
 
@@ -175,6 +318,7 @@ Función o funciones:
       const profile = await window.almacen.saveProfile(state.selectedProfileId);
       elements.profileDialog.close();
       state.currentProfile = profile;
+      await refreshDatabaseSummary();
       renderHome(profile);
       showToast("Perfil guardado correctamente.");
     } catch (error) {
@@ -184,32 +328,6 @@ Función o funciones:
       elements.confirmProfile.disabled = false;
       elements.confirmProfile.textContent = "Sí, guardar";
     }
-  }
-
-  function formatDateTime(isoDate) {
-    if (!isoDate) {
-      return "";
-    }
-
-    const date = new Date(isoDate);
-    if (Number.isNaN(date.getTime())) {
-      return "";
-    }
-
-    return new Intl.DateTimeFormat("es-EC", {
-      dateStyle: "short",
-      timeStyle: "short"
-    }).format(date);
-  }
-
-  function platformName(platform) {
-    const names = {
-      win32: "Windows",
-      darwin: "macOS",
-      linux: "Linux"
-    };
-
-    return names[platform] || platform || "Sistema no identificado";
   }
 
   function resetAdminForm() {
@@ -419,12 +537,51 @@ Función o funciones:
         ? `Activa hasta ${formatDateTime(dashboard.session.expiresAt)} si no hay actividad.`
         : "Se cerrará después de 15 minutos sin actividad.";
       elements.adminButton.textContent = "Administración abierta";
+      renderAdminDatabase(dashboard.database || null);
+      renderHomeDatabaseStatus(dashboard.database || null);
       showScreen(elements.adminScreen, "admin");
     } catch (error) {
       console.error(error);
       state.adminUnlocked = false;
       renderHome();
       showToast("No se pudo cargar el Centro de control.", 5000);
+    }
+  }
+
+  async function runDatabaseDiagnostic() {
+    elements.adminDatabaseTestButton.disabled = true;
+    elements.adminDatabaseTestButton.textContent = "Probando…";
+    elements.adminDatabaseBadge.textContent = "Revisando";
+    elements.adminDatabaseBadge.className = "admin-state-badge admin-state-neutral";
+
+    try {
+      const response = await window.almacen.runDatabaseDiagnostic();
+
+      if (!response.ok) {
+        if (response.code === "ADMIN_SESSION_REQUIRED") {
+          state.adminUnlocked = false;
+          renderHome();
+        }
+
+        renderAdminDatabase(response.database || null);
+        showToast(response.message || "No se pudo probar la base local.", 5000);
+        return;
+      }
+
+      renderAdminDatabase(response.database);
+      renderHomeDatabaseStatus(response.database);
+      showToast(
+        response.diagnostic?.healthy
+          ? "La base local funciona correctamente."
+          : "La prueba terminó con advertencias.",
+        4800
+      );
+    } catch (error) {
+      console.error(error);
+      showToast("Ocurrió un error al probar la base local.", 5000);
+    } finally {
+      elements.adminDatabaseTestButton.disabled = false;
+      elements.adminDatabaseTestButton.textContent = "Probar base local";
     }
   }
 
@@ -514,6 +671,7 @@ Función o funciones:
     elements.showAdminPassword.addEventListener("change", togglePasswordVisibility);
     elements.adminBackButton.addEventListener("click", () => renderHome());
     elements.adminLogoutButton.addEventListener("click", logoutAdmin);
+    elements.adminDatabaseTestButton.addEventListener("click", runDatabaseDiagnostic);
 
     document.querySelectorAll("[data-action]").forEach((button) => {
       button.addEventListener("click", () => {
@@ -537,16 +695,19 @@ Función o funciones:
     }
 
     try {
-      const [appInfo, profiles, currentProfile, adminResponse] = await Promise.all([
-        window.almacen.getAppInfo(),
-        window.almacen.listProfiles(),
-        window.almacen.getProfile(),
-        window.almacen.getAdminStatus()
-      ]);
+      const [appInfo, profiles, currentProfile, adminResponse, databaseResponse] =
+        await Promise.all([
+          window.almacen.getAppInfo(),
+          window.almacen.listProfiles(),
+          window.almacen.getProfile(),
+          window.almacen.getAdminStatus(),
+          window.almacen.getDatabaseSummary()
+        ]);
 
       elements.appVersion.textContent = `Versión ${appInfo.version}`;
       state.profiles = profiles;
       state.adminUnlocked = Boolean(adminResponse.status?.unlocked);
+      renderHomeDatabaseStatus(databaseResponse.database || null);
 
       if (currentProfile) {
         state.currentProfile = currentProfile;
