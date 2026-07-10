@@ -9,6 +9,7 @@
   <link rel="stylesheet" href="./styles/easy-mode.css">
   <link rel="stylesheet" href="./styles/admin.css">
   <link rel="stylesheet" href="./styles/preferences.css">
+  <link rel="stylesheet" href="./styles/diagnostics.css">
 </head>
 <body>
   <div class="app-shell">
@@ -187,22 +188,72 @@
             <h2>Pendiente</h2>
             <p>Se activará después del diagnóstico general.</p>
           </article>
-
-          <article class="admin-card admin-card-pending">
-            <p class="admin-card-label">Diagnóstico completo</p>
-            <h2>En desarrollo</h2>
-            <p>La prueba de la base local ya está disponible.</p>
-          </article>
         </div>
+
+        <section class="diagnostics-panel" id="diagnostics-panel" data-status="neutral" aria-labelledby="diagnostics-title">
+          <div class="diagnostics-header">
+            <div>
+              <p class="admin-card-label">Diagnóstico general</p>
+              <h2 id="diagnostics-title">Estado de la aplicación y pantallas</h2>
+              <p class="diagnostics-description" id="diagnostics-description">
+                Ejecuta la prueba general para revisar la aplicación, la base y las pantallas.
+              </p>
+            </div>
+            <div class="diagnostics-header-actions">
+              <span class="admin-state-badge admin-state-neutral" id="diagnostics-overall-badge">Pendiente</span>
+              <button class="button button-primary" id="diagnostics-run-button" type="button">
+                Ejecutar diagnóstico general
+              </button>
+            </div>
+          </div>
+
+          <div class="diagnostics-summary-grid">
+            <div class="diagnostics-summary-item">
+              <span>Estado</span>
+              <strong id="diagnostics-overall-status">Sin diagnóstico</strong>
+            </div>
+            <div class="diagnostics-summary-item">
+              <span>Correctas</span>
+              <strong id="diagnostics-passed-count">0</strong>
+            </div>
+            <div class="diagnostics-summary-item">
+              <span>Advertencias</span>
+              <strong id="diagnostics-warning-count">0</strong>
+            </div>
+            <div class="diagnostics-summary-item">
+              <span>Errores</span>
+              <strong id="diagnostics-failed-count">0</strong>
+            </div>
+            <div class="diagnostics-summary-item">
+              <span>Duración</span>
+              <strong id="diagnostics-duration">—</strong>
+            </div>
+            <div class="diagnostics-summary-item">
+              <span>Última prueba</span>
+              <strong id="diagnostics-last-run">Todavía no ejecutado</strong>
+            </div>
+          </div>
+
+          <div class="diagnostics-columns">
+            <div>
+              <h3 class="diagnostics-subtitle">Comprobaciones</h3>
+              <ul class="diagnostics-check-list" id="diagnostics-check-list"></ul>
+            </div>
+            <div>
+              <h3 class="diagnostics-subtitle">Historial reciente</h3>
+              <ul class="diagnostics-history-list" id="diagnostics-history-list"></ul>
+            </div>
+          </div>
+        </section>
 
         <section class="admin-next-section">
           <h2>Funciones administrativas que siguen</h2>
           <div class="admin-next-list">
-            <span>Pruebas de pantallas</span>
-            <span>Pruebas de conexión</span>
-            <span>Estado de equipos</span>
+            <span>Pruebas de arranque</span>
+            <span>Respaldos locales</span>
+            <span>Instalador de Windows</span>
+            <span>Sincronización externa</span>
             <span>Mensajes y pop-ups</span>
-            <span>Historial y alertas</span>
           </div>
         </section>
       </section>
@@ -362,5 +413,6 @@
 
   <script src="./app.js"></script>
   <script src="./preferences.js"></script>
+  <script src="./diagnostics.js"></script>
 </body>
 </html>
