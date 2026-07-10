@@ -11,6 +11,7 @@ Función o funciones:
 - Aplicar y guardar preferencias visuales y del equipo.
 - Ejecutar y consultar diagnósticos de aplicación y pantallas.
 - Coordinar y exponer el estado verificado del arranque.
+- Crear, verificar y consultar respaldos locales de SQLite.
 ========================================================= */
 
 "use strict";
@@ -27,6 +28,7 @@ const {
 const { AdminSessionManager } = require("./admin-session");
 const { LocalDatabaseService } = require("./database/local-database-service");
 const { DiagnosticsService } = require("./diagnostics/diagnostics-service");
+const { BackupService } = require("./backups/backup-service");
 const { inspectStartup } = require("./startup/startup-service");
 const {
   defaultsForProfile,
@@ -37,6 +39,7 @@ const {
 
 let mainWindow = null;
 let startupReport = null;
+let backupService = null;
 
 const adminSession = new AdminSessionManager();
 const localDatabase = new LocalDatabaseService();
@@ -48,6 +51,18 @@ function success(data = {}) {
 
 function failure(code, message, data = {}) {
   return { ok: false, code, message, ...data };
+}
+
+function getBackupService() {
+  if (!backupService) {
+    backupService = new BackupService({
+      userDataPath: app.getPath("userData"),
+      databaseService: localDatabase,
+      appVersion: app.getVersion()
+    });
+  }
+
+  return backupService;
 }
 
 async function refreshStartupReport() {
@@ -352,6 +367,111 @@ function registerIpcHandlers() {
     }
   });
 
+  ipcMain.handle("backups:get-summary", async () => {
+    if (!adminSession.isUnlocked()) {
+      return failure(
+        "ADMIN_SESSION_REQUIRED",
+        "La sesión administrativa terminó. Ingresa nuevamente.",
+        { status: await buildAdminStatus() }
+      );
+    }
+
+    try {
+      return success({
+        backups: await getBackupService().getSummary(),
+        status: await buildAdminStatus()
+      });
+    } catch (error) {
+      console.error("No fue posible consultar los respaldos:", error);
+      return failure(
+        error.code || "BACKUP_LIST_FAILED",
+        error.message || "No se pudieron consultar los respaldos.",
+        { status: await buildAdminStatus() }
+      );
+    }
+  });
+
+  ipcMain.handle("backups:create", async () => {
+    if (!adminSession.isUnlocked()) {
+      return failure(
+        "ADMIN_SESSION_REQUIRED",
+        "La sesión administrativa terminó. Ingresa nuevamente.",
+        { status: await buildAdminStatus() }
+      );
+    }
+
+    try {
+      const backup = await getBackupService().create("manual");
+      adminSession.touch();
+      return success({
+        backup,
+        backups: await getBackupService().getSummary(),
+        status: await buildAdminStatus()
+      });
+    } catch (error) {
+      console.error("No fue posible crear el respaldo manual:", error);
+      return failure(
+        error.code || "BACKUP_CREATE_FAILED",
+        error.message || "No se pudo crear el respaldo.",
+        { status: await buildAdminStatus() }
+      );
+    }
+  });
+
+  ipcMain.handle("backups:verify", async (_event, fileName) => {
+    if (!adminSession.isUnlocked()) {
+      return failure(
+        "ADMIN_SESSION_REQUIRED",
+        "La sesión administrativa terminó. Ingresa nuevamente.",
+        { status: await buildAdminStatus() }
+      );
+    }
+
+    try {
+      const verification = await getBackupService().verify(fileName);
+      adminSession.touch();
+      return success({ verification, status: await buildAdminStatus() });
+    } catch (error) {
+      console.error("No fue posible verificar el respaldo:", error);
+      return failure(
+        error.code || "BACKUP_VERIFY_FAILED",
+        error.message || "No se pudo verificar el respaldo.",
+        { status: await buildAdminStatus() }
+      );
+    }
+  });
+
+  ipcMain.handle("backups:open-folder", async () => {
+    if (!adminSession.isUnlocked()) {
+      return failure(
+        "ADMIN_SESSION_REQUIRED",
+        "La sesión administrativa terminó. Ingresa nuevamente.",
+        { status: await buildAdminStatus() }
+      );
+    }
+
+    try {
+      const directory = await getBackupService().ensureDirectory();
+      const openError = await shell.openPath(directory);
+
+      if (openError) {
+        return failure("BACKUP_FOLDER_OPEN_FAILED", openError, {
+          status: await buildAdminStatus()
+        });
+      }
+
+      adminSession.touch();
+      return success({ directory, status: await buildAdminStatus() });
+    } catch (error) {
+      console.error("No fue posible abrir la carpeta de respaldos:", error);
+      return failure(
+        error.code || "BACKUP_FOLDER_OPEN_FAILED",
+        error.message || "No se pudo abrir la carpeta de respaldos.",
+        { status: await buildAdminStatus() }
+      );
+    }
+  });
+
   ipcMain.handle("diagnostics:report-screens", (_event, reports) => {
     try {
       const saved = diagnostics.reportScreens(reports);
@@ -563,11 +683,18 @@ function registerIpcHandlers() {
     const sessionStatus = adminSession.touch();
     const preferences = currentPreferences(profile);
     let diagnosticSummary = null;
+    let backupSummary = null;
 
     try {
       diagnosticSummary = diagnostics.getSummary();
     } catch (error) {
       console.error("No fue posible leer el resumen de diagnóstico:", error);
+    }
+
+    try {
+      backupSummary = await getBackupService().getSummary();
+    } catch (error) {
+      console.error("No fue posible leer el resumen de respaldos:", error);
     }
 
     return success({
@@ -583,10 +710,12 @@ function registerIpcHandlers() {
         session: sessionStatus,
         database: localDatabase.getAdminStatus(),
         diagnostics: diagnosticSummary,
+        backups: backupSummary,
         modules: {
           startup: startupReport?.status === "ready" ? "ready" : "attention",
           localDatabase: localDatabase.getSummary().healthy ? "ready" : "attention",
           devicePreferences: "ready",
+          backups: backupSummary?.latest ? "ready" : "attention",
           synchronization: "pending",
           diagnostics: diagnosticSummary?.latest ? "ready" : "attention"
         }
@@ -598,6 +727,14 @@ function registerIpcHandlers() {
 
 app.whenReady().then(async () => {
   await refreshStartupReport();
+  getBackupService();
+
+  if (localDatabase.getSummary().initialized) {
+    backupService.maybeCreateAutomatic().catch((error) => {
+      console.error("No fue posible crear el respaldo automático:", error);
+    });
+  }
+
   registerIpcHandlers();
   createMainWindow(startupReport?.preferences || defaultsForProfile(null));
 
