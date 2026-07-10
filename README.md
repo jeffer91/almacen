@@ -8,7 +8,7 @@ Aplicación de escritorio local-first para compartir productos, costos y precios
 
 ## Estado actual
 
-Etapa 1 en verificación final. Versión actual: `0.8.0`.
+Etapa 2 iniciada. Versión actual: `0.9.0`.
 
 Ya está implementado:
 
@@ -56,8 +56,16 @@ Ya está implementado:
 - Instalación silenciosa de prueba en Windows.
 - Generación de hash SHA-256 y reporte JSON del instalador.
 - Publicación del instalador verificado como artefacto de GitHub durante 30 días.
+- Estructura local de productos, variaciones y fotografías.
+- Estados activo, inactivo y retirado sin borrado físico.
+- Fotografías independientes por usuario y canal.
+- Etapas preparadas para sincronización progresiva de fotografías.
+- Historial no destructivo mediante eventos del catálogo.
+- Cola de sincronización para productos, variaciones, fotografías y relaciones.
+- Relaciones administrativas entre productos reemplazados, duplicados o destinados a fusión.
+- Restauración reservada para Jefferson.
 - Pruebas automáticas en Linux y Windows.
-- Pruebas para contraseña, sesión, migraciones, persistencia, preferencias, diagnósticos, arranque, perfiles y respaldos.
+- Pruebas para contraseña, sesión, migraciones, persistencia, preferencias, diagnósticos, arranque, perfiles, respaldos y catálogo.
 
 ## Regla temporal de configuración administrativa
 
@@ -130,6 +138,8 @@ app/
 │   │   └── diagnostics-service.js
 │   ├── backups/
 │   │   └── backup-service.js
+│   ├── catalog/
+│   │   └── catalog-service.js
 │   └── database/
 │       ├── connection.js
 │       ├── migrations.js
@@ -163,7 +173,8 @@ tests/
 ├── device-preferences.test.js
 ├── diagnostics.test.js
 ├── startup-profile.test.js
-└── backups.test.js
+├── backups.test.js
+└── catalog.test.js
 
 docs/
 ├── database.md
@@ -171,7 +182,8 @@ docs/
 ├── diagnostics.md
 ├── startup-and-profiles.md
 ├── backups.md
-└── windows-installer.md
+├── windows-installer.md
+└── catalog-model.md
 ```
 
 ## Base local actual
@@ -188,7 +200,12 @@ Tablas creadas:
 - `system_health`;
 - `diagnostic_runs`;
 - `diagnostic_checks`;
-- `screen_reports`.
+- `screen_reports`;
+- `products`;
+- `product_variants`;
+- `product_photos`;
+- `product_links`;
+- `catalog_events`.
 
 ## Consideraciones del primer instalador
 
@@ -204,14 +221,14 @@ Tablas creadas:
 - `docs/diagnostics.md`;
 - `docs/startup-and-profiles.md`;
 - `docs/backups.md`;
-- `docs/windows-installer.md`.
+- `docs/windows-installer.md`;
+- `docs/catalog-model.md`.
 
-## Próxima etapa
+## Próximos bloques de la etapa 2
 
-La siguiente etapa inicia el catálogo comercial:
-
-1. Productos.
-2. Variaciones.
-3. Fotografías locales y sincronizables.
-4. Estados activos, inactivos y retirados.
-5. Historial no destructivo.
+1. Pantalla para buscar y consultar productos.
+2. Pantalla para crear productos y variaciones.
+3. Captura, compresión y almacenamiento local de fotografías.
+4. Pantalla para retirar y restaurar productos.
+5. Costos y proveedores.
+6. Precios por canal.
