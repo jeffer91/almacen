@@ -6,6 +6,7 @@ Función o funciones:
 - Crear las tablas fundamentales de usuarios, canales y equipos.
 - Preparar auditoría, salud del sistema y cola de sincronización.
 - Insertar los usuarios y canales iniciales de la familia.
+- Registrar diagnósticos generales y pruebas de pantallas.
 ========================================================= */
 
 "use strict";
@@ -123,6 +124,52 @@ const MIGRATIONS = Object.freeze([
 
       INSERT OR IGNORE INTO system_health (id, integrity_status, last_integrity_check_at, last_error, updated_at)
       VALUES (1, 'unknown', NULL, NULL, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'));
+    `
+  }),
+  Object.freeze({
+    version: 3,
+    name: "diagnosticos_aplicacion_y_pantallas",
+    sql: `
+      CREATE TABLE diagnostic_runs (
+        id TEXT PRIMARY KEY,
+        device_id TEXT,
+        overall_status TEXT NOT NULL CHECK (overall_status IN ('healthy', 'warning', 'error')),
+        passed_count INTEGER NOT NULL DEFAULT 0 CHECK (passed_count >= 0),
+        warning_count INTEGER NOT NULL DEFAULT 0 CHECK (warning_count >= 0),
+        failed_count INTEGER NOT NULL DEFAULT 0 CHECK (failed_count >= 0),
+        duration_ms INTEGER NOT NULL DEFAULT 0 CHECK (duration_ms >= 0),
+        app_version TEXT NOT NULL,
+        started_at TEXT NOT NULL,
+        completed_at TEXT NOT NULL,
+        FOREIGN KEY (device_id) REFERENCES devices(id) ON UPDATE CASCADE ON DELETE SET NULL
+      ) STRICT;
+
+      CREATE TABLE diagnostic_checks (
+        id TEXT PRIMARY KEY,
+        run_id TEXT NOT NULL,
+        area TEXT NOT NULL CHECK (area IN ('application', 'profile', 'database', 'preferences', 'screen')),
+        check_key TEXT NOT NULL,
+        label TEXT NOT NULL,
+        status TEXT NOT NULL CHECK (status IN ('passed', 'warning', 'failed')),
+        message TEXT NOT NULL,
+        details_json TEXT NOT NULL DEFAULT '{}',
+        duration_ms INTEGER NOT NULL DEFAULT 0 CHECK (duration_ms >= 0),
+        created_at TEXT NOT NULL,
+        FOREIGN KEY (run_id) REFERENCES diagnostic_runs(id) ON UPDATE CASCADE ON DELETE CASCADE
+      ) STRICT;
+
+      CREATE TABLE screen_reports (
+        screen_key TEXT PRIMARY KEY,
+        label TEXT NOT NULL,
+        status TEXT NOT NULL CHECK (status IN ('passed', 'warning', 'failed')),
+        message TEXT NOT NULL,
+        details_json TEXT NOT NULL DEFAULT '{}',
+        reported_at TEXT NOT NULL
+      ) STRICT, WITHOUT ROWID;
+
+      CREATE INDEX idx_diagnostic_runs_completed_at ON diagnostic_runs(completed_at DESC);
+      CREATE INDEX idx_diagnostic_checks_run ON diagnostic_checks(run_id, area, status);
+      CREATE INDEX idx_screen_reports_status ON screen_reports(status, reported_at DESC);
     `
   })
 ]);
