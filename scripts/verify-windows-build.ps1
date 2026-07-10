@@ -79,61 +79,65 @@ $package = Get-Content -LiteralPath (Join-Path $repositoryRoot "package.json") -
 $hash = Get-FileHash -LiteralPath $installer.FullName -Algorithm SHA256
 $signature = Get-AuthenticodeSignature -LiteralPath $installer.FullName
 
-$temporaryInstall = Join-Path $env:RUNNER_TEMP "almacen-familiar-install-test"
-if (-not $env:RUNNER_TEMP) {
-  $temporaryInstall = Join-Path ([System.IO.Path]::GetTempPath()) "almacen-familiar-install-test"
+$tempRoot = if ($env:RUNNER_TEMP) {
+  $env:RUNNER_TEMP
+} else {
+  [System.IO.Path]::GetTempPath()
 }
+$temporaryInstall = Join-Path $tempRoot "almacen-familiar-install-test"
 
 Remove-Item -LiteralPath $temporaryInstall -Recurse -Force -ErrorAction SilentlyContinue
 New-Item -ItemType Directory -Path $temporaryInstall -Force | Out-Null
 
-$installArguments = @(
-  "/S",
-  "/D=$temporaryInstall"
-)
+try {
+  $installArguments = @(
+    "/S",
+    "/D=$temporaryInstall"
+  )
 
-$process = Start-Process -FilePath $installer.FullName -ArgumentList $installArguments -Wait -PassThru
+  $process = Start-Process -FilePath $installer.FullName -ArgumentList $installArguments -Wait -PassThru
 
-if ($process.ExitCode -ne 0) {
-  throw "El instalador silencioso terminó con el código $($process.ExitCode)."
+  if ($process.ExitCode -ne 0) {
+    throw "El instalador silencioso terminó con el código $($process.ExitCode)."
+  }
+
+  $installedExecutable = Join-Path $temporaryInstall "Almacén Familiar.exe"
+  $installedAsar = Join-Path $temporaryInstall "resources\app.asar"
+
+  Assert-PathExists -Path $installedExecutable -Message "La instalación silenciosa no creó el ejecutable principal."
+  Assert-PathExists -Path $installedAsar -Message "La instalación silenciosa no creó resources\app.asar."
+
+  $installedHash = Get-FileHash -LiteralPath $installedAsar -Algorithm SHA256
+  $unpackedHash = Get-FileHash -LiteralPath $appAsar -Algorithm SHA256
+
+  if ($installedHash.Hash -ne $unpackedHash.Hash) {
+    throw "El app.asar instalado no coincide con el generado por electron-builder."
+  }
+
+  $report = [ordered]@{
+    productName = "Almacén Familiar"
+    version = [string]$package.version
+    architecture = "x64"
+    installer = $installer.Name
+    installerSizeBytes = [int64]$installer.Length
+    installerSha256 = $hash.Hash
+    signatureStatus = [string]$signature.Status
+    signatureSubject = if ($signature.SignerCertificate) { $signature.SignerCertificate.Subject } else { $null }
+    unpackedExecutableVerified = $true
+    asarVerified = $true
+    silentInstallVerified = $true
+    installedAsarSha256 = $installedHash.Hash
+    requiredAsarEntries = $requiredEntries
+    checkedAt = (Get-Date).ToUniversalTime().ToString("o")
+  }
+
+  $reportPath = Join-Path $resolvedDist "installer-verification.json"
+  $report | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $reportPath -Encoding UTF8
+
+  Write-Host "Instalador verificado correctamente: $($installer.Name)"
+  Write-Host "SHA-256: $($hash.Hash)"
+  Write-Host "Firma: $($signature.Status)"
+  Write-Host "Reporte: $reportPath"
+} finally {
+  Remove-Item -LiteralPath $temporaryInstall -Recurse -Force -ErrorAction SilentlyContinue
 }
-
-$installedExecutable = Join-Path $temporaryInstall "Almacén Familiar.exe"
-$installedAsar = Join-Path $temporaryInstall "resources\app.asar"
-
-Assert-PathExists -Path $installedExecutable -Message "La instalación silenciosa no creó el ejecutable principal."
-Assert-PathExists -Path $installedAsar -Message "La instalación silenciosa no creó resources\app.asar."
-
-$installedHash = Get-FileHash -LiteralPath $installedAsar -Algorithm SHA256
-$unpackedHash = Get-FileHash -LiteralPath $appAsar -Algorithm SHA256
-
-if ($installedHash.Hash -ne $unpackedHash.Hash) {
-  throw "El app.asar instalado no coincide con el generado por electron-builder."
-}
-
-$report = [ordered]@{
-  productName = "Almacén Familiar"
-  version = [string]$package.version
-  architecture = "x64"
-  installer = $installer.Name
-  installerSizeBytes = [int64]$installer.Length
-  installerSha256 = $hash.Hash
-  signatureStatus = [string]$signature.Status
-  signatureSubject = if ($signature.SignerCertificate) { $signature.SignerCertificate.Subject } else { $null }
-  unpackedExecutableVerified = $true
-  asarVerified = $true
-  silentInstallVerified = $true
-  installedAsarSha256 = $installedHash.Hash
-  requiredAsarEntries = $requiredEntries
-  checkedAt = (Get-Date).ToUniversalTime().ToString("o")
-}
-
-$reportPath = Join-Path $resolvedDist "installer-verification.json"
-$report | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $reportPath -Encoding UTF8
-
-Write-Host "Instalador verificado correctamente: $($installer.Name)"
-Write-Host "SHA-256: $($hash.Hash)"
-Write-Host "Firma: $($signature.Status)"
-Write-Host "Reporte: $reportPath"
-
-Remove-Item -LiteralPath $temporaryInstall -Recurse -Force -ErrorAction SilentlyContinue
