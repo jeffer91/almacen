@@ -9,6 +9,7 @@ Función o funciones:
 - Consultar y probar la base local desde canales autorizados.
 - Leer y guardar preferencias visuales y del equipo.
 - Reportar pantallas y ejecutar diagnósticos generales.
+- Consultar el estado coordinado del arranque.
 ========================================================= */
 
 "use strict";
@@ -17,6 +18,7 @@ const { contextBridge, ipcRenderer } = require("electron");
 
 const api = Object.freeze({
   getAppInfo: () => ipcRenderer.invoke("app:get-info"),
+  getStartupState: () => ipcRenderer.invoke("startup:get-state"),
   listProfiles: () => ipcRenderer.invoke("profile:list"),
   getProfile: () => ipcRenderer.invoke("profile:get"),
   saveProfile: (profileId) => ipcRenderer.invoke("profile:save", profileId),
