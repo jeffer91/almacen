@@ -8,7 +8,7 @@ Aplicación de escritorio local-first para compartir productos, costos y precios
 
 ## Estado actual
 
-Etapa 1 en desarrollo. Versión actual: `0.2.0`.
+Etapa 1 en desarrollo. Versión actual: `0.3.0`.
 
 Ya está implementado:
 
@@ -25,7 +25,14 @@ Ya está implementado:
 - Cierre automático después de 15 minutos sin actividad.
 - Bloqueo temporal después de cinco intentos incorrectos.
 - Centro de control administrativo inicial.
-- Pruebas automáticas para contraseña y sesión.
+- Base local SQLite creada automáticamente.
+- Migraciones versionadas y protegidas mediante checksum SHA-256.
+- Usuarios y canales iniciales insertados automáticamente.
+- Registro local del equipo y del perfil asignado.
+- Configuraciones persistentes por dispositivo.
+- Tablas iniciales de auditoría, salud y cola de sincronización.
+- Diagnóstico administrativo de integridad, claves foráneas, tablas y tamaño.
+- Pruebas automáticas para contraseña, sesión, migraciones y persistencia local.
 
 ## Regla temporal de configuración administrativa
 
@@ -37,7 +44,7 @@ Cuando se implemente la sincronización segura, las computadoras de Edgar y Glor
 
 Requisitos:
 
-- Node.js instalado.
+- Node.js 22.16 o superior.
 - npm disponible.
 
 Comandos:
@@ -70,7 +77,12 @@ app/
 │   ├── main.js
 │   ├── profile-store.js
 │   ├── admin-auth-store.js
-│   └── admin-session.js
+│   ├── admin-session.js
+│   └── database/
+│       ├── connection.js
+│       ├── migrations.js
+│       ├── migration-runner.js
+│       └── local-database-service.js
 ├── preload/
 │   └── preload.js
 └── renderer/
@@ -82,14 +94,32 @@ app/
         └── admin.css
 
 tests/
-└── admin-auth.test.js
+├── admin-auth.test.js
+└── local-database.test.js
+
+docs/
+└── database.md
 ```
+
+## Base local actual
+
+Tablas creadas:
+
+- `schema_migrations`;
+- `users`;
+- `channels`;
+- `devices`;
+- `device_settings`;
+- `audit_events`;
+- `sync_queue`;
+- `system_health`.
+
+La documentación técnica se encuentra en `docs/database.md`.
 
 ## Próximos pasos de la etapa 1
 
-1. Base local SQLite.
-2. Migraciones y creación automática del esquema.
-3. Configuración completa del dispositivo.
-4. Diagnóstico inicial de aplicación y base local.
-5. Pruebas del arranque y selección de perfil.
-6. Primer instalador verificable para Windows.
+1. Completar la configuración del dispositivo y preferencias visuales.
+2. Crear el diagnóstico general de aplicación y pantallas.
+3. Agregar pruebas del arranque y selección de perfil.
+4. Preparar respaldos básicos de la base local.
+5. Compilar y verificar el primer instalador de Windows.
