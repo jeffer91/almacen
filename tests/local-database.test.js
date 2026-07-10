@@ -6,6 +6,7 @@ Función o funciones:
 - Confirmar la aplicación de migraciones y datos iniciales.
 - Comprobar el registro del equipo y su perfil.
 - Validar persistencia de configuraciones y diagnóstico de integridad.
+- Confirmar la presencia de las tablas de diagnóstico.
 ========================================================= */
 
 "use strict";
@@ -44,13 +45,13 @@ test("crea la base, aplica migraciones y registra el dispositivo", async () => {
     const service = new LocalDatabaseService();
     const summary = service.initialize({
       userDataPath: directory,
-      appVersion: "0.3.0",
+      appVersion: "0.5.0",
       profile: profile()
     });
 
     assert.equal(summary.initialized, true);
     assert.equal(summary.healthy, true);
-    assert.equal(summary.schemaVersion, 2);
+    assert.equal(summary.schemaVersion, 3);
 
     const device = service.getDevice("device-test-001");
     assert.equal(device.assigned_user_id, "jefferson");
@@ -60,6 +61,7 @@ test("crea la base, aplica migraciones y registra el dispositivo", async () => {
     assert.equal(diagnostic.healthy, true);
     assert.equal(diagnostic.counts.users, 3);
     assert.equal(diagnostic.counts.channels, 3);
+    assert.equal(diagnostic.counts.diagnostic_runs, 0);
     assert.equal(diagnostic.missingTables.length, 0);
 
     service.close();
@@ -71,7 +73,7 @@ test("guarda configuración local y la conserva al reabrir", async () => {
     const first = new LocalDatabaseService();
     first.initialize({
       userDataPath: directory,
-      appVersion: "0.3.0",
+      appVersion: "0.5.0",
       profile: profile()
     });
     first.setDeviceSetting("device-test-001", "textScale", 1.25);
@@ -80,11 +82,11 @@ test("guarda configuración local y la conserva al reabrir", async () => {
     const second = new LocalDatabaseService();
     const summary = second.initialize({
       userDataPath: directory,
-      appVersion: "0.3.0",
+      appVersion: "0.5.0",
       profile: profile()
     });
 
-    assert.equal(summary.schemaVersion, 2);
+    assert.equal(summary.schemaVersion, 3);
     assert.equal(second.getDeviceSetting("device-test-001", "textScale"), 1.25);
     assert.equal(second.runDiagnostic().healthy, true);
     second.close();
