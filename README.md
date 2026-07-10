@@ -8,7 +8,7 @@ Aplicación de escritorio local-first para compartir productos, costos y precios
 
 ## Estado actual
 
-Etapa 1 en desarrollo. Versión actual: `0.3.0`.
+Etapa 1 en desarrollo. Versión actual: `0.4.0`.
 
 Ya está implementado:
 
@@ -32,7 +32,13 @@ Ya está implementado:
 - Configuraciones persistentes por dispositivo.
 - Tablas iniciales de auditoría, salud y cola de sincronización.
 - Diagnóstico administrativo de integridad, claves foráneas, tablas y tamaño.
-- Pruebas automáticas para contraseña, sesión, migraciones y persistencia local.
+- Nombre fácil para cada computadora.
+- Tamaños de letra normal, grande y muy grande.
+- Botón rápido para cambiar la letra sin entrar a Administración.
+- Contraste alto y movimiento reducido.
+- Apertura maximizada configurable.
+- Valores visuales recomendados automáticamente para Edgar y Gloria.
+- Pruebas automáticas para contraseña, sesión, migraciones, persistencia y preferencias.
 
 ## Regla temporal de configuración administrativa
 
@@ -78,6 +84,7 @@ app/
 │   ├── profile-store.js
 │   ├── admin-auth-store.js
 │   ├── admin-session.js
+│   ├── device-preferences.js
 │   └── database/
 │       ├── connection.js
 │       ├── migrations.js
@@ -88,17 +95,21 @@ app/
 └── renderer/
     ├── index.html
     ├── app.js
+    ├── preferences.js
     └── styles/
         ├── global.css
         ├── easy-mode.css
-        └── admin.css
+        ├── admin.css
+        └── preferences.css
 
 tests/
 ├── admin-auth.test.js
-└── local-database.test.js
+├── local-database.test.js
+└── device-preferences.test.js
 
 docs/
-└── database.md
+├── database.md
+└── device-preferences.md
 ```
 
 ## Base local actual
@@ -114,12 +125,14 @@ Tablas creadas:
 - `sync_queue`;
 - `system_health`.
 
-La documentación técnica se encuentra en `docs/database.md`.
+La documentación técnica se encuentra en:
 
-## Próximos pasos de la etapa 1
+- `docs/database.md`;
+- `docs/device-preferences.md`.
 
-1. Completar la configuración del dispositivo y preferencias visuales.
-2. Crear el diagnóstico general de aplicación y pantallas.
-3. Agregar pruebas del arranque y selección de perfil.
-4. Preparar respaldos básicos de la base local.
-5. Compilar y verificar el primer instalador de Windows.
+## Próximos bloques de la etapa 1
+
+1. Diagnóstico general de aplicación y pantallas.
+2. Pruebas del arranque y selección de perfil.
+3. Respaldos básicos de la base local.
+4. Compilación y verificación del primer instalador de Windows.
