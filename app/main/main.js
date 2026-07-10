@@ -6,15 +6,61 @@ Función o funciones:
 - Crear y proteger la ventana principal.
 - Exponer operaciones seguras mediante IPC.
 - Leer y guardar el perfil fijo de cada computadora.
+- Gestionar el acceso administrativo protegido y su sesión temporal.
 ========================================================= */
 
 "use strict";
 
+const os = require("node:os");
 const path = require("node:path");
 const { app, BrowserWindow, ipcMain, shell } = require("electron");
 const { PROFILES, readProfile, saveProfile } = require("./profile-store");
+const {
+  createAdminCredential,
+  isAdminConfigured,
+  verifyAdminPassword
+} = require("./admin-auth-store");
+const { AdminSessionManager } = require("./admin-session");
 
 let mainWindow = null;
+const adminSession = new AdminSessionManager();
+
+function success(data = {}) {
+  return { ok: true, ...data };
+}
+
+function failure(code, message, data = {}) {
+  return { ok: false, code, message, ...data };
+}
+
+async function buildAdminStatus() {
+  const userDataPath = app.getPath("userData");
+  const profile = await readProfile(userDataPath);
+
+  try {
+    const configured = await isAdminConfigured(userDataPath);
+
+    return {
+      configured,
+      canInitialize: profile?.id === "jefferson",
+      profileId: profile?.id || null,
+      profileName: profile?.displayName || null,
+      ...adminSession.getStatus()
+    };
+  } catch (error) {
+    console.error("No fue posible obtener el estado administrativo:", error);
+
+    return {
+      configured: false,
+      canInitialize: false,
+      profileId: profile?.id || null,
+      profileName: profile?.displayName || null,
+      authDataError: true,
+      authDataErrorMessage: error.message,
+      ...adminSession.logout()
+    };
+  }
+}
 
 function createMainWindow() {
   mainWindow = new BrowserWindow({
@@ -60,6 +106,7 @@ function createMainWindow() {
 
   mainWindow.on("closed", () => {
     mainWindow = null;
+    adminSession.logout();
   });
 }
 
@@ -79,6 +126,161 @@ function registerIpcHandlers() {
   ipcMain.handle("profile:save", async (_event, profileId) => {
     return saveProfile(app.getPath("userData"), profileId);
   });
+
+  ipcMain.handle("admin:get-status", async () => {
+    return success({ status: await buildAdminStatus() });
+  });
+
+  ipcMain.handle("admin:setup", async (_event, payload = {}) => {
+    const userDataPath = app.getPath("userData");
+    const profile = await readProfile(userDataPath);
+    const status = await buildAdminStatus();
+
+    if (!profile) {
+      return failure(
+        "PROFILE_REQUIRED",
+        "Primero debes elegir quién utilizará esta computadora.",
+        { status }
+      );
+    }
+
+    if (profile.id !== "jefferson") {
+      return failure(
+        "SETUP_NOT_ALLOWED",
+        "La contraseña administrativa inicial solo puede configurarse desde el perfil de Jefferson.",
+        { status }
+      );
+    }
+
+    if (status.configured) {
+      return failure(
+        "AUTH_ALREADY_CONFIGURED",
+        "La contraseña administrativa ya está configurada en este equipo.",
+        { status }
+      );
+    }
+
+    if (payload.password !== payload.confirmation) {
+      return failure(
+        "PASSWORDS_DO_NOT_MATCH",
+        "Las contraseñas no coinciden.",
+        { status }
+      );
+    }
+
+    try {
+      await createAdminCredential(userDataPath, payload.password);
+      adminSession.registerSuccessfulLogin();
+      return success({ status: await buildAdminStatus() });
+    } catch (error) {
+      console.error("No fue posible configurar la contraseña administrativa:", error);
+      return failure(
+        error.code || "AUTH_SETUP_FAILED",
+        error.message || "No se pudo configurar la contraseña administrativa.",
+        { status: await buildAdminStatus() }
+      );
+    }
+  });
+
+  ipcMain.handle("admin:login", async (_event, password) => {
+    const userDataPath = app.getPath("userData");
+    const statusBefore = await buildAdminStatus();
+
+    if (statusBefore.authDataError) {
+      return failure(
+        "AUTH_DATA_INVALID",
+        statusBefore.authDataErrorMessage || "La configuración administrativa está dañada.",
+        { status: statusBefore }
+      );
+    }
+
+    if (!statusBefore.configured) {
+      return failure(
+        "AUTH_NOT_CONFIGURED",
+        "La contraseña administrativa todavía no está configurada en este equipo.",
+        { status: statusBefore }
+      );
+    }
+
+    if (statusBefore.locked) {
+      return failure(
+        "AUTH_TEMPORARILY_LOCKED",
+        "El acceso está bloqueado temporalmente por varios intentos incorrectos.",
+        { status: statusBefore }
+      );
+    }
+
+    try {
+      const valid = await verifyAdminPassword(userDataPath, password);
+
+      if (!valid) {
+        const sessionStatus = adminSession.registerFailedLogin();
+        const status = await buildAdminStatus();
+
+        return failure(
+          sessionStatus.locked ? "AUTH_TEMPORARILY_LOCKED" : "INVALID_PASSWORD",
+          sessionStatus.locked
+            ? "El acceso fue bloqueado temporalmente por varios intentos incorrectos."
+            : "La contraseña no es correcta.",
+          { status }
+        );
+      }
+
+      adminSession.registerSuccessfulLogin();
+      return success({ status: await buildAdminStatus() });
+    } catch (error) {
+      console.error("No fue posible verificar la contraseña administrativa:", error);
+      return failure(
+        error.code || "AUTH_LOGIN_FAILED",
+        error.message || "No se pudo verificar la contraseña.",
+        { status: await buildAdminStatus() }
+      );
+    }
+  });
+
+  ipcMain.handle("admin:touch", async () => {
+    return success({
+      status: {
+        ...(await buildAdminStatus()),
+        ...adminSession.touch()
+      }
+    });
+  });
+
+  ipcMain.handle("admin:logout", async () => {
+    adminSession.logout();
+    return success({ status: await buildAdminStatus() });
+  });
+
+  ipcMain.handle("admin:get-dashboard", async () => {
+    if (!adminSession.isUnlocked()) {
+      return failure(
+        "ADMIN_SESSION_REQUIRED",
+        "La sesión administrativa terminó. Ingresa nuevamente.",
+        { status: await buildAdminStatus() }
+      );
+    }
+
+    const profile = await readProfile(app.getPath("userData"));
+    const sessionStatus = adminSession.touch();
+
+    return success({
+      dashboard: {
+        appName: app.getName(),
+        appVersion: app.getVersion(),
+        deviceName: os.hostname(),
+        platform: process.platform,
+        profile,
+        session: sessionStatus,
+        modules: {
+          localDatabase: "pending",
+          synchronization: "pending",
+          diagnostics: "pending"
+        }
+      },
+      status: await buildAdminStatus()
+    });
+  });
 }
 
 app.whenReady().then(() => {
@@ -93,6 +295,8 @@ app.whenReady().then(() => {
 });
 
 app.on("window-all-closed", () => {
+  adminSession.logout();
+
   if (process.platform !== "darwin") {
     app.quit();
   }
