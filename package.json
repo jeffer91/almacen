@@ -1,11 +1,14 @@
 {
   "name": "almacen-familiar",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Aplicación de escritorio local-first para gestionar productos, costos y precios familiares.",
   "main": "app/main/main.js",
   "author": "Jefferson Villarreal",
   "license": "UNLICENSED",
   "private": true,
+  "engines": {
+    "node": ">=22.13.0"
+  },
   "scripts": {
     "start": "electron .",
     "dev": "cross-env NODE_ENV=development electron .",
