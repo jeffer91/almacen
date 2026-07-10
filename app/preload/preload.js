@@ -7,6 +7,7 @@ Función o funciones:
 - Comunicar la interfaz con el proceso principal mediante IPC.
 - Gestionar el acceso administrativo sin exponer archivos locales.
 - Consultar y probar la base local desde canales autorizados.
+- Leer y guardar preferencias visuales y del equipo.
 ========================================================= */
 
 "use strict";
@@ -18,6 +19,10 @@ const api = Object.freeze({
   listProfiles: () => ipcRenderer.invoke("profile:list"),
   getProfile: () => ipcRenderer.invoke("profile:get"),
   saveProfile: (profileId) => ipcRenderer.invoke("profile:save", profileId),
+  getDevicePreferences: () => ipcRenderer.invoke("device:get-preferences"),
+  setTextSize: (textSize) => ipcRenderer.invoke("device:set-text-size", textSize),
+  updateDevicePreferences: (preferences) =>
+    ipcRenderer.invoke("device:update-preferences", preferences),
   getDatabaseSummary: () => ipcRenderer.invoke("database:get-summary"),
   runDatabaseDiagnostic: () => ipcRenderer.invoke("database:run-diagnostic"),
   getAdminStatus: () => ipcRenderer.invoke("admin:get-status"),
