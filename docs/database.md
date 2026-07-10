@@ -34,6 +34,8 @@ La tabla `schema_migrations` registra:
 
 Una migración aplicada no puede modificarse silenciosamente. Si cambia su nombre o contenido, la aplicación detiene la actualización y genera un error de integridad del esquema.
 
+La versión actual del esquema es la **4**.
+
 ## Tablas actuales
 
 ### `users`
@@ -62,7 +64,7 @@ Configuraciones locales por equipo, como tamaño del texto o futuras preferencia
 
 ### `audit_events`
 
-Historial técnico de acciones relevantes. Actualmente registra la asignación o cambio de perfil del equipo.
+Historial técnico de acciones relevantes. Registra asignaciones de perfil y operaciones del catálogo.
 
 ### `sync_queue`
 
@@ -84,6 +86,26 @@ Guarda las comprobaciones individuales de aplicación, perfil, preferencias, bas
 
 Mantiene el último reporte técnico enviado por cada pantalla de la interfaz.
 
+### `products`
+
+Catálogo principal con nombre, marca, categoría, descripción, estado, versión y responsables de cada cambio.
+
+### `product_variants`
+
+Presentaciones o variaciones exactas de cada producto, con unidad, cantidad y código interno opcional.
+
+### `product_photos`
+
+Metadatos de fotografías locales por usuario, canal y equipo. Incluye checksum, fotografía principal y etapa de sincronización progresiva.
+
+### `product_links`
+
+Relaciones administrativas entre productos reemplazados, duplicados o destinados a una futura fusión.
+
+### `catalog_events`
+
+Historial no destructivo de creación, retiro, restauración, fotografías y relaciones del catálogo.
+
 ## Diagnóstico administrativo
 
 El botón **Probar base local** comprueba:
@@ -96,7 +118,7 @@ El botón **Probar base local** comprueba:
 - versión del esquema;
 - modo de diario;
 - tamaño del archivo;
-- cantidades básicas de registros.
+- cantidades básicas de registros, incluidos productos, variaciones, fotografías y eventos.
 
 El botón **Ejecutar diagnóstico general** también revisa:
 
@@ -111,4 +133,18 @@ Los diagnósticos completos solo pueden consultarse o ejecutarse durante una ses
 
 ## Eliminación y recuperación
 
-Las tablas de productos se agregarán en la siguiente etapa. Desde el principio se mantendrá la regla de eliminación lógica: los registros se archivarán y conservarán en el historial en lugar de borrarse físicamente.
+El catálogo no expone operaciones de borrado físico.
+
+Los productos y variaciones utilizan los estados:
+
+- `active`;
+- `inactive`;
+- `retired`.
+
+Las fotografías utilizan:
+
+- `active`;
+- `hidden`;
+- `retired`.
+
+Cada retiro queda registrado en `catalog_events`, `audit_events` y `sync_queue`. La restauración de elementos retirados está reservada para Jefferson.
