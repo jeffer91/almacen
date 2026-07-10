@@ -8,7 +8,7 @@ Aplicación de escritorio local-first para compartir productos, costos y precios
 
 ## Estado actual
 
-Etapa 1 en desarrollo. Versión actual: `0.5.0`.
+Etapa 1 en desarrollo. Versión actual: `0.6.0`.
 
 Ya está implementado:
 
@@ -41,7 +41,13 @@ Ya está implementado:
 - Diagnóstico general de aplicación, perfil, preferencias, base y pantallas.
 - Reporte automático de controles obligatorios de cada pantalla.
 - Historial local de diagnósticos con resultados y duración.
-- Pruebas automáticas para contraseña, sesión, migraciones, persistencia, preferencias y diagnósticos.
+- Arranque coordinado antes de mostrar la ventana.
+- Detección de primera ejecución, perfil válido y perfil dañado.
+- Recuperación de configuraciones dañadas mediante respaldo local.
+- Verificación de escritura después de guardar un perfil.
+- Bloqueo de cambios de usuario fuera de Administración.
+- Pruebas automáticas en Linux y Windows.
+- Pruebas para contraseña, sesión, migraciones, persistencia, preferencias, diagnósticos, arranque y perfiles.
 
 ## Regla temporal de configuración administrativa
 
@@ -88,6 +94,8 @@ app/
 │   ├── admin-auth-store.js
 │   ├── admin-session.js
 │   ├── device-preferences.js
+│   ├── startup/
+│   │   └── startup-service.js
 │   ├── diagnostics/
 │   │   └── diagnostics-service.js
 │   └── database/
@@ -113,12 +121,14 @@ tests/
 ├── admin-auth.test.js
 ├── local-database.test.js
 ├── device-preferences.test.js
-└── diagnostics.test.js
+├── diagnostics.test.js
+└── startup-profile.test.js
 
 docs/
 ├── database.md
 ├── device-preferences.md
-└── diagnostics.md
+├── diagnostics.md
+└── startup-and-profiles.md
 ```
 
 ## Base local actual
@@ -141,10 +151,10 @@ La documentación técnica se encuentra en:
 
 - `docs/database.md`;
 - `docs/device-preferences.md`;
-- `docs/diagnostics.md`.
+- `docs/diagnostics.md`;
+- `docs/startup-and-profiles.md`.
 
 ## Próximos bloques de la etapa 1
 
-1. Pruebas del arranque y selección de perfil.
-2. Respaldos básicos de la base local.
-3. Compilación y verificación del primer instalador de Windows.
+1. Respaldos básicos de la base local.
+2. Compilación y verificación del primer instalador de Windows.
