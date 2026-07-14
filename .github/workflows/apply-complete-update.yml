@@ -7,12 +7,17 @@ on:
     paths:
       - "tools/complete-update.part.*"
       - ".github/workflows/apply-complete-update.yml"
+  pull_request:
+    branches:
+      - main
+    types: [opened, synchronize, reopened]
 
 permissions:
   contents: write
 
 jobs:
   apply-update:
+    if: github.head_ref == 'feat/app-completa' || github.ref_name == 'feat/app-completa'
     runs-on: ubuntu-latest
     timeout-minutes: 20
 
