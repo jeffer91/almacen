@@ -49,21 +49,21 @@ test("crea y verifica un respaldo manual de SQLite", async () => {
     const database = new LocalDatabaseService();
     database.initialize({
       userDataPath: directory,
-      appVersion: "0.9.0",
+      appVersion: "1.0.0",
       profile: profile()
     });
 
     const service = new BackupService({
       userDataPath: directory,
       databaseService: database,
-      appVersion: "0.9.0"
+      appVersion: "1.0.0"
     });
     const backup = await service.create("manual");
 
     assert.equal(backup.healthy, true);
     assert.equal(backup.kind, "manual");
-    assert.equal(backup.schemaVersion, 4);
-    assert.ok(backup.tableCount >= 16);
+    assert.equal(backup.schemaVersion, 5);
+    assert.ok(backup.tableCount >= 21);
     assert.match(backup.checksumSha256, /^[a-f0-9]{64}$/);
     assert.equal(parseBackupName(backup.fileName).kind, "manual");
 
@@ -74,6 +74,7 @@ test("crea y verifica un respaldo manual de SQLite", async () => {
 
     const verification = await service.verify(backup.fileName);
     assert.equal(verification.healthy, true);
+    assert.equal(verification.schemaVersion, 5);
     assert.equal(verification.checksumSha256, backup.checksumSha256);
     database.close();
   });
@@ -84,14 +85,14 @@ test("crea un automático y evita repetirlo durante el mismo día", async () => 
     const database = new LocalDatabaseService();
     database.initialize({
       userDataPath: directory,
-      appVersion: "0.9.0",
+      appVersion: "1.0.0",
       profile: profile()
     });
 
     const service = new BackupService({
       userDataPath: directory,
       databaseService: database,
-      appVersion: "0.9.0"
+      appVersion: "1.0.0"
     });
     const first = await service.maybeCreateAutomatic();
     const second = await service.maybeCreateAutomatic();
