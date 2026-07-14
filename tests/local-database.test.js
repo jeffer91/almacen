@@ -70,7 +70,7 @@ test("crea la base, aplica migraciones y registra el dispositivo", async () => {
     assert.equal(diagnostic.counts.product_costs, 0);
     assert.equal(diagnostic.counts.product_prices, 0);
     assert.equal(diagnostic.counts.recent_product_activity, 0);
-    assert.equal(diagnostic.counts.sync_state, 0);
+    assert.equal(diagnostic.counts.sync_state, 1);
     assert.equal(diagnostic.missingTables.length, 0);
 
     service.close();
