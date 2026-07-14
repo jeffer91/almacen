@@ -6,7 +6,7 @@ Función o funciones:
 - Confirmar la aplicación de migraciones y datos iniciales.
 - Comprobar el registro del equipo y su perfil.
 - Validar persistencia de configuraciones y diagnóstico de integridad.
-- Confirmar la presencia de las tablas de diagnóstico y catálogo.
+- Confirmar la presencia de las tablas de diagnóstico, catálogo y comercio.
 ========================================================= */
 
 "use strict";
@@ -45,13 +45,13 @@ test("crea la base, aplica migraciones y registra el dispositivo", async () => {
     const service = new LocalDatabaseService();
     const summary = service.initialize({
       userDataPath: directory,
-      appVersion: "0.9.0",
+      appVersion: "1.0.0",
       profile: profile()
     });
 
     assert.equal(summary.initialized, true);
     assert.equal(summary.healthy, true);
-    assert.equal(summary.schemaVersion, 4);
+    assert.equal(summary.schemaVersion, 5);
 
     const device = service.getDevice("device-test-001");
     assert.equal(device.assigned_user_id, "jefferson");
@@ -66,6 +66,11 @@ test("crea la base, aplica migraciones y registra el dispositivo", async () => {
     assert.equal(diagnostic.counts.product_variants, 0);
     assert.equal(diagnostic.counts.product_photos, 0);
     assert.equal(diagnostic.counts.catalog_events, 0);
+    assert.equal(diagnostic.counts.suppliers, 0);
+    assert.equal(diagnostic.counts.product_costs, 0);
+    assert.equal(diagnostic.counts.product_prices, 0);
+    assert.equal(diagnostic.counts.recent_product_activity, 0);
+    assert.equal(diagnostic.counts.sync_state, 0);
     assert.equal(diagnostic.missingTables.length, 0);
 
     service.close();
@@ -77,7 +82,7 @@ test("guarda configuración local y la conserva al reabrir", async () => {
     const first = new LocalDatabaseService();
     first.initialize({
       userDataPath: directory,
-      appVersion: "0.9.0",
+      appVersion: "1.0.0",
       profile: profile()
     });
     first.setDeviceSetting("device-test-001", "textScale", 1.25);
@@ -86,11 +91,11 @@ test("guarda configuración local y la conserva al reabrir", async () => {
     const second = new LocalDatabaseService();
     const summary = second.initialize({
       userDataPath: directory,
-      appVersion: "0.9.0",
+      appVersion: "1.0.0",
       profile: profile()
     });
 
-    assert.equal(summary.schemaVersion, 4);
+    assert.equal(summary.schemaVersion, 5);
     assert.equal(second.getDeviceSetting("device-test-001", "textScale"), 1.25);
     assert.equal(second.runDiagnostic().healthy, true);
     second.close();
