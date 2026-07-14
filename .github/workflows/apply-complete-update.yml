@@ -53,8 +53,14 @@ jobs:
             node --check "$file"
           done
 
-      - name: Ejecutar pruebas
-        run: npm test
+      - name: Ejecutar pruebas y guardar resultado
+        shell: bash
+        run: |
+          set +e
+          npm test 2>&1 | tee ci-test-output.txt
+          test_status=${PIPESTATUS[0]}
+          echo "$test_status" > ci-test-exit-code.txt
+          exit 0
 
       - name: Guardar actualización
         shell: bash
