@@ -1,7 +1,7 @@
 {
   "name": "almacen-familiar",
-  "version": "0.9.0",
-  "description": "Aplicación de escritorio local-first para gestionar productos, costos y precios familiares.",
+  "version": "1.0.0",
+  "description": "Aplicación de escritorio local-first para gestionar productos, fotografías, proveedores, costos y precios familiares.",
   "main": "app/main/main.js",
   "author": "Jefferson Villarreal",
   "license": "UNLICENSED",

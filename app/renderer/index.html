@@ -11,6 +11,7 @@
   <link rel="stylesheet" href="./styles/preferences.css">
   <link rel="stylesheet" href="./styles/diagnostics.css">
   <link rel="stylesheet" href="./styles/backups.css">
+  <link rel="stylesheet" href="./styles/catalog.css">
 </head>
 <body>
   <div class="app-shell">
@@ -22,14 +23,9 @@
           <p class="brand-subtitle" id="app-version">Iniciando…</p>
         </div>
       </div>
-
       <div class="topbar-actions">
-        <button class="button button-secondary view-button" id="view-button" type="button" disabled>
-          Letra
-        </button>
-        <button class="button button-secondary topbar-admin" id="admin-button" type="button">
-          Administración
-        </button>
+        <button class="button button-secondary view-button" id="view-button" type="button" disabled>Letra</button>
+        <button class="button button-secondary topbar-admin" id="admin-button" type="button">Administración</button>
       </div>
     </header>
 
@@ -45,13 +41,9 @@
         <div class="center-card setup-card">
           <p class="eyebrow">Primera configuración</p>
           <h1 id="setup-title">¿Quién usará esta computadora?</h1>
-          <p class="lead">Elige una sola persona. Esta selección quedará guardada en este equipo.</p>
-
+          <p class="lead">Elige una sola persona. La selección quedará guardada en este equipo.</p>
           <div class="profile-grid" id="profile-list" aria-label="Perfiles disponibles"></div>
-
-          <div class="notice" role="note">
-            El perfil solo podrá cambiarse posteriormente desde Administración.
-          </div>
+          <div class="notice" role="note">El perfil solo podrá cambiarse posteriormente desde Administración.</div>
         </div>
       </section>
 
@@ -77,24 +69,61 @@
             <span class="action-title">Buscar producto</span>
             <span class="action-description">Consulta fotos, costos y precios.</span>
           </button>
-
           <button class="action-card" type="button" data-action="agregar">
             <span class="action-icon" aria-hidden="true">＋</span>
             <span class="action-title">Agregar producto</span>
             <span class="action-description">Crea un producto o una variación.</span>
           </button>
-
           <button class="action-card" type="button" data-action="actualizar">
             <span class="action-icon" aria-hidden="true">↻</span>
             <span class="action-title">Cambiar costo o precio</span>
             <span class="action-description">Actualiza un valor de forma rápida.</span>
           </button>
-
           <button class="action-card" type="button" data-action="recientes">
             <span class="action-icon" aria-hidden="true">◷</span>
             <span class="action-title">Productos recientes</span>
             <span class="action-description">Vuelve a lo utilizado últimamente.</span>
           </button>
+        </div>
+      </section>
+
+      <section class="screen hidden catalog-screen" id="catalog-screen" aria-labelledby="catalog-view-title">
+        <div class="catalog-header">
+          <div>
+            <p class="eyebrow">Catálogo y precios</p>
+            <h1 id="catalog-view-title">Productos</h1>
+            <p class="lead" id="catalog-view-subtitle">Busca, crea y actualiza productos.</p>
+          </div>
+          <div class="catalog-header-actions">
+            <button class="button button-secondary" id="catalog-home-button" type="button">Volver al inicio</button>
+            <button class="button button-primary" id="catalog-new-button" type="button">Agregar producto</button>
+          </div>
+        </div>
+
+        <div class="catalog-search-bar">
+          <label class="catalog-search-field" for="catalog-search-input">
+            <span class="sr-only">Buscar producto</span>
+            <input class="text-input" id="catalog-search-input" type="search" placeholder="Nombre o presentación">
+          </label>
+          <button class="button button-primary" id="catalog-search-button" type="button">Buscar</button>
+          <button class="button button-secondary" id="catalog-recent-button" type="button">Recientes</button>
+        </div>
+
+        <div class="catalog-message hidden" id="catalog-message" role="status"></div>
+        <div class="catalog-layout">
+          <section class="catalog-results-panel" aria-labelledby="catalog-results-title">
+            <div class="catalog-panel-heading">
+              <h2 id="catalog-results-title">Resultados</h2>
+              <span id="catalog-results-count">0</span>
+            </div>
+            <div class="catalog-results" id="catalog-results"></div>
+          </section>
+          <section class="catalog-detail-panel" id="catalog-detail" aria-live="polite">
+            <div class="catalog-empty">
+              <h2>Selecciona un producto</h2>
+              <p>Aquí aparecerán sus variaciones, fotos, costos, precios e historial.</p>
+            </div>
+          </section>
         </div>
       </section>
 
@@ -105,14 +134,9 @@
             <h1 id="admin-title">Administración</h1>
             <p class="lead">Acceso exclusivo de Jefferson.</p>
           </div>
-
           <div class="admin-header-actions">
-            <button class="button button-secondary" id="admin-back-button" type="button">
-              Volver al inicio
-            </button>
-            <button class="button button-primary" id="admin-logout-button" type="button">
-              Cerrar administración
-            </button>
+            <button class="button button-secondary" id="admin-back-button" type="button">Volver al inicio</button>
+            <button class="button button-primary" id="admin-logout-button" type="button">Cerrar administración</button>
           </div>
         </div>
 
@@ -130,28 +154,22 @@
             <h2 id="admin-device-name">—</h2>
             <p id="admin-device-platform">—</p>
           </article>
-
           <article class="admin-card">
             <p class="admin-card-label">Perfil configurado</p>
             <h2 id="admin-profile-name">—</h2>
             <p id="admin-profile-channel">—</p>
           </article>
-
           <article class="admin-card">
             <p class="admin-card-label">Versión instalada</p>
             <h2 id="admin-app-version">—</h2>
             <p>Aplicación de escritorio</p>
           </article>
-
           <article class="admin-card admin-device-card">
             <p class="admin-card-label">Configuración del equipo</p>
             <h2 id="admin-device-friendly-name">Computadora del almacén</h2>
             <p id="admin-device-preference-summary">Leyendo preferencias visuales.</p>
-            <button class="button button-secondary admin-card-button" id="admin-device-configure-button" type="button">
-              Configurar equipo
-            </button>
+            <button class="button button-secondary admin-card-button" id="admin-device-configure-button" type="button">Configurar equipo</button>
           </article>
-
           <article class="admin-card admin-card-database" id="admin-database-card">
             <div class="admin-card-heading-row">
               <div>
@@ -162,32 +180,29 @@
             </div>
             <p id="admin-database-details">Leyendo el estado de la base de esta computadora.</p>
             <dl class="admin-metrics">
-              <div>
-                <dt>Esquema</dt>
-                <dd id="admin-database-schema">—</dd>
-              </div>
-              <div>
-                <dt>Tablas</dt>
-                <dd id="admin-database-tables">—</dd>
-              </div>
-              <div>
-                <dt>Tamaño</dt>
-                <dd id="admin-database-size">—</dd>
-              </div>
-              <div>
-                <dt>Última prueba</dt>
-                <dd id="admin-database-last-check">—</dd>
-              </div>
+              <div><dt>Esquema</dt><dd id="admin-database-schema">—</dd></div>
+              <div><dt>Tablas</dt><dd id="admin-database-tables">—</dd></div>
+              <div><dt>Tamaño</dt><dd id="admin-database-size">—</dd></div>
+              <div><dt>Última prueba</dt><dd id="admin-database-last-check">—</dd></div>
             </dl>
-            <button class="button button-secondary admin-card-button" id="admin-database-test-button" type="button">
-              Probar base local
-            </button>
+            <button class="button button-secondary admin-card-button" id="admin-database-test-button" type="button">Probar base local</button>
           </article>
-
-          <article class="admin-card admin-card-pending">
-            <p class="admin-card-label">Sincronización externa</p>
-            <h2>Pendiente</h2>
-            <p>Se activará en una etapa posterior.</p>
+          <article class="admin-card admin-card-database" id="sync-card">
+            <div class="admin-card-heading-row">
+              <div>
+                <p class="admin-card-label">Sincronización Firebase</p>
+                <h2 id="sync-status">Pendiente</h2>
+              </div>
+              <span class="admin-state-badge admin-state-neutral" id="sync-badge">Revisando</span>
+            </div>
+            <p id="sync-description">Consultando el estado de los equipos.</p>
+            <dl class="admin-metrics">
+              <div><dt>Pendientes</dt><dd id="sync-pending">0</dd></div>
+              <div><dt>Enviados</dt><dd id="sync-pushed">0</dd></div>
+              <div><dt>Recibidos</dt><dd id="sync-pulled">0</dd></div>
+              <div><dt>Último éxito</dt><dd id="sync-last-success">—</dd></div>
+            </dl>
+            <button class="button button-primary admin-card-button" id="sync-run-button" type="button">Sincronizar ahora</button>
           </article>
         </div>
 
@@ -196,54 +211,24 @@
             <div>
               <p class="admin-card-label">Diagnóstico general</p>
               <h2 id="diagnostics-title">Estado de la aplicación y pantallas</h2>
-              <p class="diagnostics-description" id="diagnostics-description">
-                Ejecuta la prueba general para revisar la aplicación, la base y las pantallas.
-              </p>
+              <p class="diagnostics-description" id="diagnostics-description">Ejecuta la prueba general para revisar la aplicación, la base y las pantallas.</p>
             </div>
             <div class="diagnostics-header-actions">
               <span class="admin-state-badge admin-state-neutral" id="diagnostics-overall-badge">Pendiente</span>
-              <button class="button button-primary" id="diagnostics-run-button" type="button">
-                Ejecutar diagnóstico general
-              </button>
+              <button class="button button-primary" id="diagnostics-run-button" type="button">Ejecutar diagnóstico general</button>
             </div>
           </div>
-
           <div class="diagnostics-summary-grid">
-            <div class="diagnostics-summary-item">
-              <span>Estado</span>
-              <strong id="diagnostics-overall-status">Sin diagnóstico</strong>
-            </div>
-            <div class="diagnostics-summary-item">
-              <span>Correctas</span>
-              <strong id="diagnostics-passed-count">0</strong>
-            </div>
-            <div class="diagnostics-summary-item">
-              <span>Advertencias</span>
-              <strong id="diagnostics-warning-count">0</strong>
-            </div>
-            <div class="diagnostics-summary-item">
-              <span>Errores</span>
-              <strong id="diagnostics-failed-count">0</strong>
-            </div>
-            <div class="diagnostics-summary-item">
-              <span>Duración</span>
-              <strong id="diagnostics-duration">—</strong>
-            </div>
-            <div class="diagnostics-summary-item">
-              <span>Última prueba</span>
-              <strong id="diagnostics-last-run">Todavía no ejecutado</strong>
-            </div>
+            <div class="diagnostics-summary-item"><span>Estado</span><strong id="diagnostics-overall-status">Sin diagnóstico</strong></div>
+            <div class="diagnostics-summary-item"><span>Correctas</span><strong id="diagnostics-passed-count">0</strong></div>
+            <div class="diagnostics-summary-item"><span>Advertencias</span><strong id="diagnostics-warning-count">0</strong></div>
+            <div class="diagnostics-summary-item"><span>Errores</span><strong id="diagnostics-failed-count">0</strong></div>
+            <div class="diagnostics-summary-item"><span>Duración</span><strong id="diagnostics-duration">—</strong></div>
+            <div class="diagnostics-summary-item"><span>Última prueba</span><strong id="diagnostics-last-run">Todavía no ejecutado</strong></div>
           </div>
-
           <div class="diagnostics-columns">
-            <div>
-              <h3 class="diagnostics-subtitle">Comprobaciones</h3>
-              <ul class="diagnostics-check-list" id="diagnostics-check-list"></ul>
-            </div>
-            <div>
-              <h3 class="diagnostics-subtitle">Historial reciente</h3>
-              <ul class="diagnostics-history-list" id="diagnostics-history-list"></ul>
-            </div>
+            <div><h3 class="diagnostics-subtitle">Comprobaciones</h3><ul class="diagnostics-check-list" id="diagnostics-check-list"></ul></div>
+            <div><h3 class="diagnostics-subtitle">Historial reciente</h3><ul class="diagnostics-history-list" id="diagnostics-history-list"></ul></div>
           </div>
         </section>
 
@@ -252,59 +237,24 @@
             <div>
               <p class="admin-card-label">Respaldos locales</p>
               <h2 id="backups-title">Protección de la base SQLite</h2>
-              <p class="backups-description" id="backups-description">
-                Consultando las copias guardadas en esta computadora.
-              </p>
+              <p class="backups-description" id="backups-description">Consultando las copias guardadas en esta computadora.</p>
             </div>
             <div class="backups-actions">
               <span class="admin-state-badge admin-state-warning" id="backups-badge">Pendiente</span>
-              <button class="button button-primary" id="backups-create-button" type="button">
-                Crear respaldo ahora
-              </button>
-              <button class="button button-secondary" id="backups-verify-button" type="button" disabled>
-                Verificar último
-              </button>
-              <button class="button button-secondary" id="backups-folder-button" type="button">
-                Abrir carpeta
-              </button>
+              <button class="button button-primary" id="backups-create-button" type="button">Crear respaldo ahora</button>
+              <button class="button button-secondary" id="backups-verify-button" type="button" disabled>Verificar último</button>
+              <button class="button button-secondary" id="backups-folder-button" type="button">Abrir carpeta</button>
             </div>
           </div>
-
           <div class="backups-summary-grid">
-            <div class="backups-summary-item">
-              <span>Estado</span>
-              <strong id="backups-status">Sin respaldos</strong>
-            </div>
-            <div class="backups-summary-item">
-              <span>Total</span>
-              <strong id="backups-total">0</strong>
-            </div>
-            <div class="backups-summary-item">
-              <span>Automáticos</span>
-              <strong id="backups-automatic">0</strong>
-            </div>
-            <div class="backups-summary-item">
-              <span>Manuales</span>
-              <strong id="backups-manual">0</strong>
-            </div>
-            <div class="backups-summary-item">
-              <span>Último respaldo</span>
-              <strong id="backups-latest">Sin respaldo</strong>
-            </div>
+            <div class="backups-summary-item"><span>Estado</span><strong id="backups-status">Sin respaldos</strong></div>
+            <div class="backups-summary-item"><span>Total</span><strong id="backups-total">0</strong></div>
+            <div class="backups-summary-item"><span>Automáticos</span><strong id="backups-automatic">0</strong></div>
+            <div class="backups-summary-item"><span>Manuales</span><strong id="backups-manual">0</strong></div>
+            <div class="backups-summary-item"><span>Último respaldo</span><strong id="backups-latest">Sin respaldo</strong></div>
           </div>
-
           <h3 class="backups-list-title">Respaldos recientes</h3>
           <ul class="backups-list" id="backups-list"></ul>
-        </section>
-
-        <section class="admin-next-section">
-          <h2>Funciones administrativas que siguen</h2>
-          <div class="admin-next-list">
-            <span>Instalador de Windows</span>
-            <span>Sincronización externa</span>
-            <span>Mensajes y pop-ups</span>
-            <span>Historial de productos</span>
-          </div>
         </section>
       </section>
     </main>
@@ -327,49 +277,16 @@
       <p class="eyebrow" id="admin-dialog-eyebrow">Acceso protegido</p>
       <h2 id="admin-dialog-title">Ingresar a Administración</h2>
       <p id="admin-dialog-message">Escribe la contraseña de Jefferson.</p>
-
       <div id="admin-password-fields">
-        <label class="form-field" for="admin-password">
-          <span>Contraseña</span>
-          <input
-            class="text-input"
-            id="admin-password"
-            name="password"
-            type="password"
-            minlength="8"
-            maxlength="128"
-            autocomplete="current-password"
-            required
-          >
-        </label>
-
-        <label class="form-field hidden" id="admin-confirmation-field" for="admin-confirmation">
-          <span>Repetir contraseña</span>
-          <input
-            class="text-input"
-            id="admin-confirmation"
-            name="confirmation"
-            type="password"
-            minlength="8"
-            maxlength="128"
-            autocomplete="new-password"
-          >
-        </label>
-
-        <label class="password-visibility" for="show-admin-password">
-          <input id="show-admin-password" type="checkbox">
-          <span>Mostrar contraseña</span>
-        </label>
+        <label class="form-field" for="admin-password"><span>Contraseña</span><input class="text-input" id="admin-password" type="password" minlength="8" maxlength="128" required></label>
+        <label class="form-field hidden" id="admin-confirmation-field" for="admin-confirmation"><span>Repetir contraseña</span><input class="text-input" id="admin-confirmation" type="password" minlength="8" maxlength="128"></label>
+        <label class="password-visibility" for="show-admin-password"><input id="show-admin-password" type="checkbox"><span>Mostrar contraseña</span></label>
       </div>
-
       <div class="security-note hidden" id="admin-security-note" role="note"></div>
       <p class="form-error hidden" id="admin-form-error" role="alert"></p>
-
       <div class="dialog-actions">
         <button class="button button-secondary" id="admin-cancel-button" type="button">Volver</button>
-        <button class="button button-primary" id="admin-submit-button" type="submit">
-          Ingresar
-        </button>
+        <button class="button button-primary" id="admin-submit-button" type="submit">Ingresar</button>
       </div>
     </form>
   </dialog>
@@ -379,83 +296,95 @@
       <p class="eyebrow">Configuración del equipo</p>
       <h2>Vista y funcionamiento</h2>
       <p>Estos cambios quedan guardados solamente en esta computadora.</p>
-
-      <label class="form-field" for="device-friendly-name">
-        <span>Nombre fácil del equipo</span>
-        <input
-          class="text-input"
-          id="device-friendly-name"
-          type="text"
-          maxlength="60"
-          autocomplete="off"
-          required
-        >
-      </label>
-
+      <label class="form-field" for="device-friendly-name"><span>Nombre fácil del equipo</span><input class="text-input" id="device-friendly-name" type="text" maxlength="60" required></label>
       <section class="preferences-section" aria-labelledby="text-size-title">
         <h3 class="preferences-section-title" id="text-size-title">Tamaño de la letra</h3>
         <div class="text-size-options">
-          <label class="text-size-option">
-            <input type="radio" name="device-text-size" value="normal">
-            <span class="text-size-option-content">
-              <strong>Normal</strong>
-              <span>Para la pantalla administrativa.</span>
-            </span>
-          </label>
-          <label class="text-size-option">
-            <input type="radio" name="device-text-size" value="large">
-            <span class="text-size-option-content">
-              <strong>Grande</strong>
-              <span>Recomendada para Edgar y Gloria.</span>
-            </span>
-          </label>
-          <label class="text-size-option">
-            <input type="radio" name="device-text-size" value="xlarge">
-            <span class="text-size-option-content">
-              <strong>Muy grande</strong>
-              <span>Máxima facilidad de lectura.</span>
-            </span>
-          </label>
+          <label class="text-size-option"><input type="radio" name="device-text-size" value="normal"><span class="text-size-option-content"><strong>Normal</strong><span>Para la pantalla administrativa.</span></span></label>
+          <label class="text-size-option"><input type="radio" name="device-text-size" value="large"><span class="text-size-option-content"><strong>Grande</strong><span>Recomendada para Edgar y Gloria.</span></span></label>
+          <label class="text-size-option"><input type="radio" name="device-text-size" value="xlarge"><span class="text-size-option-content"><strong>Muy grande</strong><span>Máxima facilidad de lectura.</span></span></label>
         </div>
       </section>
-
       <section class="preferences-section" aria-labelledby="visual-options-title">
         <h3 class="preferences-section-title" id="visual-options-title">Otras opciones</h3>
         <div class="preference-toggle-list">
-          <label class="preference-toggle">
-            <input id="device-high-contrast" type="checkbox">
-            <span class="preference-toggle-content">
-              <strong>Contraste alto</strong>
-              <span>Oscurece el texto y marca mejor los bordes.</span>
-            </span>
-          </label>
-          <label class="preference-toggle">
-            <input id="device-reduced-motion" type="checkbox">
-            <span class="preference-toggle-content">
-              <strong>Reducir movimientos</strong>
-              <span>Evita animaciones y cambios visuales innecesarios.</span>
-            </span>
-          </label>
-          <label class="preference-toggle">
-            <input id="device-start-maximized" type="checkbox">
-            <span class="preference-toggle-content">
-              <strong>Abrir en pantalla completa</strong>
-              <span>La aplicación utilizará todo el espacio disponible.</span>
-            </span>
-          </label>
+          <label class="preference-toggle"><input id="device-high-contrast" type="checkbox"><span class="preference-toggle-content"><strong>Contraste alto</strong><span>Oscurece el texto y marca mejor los bordes.</span></span></label>
+          <label class="preference-toggle"><input id="device-reduced-motion" type="checkbox"><span class="preference-toggle-content"><strong>Reducir movimientos</strong><span>Evita animaciones innecesarias.</span></span></label>
+          <label class="preference-toggle"><input id="device-start-maximized" type="checkbox"><span class="preference-toggle-content"><strong>Abrir en pantalla completa</strong><span>Usa todo el espacio disponible.</span></span></label>
         </div>
       </section>
-
       <p class="form-error hidden" id="device-preferences-error" role="alert"></p>
-
       <div class="dialog-actions">
-        <button class="button button-secondary" id="device-preferences-cancel" type="button">
-          Cancelar
-        </button>
-        <button class="button button-primary" id="device-preferences-save" type="submit">
-          Guardar configuración
-        </button>
+        <button class="button button-secondary" id="device-preferences-cancel" type="button">Cancelar</button>
+        <button class="button button-primary" id="device-preferences-save" type="submit">Guardar configuración</button>
       </div>
+    </form>
+  </dialog>
+
+  <dialog class="dialog catalog-dialog" id="product-form-dialog">
+    <form class="dialog-content catalog-form" id="product-form" novalidate>
+      <p class="eyebrow">Nuevo producto</p>
+      <h2>Agregar producto</h2>
+      <div class="catalog-form-grid">
+        <label class="form-field"><span>Nombre *</span><input class="text-input" id="product-name" maxlength="180" required></label>
+        <label class="form-field"><span>Marca</span><input class="text-input" id="product-brand" maxlength="120"></label>
+        <label class="form-field"><span>Categoría</span><input class="text-input" id="product-category" maxlength="120"></label>
+        <label class="form-field"><span>Primera variación</span><input class="text-input" id="product-variant-name" maxlength="180" placeholder="Ej.: Funda 500 g"></label>
+        <label class="form-field"><span>Presentación</span><input class="text-input" id="product-presentation" maxlength="160"></label>
+        <label class="form-field"><span>Unidad</span><input class="text-input" id="product-unit" maxlength="80" placeholder="gramos, litros, unidades"></label>
+        <label class="form-field"><span>Cantidad</span><input class="text-input" id="product-quantity" type="number" min="0" step="0.01"></label>
+        <label class="form-field catalog-form-wide"><span>Descripción</span><textarea class="text-input" id="product-description" rows="3" maxlength="1200"></textarea></label>
+      </div>
+      <p class="form-error hidden" id="product-form-error"></p>
+      <div class="dialog-actions"><button class="button button-secondary" id="product-form-cancel" type="button">Cancelar</button><button class="button button-primary" id="product-form-save" type="submit">Guardar producto</button></div>
+    </form>
+  </dialog>
+
+  <dialog class="dialog catalog-dialog" id="variant-form-dialog">
+    <form class="dialog-content catalog-form" id="variant-form" novalidate>
+      <p class="eyebrow">Variaciones</p><h2>Agregar variación</h2>
+      <label class="form-field"><span>Nombre *</span><input class="text-input" id="variant-name" maxlength="180" required></label>
+      <label class="form-field"><span>Presentación</span><input class="text-input" id="variant-presentation" maxlength="160"></label>
+      <label class="form-field"><span>Unidad</span><input class="text-input" id="variant-unit" maxlength="80"></label>
+      <label class="form-field"><span>Cantidad</span><input class="text-input" id="variant-quantity" type="number" min="0" step="0.01"></label>
+      <p class="form-error hidden" id="variant-form-error"></p>
+      <div class="dialog-actions"><button class="button button-secondary" id="variant-form-cancel" type="button">Cancelar</button><button class="button button-primary" id="variant-form-save" type="submit">Guardar variación</button></div>
+    </form>
+  </dialog>
+
+  <dialog class="dialog catalog-dialog" id="supplier-form-dialog">
+    <form class="dialog-content catalog-form" id="supplier-form" novalidate>
+      <p class="eyebrow">Proveedores</p><h2>Guardar proveedor</h2>
+      <label class="form-field"><span>Nombre *</span><input class="text-input" id="supplier-name" maxlength="180" required></label>
+      <label class="form-field"><span>Persona de contacto</span><input class="text-input" id="supplier-contact" maxlength="180"></label>
+      <label class="form-field"><span>Teléfono</span><input class="text-input" id="supplier-phone" maxlength="80"></label>
+      <label class="form-field"><span>Correo</span><input class="text-input" id="supplier-email" maxlength="180"></label>
+      <p class="form-error hidden" id="supplier-form-error"></p>
+      <div class="dialog-actions"><button class="button button-secondary" id="supplier-form-cancel" type="button">Cancelar</button><button class="button button-primary" id="supplier-form-save" type="submit">Guardar proveedor</button></div>
+    </form>
+  </dialog>
+
+  <dialog class="dialog catalog-dialog" id="cost-form-dialog">
+    <form class="dialog-content catalog-form" id="cost-form" novalidate>
+      <p class="eyebrow">Costo</p><h2>Registrar costo</h2>
+      <label class="form-field"><span>Variación</span><select class="text-input" id="cost-variant"></select></label>
+      <label class="form-field"><span>Proveedor</span><select class="text-input" id="cost-supplier"></select></label>
+      <label class="form-field"><span>Costo USD *</span><input class="text-input" id="cost-amount" type="number" min="0.01" step="0.01" required></label>
+      <label class="form-field"><span>Nota</span><input class="text-input" id="cost-notes" maxlength="1000"></label>
+      <p class="form-error hidden" id="cost-form-error"></p>
+      <div class="dialog-actions"><button class="button button-secondary" id="cost-form-cancel" type="button">Cancelar</button><button class="button button-primary" id="cost-form-save" type="submit">Guardar costo</button></div>
+    </form>
+  </dialog>
+
+  <dialog class="dialog catalog-dialog" id="price-form-dialog">
+    <form class="dialog-content catalog-form" id="price-form" novalidate>
+      <p class="eyebrow">Precio</p><h2>Registrar precio</h2>
+      <label class="form-field"><span>Variación</span><select class="text-input" id="price-variant"></select></label>
+      <label class="form-field"><span>Local</span><select class="text-input" id="price-channel"></select></label>
+      <label class="form-field"><span>Precio USD *</span><input class="text-input" id="price-amount" type="number" min="0.01" step="0.01" required></label>
+      <label class="form-field"><span>Nota</span><input class="text-input" id="price-notes" maxlength="1000"></label>
+      <p class="form-error hidden" id="price-form-error"></p>
+      <div class="dialog-actions"><button class="button button-secondary" id="price-form-cancel" type="button">Cancelar</button><button class="button button-primary" id="price-form-save" type="submit">Guardar precio</button></div>
     </form>
   </dialog>
 
@@ -465,5 +394,6 @@
   <script src="./preferences.js"></script>
   <script src="./diagnostics.js"></script>
   <script src="./backups.js"></script>
+  <script src="./catalog.js"></script>
 </body>
 </html>

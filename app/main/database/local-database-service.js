@@ -2,12 +2,14 @@
 Nombre completo: local-database-service.js
 Ruta o ubicación: /app/main/database/local-database-service.js
 Función o funciones:
-- Inicializar la base local y ejecutar sus migraciones.
-- Registrar el perfil y el equipo que utiliza la instalación.
-- Guardar configuraciones locales por dispositivo.
-- Ejecutar pruebas de integridad y claves foráneas.
-- Entregar un resumen técnico para el Centro de control.
-- Verificar las tablas de diagnósticos, pantallas y catálogo.
+- Inicializar SQLite y aplicar migraciones.
+- Registrar el equipo y perfil local.
+- Guardar configuraciones del dispositivo.
+- Diagnosticar integridad, tablas y tamaño.
+Con qué se conecta:
+- app/main/database/connection.js
+- app/main/database/migrations.js
+- app/main/database/migration-runner.js
 ========================================================= */
 
 "use strict";
@@ -35,7 +37,12 @@ const REQUIRED_TABLES = Object.freeze([
   "product_variants",
   "product_photos",
   "product_links",
-  "catalog_events"
+  "catalog_events",
+  "suppliers",
+  "product_costs",
+  "product_prices",
+  "recent_product_activity",
+  "sync_state"
 ]);
 
 function nowIso() {
@@ -58,9 +65,7 @@ class LocalDatabaseService {
 
   initialize({ userDataPath, appVersion, profile = null }) {
     if (this.initialized && this.database) {
-      if (profile) {
-        this.registerDeviceProfile(profile, appVersion);
-      }
+      if (profile) this.registerDeviceProfile(profile, appVersion);
       return this.getSummary();
     }
 
@@ -71,11 +76,7 @@ class LocalDatabaseService {
       this.migrationResult = runMigrations(this.database, MIGRATIONS);
       this.initialized = true;
       this.startupError = null;
-
-      if (profile) {
-        this.registerDeviceProfile(profile, appVersion);
-      }
-
+      if (profile) this.registerDeviceProfile(profile, appVersion);
       this.lastDiagnostic = this.runDiagnostic();
       return this.getSummary();
     } catch (error) {
@@ -98,7 +99,6 @@ class LocalDatabaseService {
 
   registerDeviceProfile(profile, appVersion) {
     this.assertReady();
-
     if (!profile?.deviceId || !profile?.id || !profile?.channelId) {
       const error = new Error("El perfil del dispositivo está incompleto.");
       error.code = "DEVICE_PROFILE_INVALID";
@@ -106,11 +106,7 @@ class LocalDatabaseService {
     }
 
     const current = this.database
-      .prepare(
-        `SELECT id, assigned_user_id, assigned_channel_id
-         FROM devices
-         WHERE id = ?`
-      )
+      .prepare("SELECT id, assigned_user_id, assigned_channel_id FROM devices WHERE id = ?")
       .get(profile.deviceId);
     const timestamp = nowIso();
 
@@ -173,7 +169,6 @@ class LocalDatabaseService {
 
   getDevice(deviceId) {
     this.assertReady();
-
     const row = this.database
       .prepare(
         `SELECT d.*, u.display_name AS assigned_user_name, c.name AS assigned_channel_name
@@ -183,16 +178,11 @@ class LocalDatabaseService {
          WHERE d.id = ?`
       )
       .get(deviceId);
-
     return row ? { ...row } : null;
   }
 
   setDeviceSetting(deviceId, key, value) {
     this.assertReady();
-
-    const serialized = JSON.stringify(value);
-    const timestamp = nowIso();
-
     this.database
       .prepare(
         `INSERT INTO device_settings (device_id, setting_key, setting_value, updated_at)
@@ -201,22 +191,15 @@ class LocalDatabaseService {
            setting_value = excluded.setting_value,
            updated_at = excluded.updated_at`
       )
-      .run(deviceId, key, serialized, timestamp);
+      .run(deviceId, key, JSON.stringify(value), nowIso());
   }
 
   getDeviceSetting(deviceId, key, fallback = null) {
     this.assertReady();
-
     const row = this.database
-      .prepare(
-        "SELECT setting_value FROM device_settings WHERE device_id = ? AND setting_key = ?"
-      )
+      .prepare("SELECT setting_value FROM device_settings WHERE device_id = ? AND setting_key = ?")
       .get(deviceId, key);
-
-    if (!row) {
-      return fallback;
-    }
-
+    if (!row) return fallback;
     try {
       return JSON.parse(row.setting_value);
     } catch {
@@ -226,21 +209,17 @@ class LocalDatabaseService {
 
   runDiagnostic() {
     this.assertReady();
-
     const startedAt = Date.now();
     const checkedAt = nowIso();
 
     try {
       const quickCheck = normalizeRows(this.database.prepare("PRAGMA quick_check").all());
-      const foreignKeyIssues = normalizeRows(
-        this.database.prepare("PRAGMA foreign_key_check").all()
-      );
+      const foreignKeyIssues = normalizeRows(this.database.prepare("PRAGMA foreign_key_check").all());
       const journalRow = this.database.prepare("PRAGMA journal_mode").get();
       const tableRows = normalizeRows(
         this.database
           .prepare(
-            `SELECT name
-             FROM sqlite_schema
+            `SELECT name FROM sqlite_schema
              WHERE type = 'table' AND name NOT LIKE 'sqlite_%'
              ORDER BY name`
           )
@@ -251,27 +230,11 @@ class LocalDatabaseService {
       const quickCheckHealthy =
         quickCheck.length === 1 &&
         String(Object.values(quickCheck[0])[0]).toLowerCase() === "ok";
-      const healthy =
-        quickCheckHealthy && foreignKeyIssues.length === 0 && missingTables.length === 0;
+      const healthy = quickCheckHealthy && foreignKeyIssues.length === 0 && missingTables.length === 0;
       const fileStats = fs.statSync(this.filePath);
       const counts = {};
 
-      for (const table of [
-        "schema_migrations",
-        "users",
-        "channels",
-        "devices",
-        "audit_events",
-        "sync_queue",
-        "diagnostic_runs",
-        "diagnostic_checks",
-        "screen_reports",
-        "products",
-        "product_variants",
-        "product_photos",
-        "product_links",
-        "catalog_events"
-      ]) {
+      for (const table of REQUIRED_TABLES.filter((name) => name !== "system_health" && name !== "device_settings")) {
         const row = this.database.prepare(`SELECT COUNT(*) AS total FROM ${table}`).get();
         counts[table] = Number(row.total);
       }
@@ -283,7 +246,6 @@ class LocalDatabaseService {
            WHERE id = 1`
         )
         .run(healthy ? "healthy" : "warning", checkedAt, checkedAt);
-
       this.database
         .prepare("UPDATE devices SET last_database_check_at = ? WHERE status = 'active'")
         .run(checkedAt);
@@ -302,7 +264,6 @@ class LocalDatabaseService {
         missingTables,
         counts
       };
-
       return this.lastDiagnostic;
     } catch (error) {
       try {
@@ -313,9 +274,7 @@ class LocalDatabaseService {
              WHERE id = 1`
           )
           .run(checkedAt, error.message, checkedAt);
-      } catch {
-        // La base podría no aceptar escrituras durante el fallo.
-      }
+      } catch {}
 
       this.lastDiagnostic = {
         healthy: false,
@@ -324,7 +283,6 @@ class LocalDatabaseService {
         durationMs: Date.now() - startedAt,
         error: error.message
       };
-
       return this.lastDiagnostic;
     }
   }
@@ -360,7 +318,6 @@ class LocalDatabaseService {
         console.warn("No fue posible cerrar la base local:", error);
       }
     }
-
     this.database = null;
     this.initialized = false;
   }

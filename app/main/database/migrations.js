@@ -2,12 +2,12 @@
 Nombre completo: migrations.js
 Ruta o ubicación: /app/main/database/migrations.js
 Función o funciones:
-- Definir las migraciones versionadas de la base local.
-- Crear las tablas fundamentales de usuarios, canales y equipos.
-- Preparar auditoría, salud del sistema y cola de sincronización.
-- Insertar los usuarios y canales iniciales de la familia.
-- Registrar diagnósticos generales y pruebas de pantallas.
-- Crear el catálogo de productos, variaciones, fotografías y eventos.
+- Definir migraciones versionadas de la base local.
+- Crear usuarios, canales, equipos, auditoría y sincronización.
+- Crear diagnósticos, catálogo, proveedores, costos, precios y recientes.
+Con qué se conecta:
+- app/main/database/migration-runner.js
+- app/main/database/local-database-service.js
 ========================================================= */
 
 "use strict";
@@ -326,19 +326,15 @@ const MIGRATIONS = Object.freeze([
       CREATE UNIQUE INDEX idx_products_active_normalized_name
         ON products(normalized_name)
         WHERE status <> 'retired';
-
       CREATE UNIQUE INDEX idx_product_variants_active_name
         ON product_variants(product_id, normalized_name)
         WHERE status <> 'retired';
-
       CREATE UNIQUE INDEX idx_product_photos_global_default
         ON product_photos(product_id)
         WHERE is_default_global = 1 AND status = 'active';
-
       CREATE UNIQUE INDEX idx_product_photos_channel_default
         ON product_photos(product_id, channel_id)
         WHERE is_default_channel = 1 AND status = 'active';
-
       CREATE INDEX idx_products_status_name ON products(status, normalized_name);
       CREATE INDEX idx_product_variants_product_status ON product_variants(product_id, status, normalized_name);
       CREATE INDEX idx_product_photos_product_channel ON product_photos(product_id, channel_id, status);
@@ -347,6 +343,109 @@ const MIGRATIONS = Object.freeze([
       CREATE INDEX idx_product_links_target ON product_links(target_product_id, status);
       CREATE INDEX idx_catalog_events_product_created ON catalog_events(product_id, created_at DESC);
       CREATE INDEX idx_catalog_events_sync ON catalog_events(sync_status, created_at);
+    `
+  }),
+  Object.freeze({
+    version: 5,
+    name: "proveedores_costos_precios_recientes_y_sincronizacion",
+    sql: `
+      CREATE TABLE suppliers (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        normalized_name TEXT NOT NULL UNIQUE,
+        contact_name TEXT,
+        phone TEXT,
+        email TEXT,
+        notes TEXT,
+        status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'inactive')),
+        created_by_user_id TEXT NOT NULL,
+        created_device_id TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        updated_by_user_id TEXT NOT NULL,
+        updated_device_id TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        FOREIGN KEY (created_by_user_id) REFERENCES users(id) ON UPDATE CASCADE ON DELETE RESTRICT,
+        FOREIGN KEY (updated_by_user_id) REFERENCES users(id) ON UPDATE CASCADE ON DELETE RESTRICT,
+        FOREIGN KEY (created_device_id) REFERENCES devices(id) ON UPDATE CASCADE ON DELETE RESTRICT,
+        FOREIGN KEY (updated_device_id) REFERENCES devices(id) ON UPDATE CASCADE ON DELETE RESTRICT
+      ) STRICT;
+
+      CREATE TABLE product_costs (
+        id TEXT PRIMARY KEY,
+        product_id TEXT NOT NULL,
+        variant_id TEXT,
+        supplier_id TEXT,
+        amount REAL NOT NULL CHECK (amount > 0),
+        currency TEXT NOT NULL DEFAULT 'USD',
+        notes TEXT,
+        created_by_user_id TEXT NOT NULL,
+        device_id TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        sync_status TEXT NOT NULL DEFAULT 'pending' CHECK (sync_status IN ('pending', 'synced', 'failed')),
+        synchronized_at TEXT,
+        FOREIGN KEY (product_id) REFERENCES products(id) ON UPDATE CASCADE ON DELETE RESTRICT,
+        FOREIGN KEY (variant_id) REFERENCES product_variants(id) ON UPDATE CASCADE ON DELETE SET NULL,
+        FOREIGN KEY (supplier_id) REFERENCES suppliers(id) ON UPDATE CASCADE ON DELETE SET NULL,
+        FOREIGN KEY (created_by_user_id) REFERENCES users(id) ON UPDATE CASCADE ON DELETE RESTRICT,
+        FOREIGN KEY (device_id) REFERENCES devices(id) ON UPDATE CASCADE ON DELETE RESTRICT
+      ) STRICT;
+
+      CREATE TABLE product_prices (
+        id TEXT PRIMARY KEY,
+        product_id TEXT NOT NULL,
+        variant_id TEXT,
+        channel_id TEXT NOT NULL,
+        amount REAL NOT NULL CHECK (amount > 0),
+        currency TEXT NOT NULL DEFAULT 'USD',
+        notes TEXT,
+        created_by_user_id TEXT NOT NULL,
+        device_id TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        sync_status TEXT NOT NULL DEFAULT 'pending' CHECK (sync_status IN ('pending', 'synced', 'failed')),
+        synchronized_at TEXT,
+        FOREIGN KEY (product_id) REFERENCES products(id) ON UPDATE CASCADE ON DELETE RESTRICT,
+        FOREIGN KEY (variant_id) REFERENCES product_variants(id) ON UPDATE CASCADE ON DELETE SET NULL,
+        FOREIGN KEY (channel_id) REFERENCES channels(id) ON UPDATE CASCADE ON DELETE RESTRICT,
+        FOREIGN KEY (created_by_user_id) REFERENCES users(id) ON UPDATE CASCADE ON DELETE RESTRICT,
+        FOREIGN KEY (device_id) REFERENCES devices(id) ON UPDATE CASCADE ON DELETE RESTRICT
+      ) STRICT;
+
+      CREATE TABLE recent_product_activity (
+        device_id TEXT NOT NULL,
+        user_id TEXT NOT NULL,
+        product_id TEXT NOT NULL,
+        last_action TEXT NOT NULL,
+        access_count INTEGER NOT NULL DEFAULT 1 CHECK (access_count >= 1),
+        last_accessed_at TEXT NOT NULL,
+        PRIMARY KEY (device_id, product_id),
+        FOREIGN KEY (device_id) REFERENCES devices(id) ON UPDATE CASCADE ON DELETE CASCADE,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON UPDATE CASCADE ON DELETE RESTRICT,
+        FOREIGN KEY (product_id) REFERENCES products(id) ON UPDATE CASCADE ON DELETE CASCADE
+      ) STRICT, WITHOUT ROWID;
+
+      CREATE TABLE sync_state (
+        id INTEGER PRIMARY KEY CHECK (id = 1),
+        status TEXT NOT NULL DEFAULT 'idle' CHECK (status IN ('idle', 'running', 'ready', 'error')),
+        last_run_at TEXT,
+        last_success_at TEXT,
+        last_error TEXT,
+        remote_documents INTEGER NOT NULL DEFAULT 0 CHECK (remote_documents >= 0),
+        pushed_records INTEGER NOT NULL DEFAULT 0 CHECK (pushed_records >= 0),
+        pulled_records INTEGER NOT NULL DEFAULT 0 CHECK (pulled_records >= 0),
+        updated_at TEXT NOT NULL
+      ) STRICT;
+
+      INSERT INTO sync_state (
+        id, status, last_run_at, last_success_at, last_error,
+        remote_documents, pushed_records, pulled_records, updated_at
+      ) VALUES (1, 'idle', NULL, NULL, NULL, 0, 0, 0, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'));
+
+      CREATE INDEX idx_suppliers_status_name ON suppliers(status, normalized_name);
+      CREATE INDEX idx_product_costs_product_date ON product_costs(product_id, created_at DESC);
+      CREATE INDEX idx_product_costs_variant_date ON product_costs(variant_id, created_at DESC);
+      CREATE INDEX idx_product_prices_product_channel_date ON product_prices(product_id, channel_id, created_at DESC);
+      CREATE INDEX idx_product_prices_variant_channel_date ON product_prices(variant_id, channel_id, created_at DESC);
+      CREATE INDEX idx_recent_product_activity_date ON recent_product_activity(device_id, last_accessed_at DESC);
     `
   })
 ]);

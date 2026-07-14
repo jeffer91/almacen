@@ -2,23 +2,29 @@
 Nombre completo: main.js
 Ruta o ubicación: /app/main/main.js
 Función o funciones:
-- Iniciar la aplicación Electron.
-- Crear y proteger la ventana principal.
-- Exponer operaciones seguras mediante IPC.
-- Leer y guardar el perfil fijo de cada computadora.
-- Gestionar el acceso administrativo protegido y su sesión temporal.
-- Inicializar, probar y cerrar correctamente la base local SQLite.
-- Aplicar y guardar preferencias visuales y del equipo.
-- Ejecutar y consultar diagnósticos de aplicación y pantallas.
-- Coordinar y exponer el estado verificado del arranque.
-- Crear, verificar y consultar respaldos locales de SQLite.
+- Iniciar Electron y proteger la ventana principal.
+- Gestionar perfiles, administración, SQLite, respaldos y diagnósticos.
+- Conectar catálogo, proveedores, costos, precios, fotografías y recientes.
+- Ejecutar sincronización local-first con Firebase.
+Con qué se conecta:
+- app/preload/preload.js
+- app/main/database/*
+- app/main/catalog/*
+- app/main/sync/firebase-sync-service.js
 ========================================================= */
 
 "use strict";
 
 const os = require("node:os");
 const path = require("node:path");
-const { app, BrowserWindow, ipcMain, shell } = require("electron");
+const {
+  app,
+  BrowserWindow,
+  ipcMain,
+  shell,
+  dialog,
+  nativeImage
+} = require("electron");
 const { PROFILES, readProfile, saveProfile } = require("./profile-store");
 const {
   createAdminCredential,
@@ -30,6 +36,10 @@ const { LocalDatabaseService } = require("./database/local-database-service");
 const { DiagnosticsService } = require("./diagnostics/diagnostics-service");
 const { BackupService } = require("./backups/backup-service");
 const { inspectStartup } = require("./startup/startup-service");
+const { CatalogService } = require("./catalog/catalog-service");
+const { CommerceService } = require("./catalog/commerce-service");
+const { PhotoStorageService } = require("./catalog/photo-storage-service");
+const { FirebaseSyncService } = require("./sync/firebase-sync-service");
 const {
   defaultsForProfile,
   getDevicePreferences,
@@ -40,10 +50,15 @@ const {
 let mainWindow = null;
 let startupReport = null;
 let backupService = null;
+let photoStorageService = null;
+let syncService = null;
+let automaticSyncTimer = null;
 
 const adminSession = new AdminSessionManager();
 const localDatabase = new LocalDatabaseService();
 const diagnostics = new DiagnosticsService(localDatabase);
+const catalog = new CatalogService(localDatabase);
+const commerce = new CommerceService(localDatabase);
 
 function success(data = {}) {
   return { ok: true, ...data };
@@ -51,6 +66,11 @@ function success(data = {}) {
 
 function failure(code, message, data = {}) {
   return { ok: false, code, message, ...data };
+}
+
+function errorResponse(error, fallbackCode, fallbackMessage, data = {}) {
+  console.error(fallbackMessage, error);
+  return failure(error?.code || fallbackCode, error?.message || fallbackMessage, data);
 }
 
 function getBackupService() {
@@ -61,8 +81,28 @@ function getBackupService() {
       appVersion: app.getVersion()
     });
   }
-
   return backupService;
+}
+
+function getPhotoStorageService() {
+  if (!photoStorageService) {
+    photoStorageService = new PhotoStorageService({
+      userDataPath: app.getPath("userData"),
+      dialog,
+      nativeImage
+    });
+  }
+  return photoStorageService;
+}
+
+function getSyncService() {
+  if (!syncService) {
+    syncService = new FirebaseSyncService({
+      databaseService: localDatabase,
+      userDataPath: app.getPath("userData")
+    });
+  }
+  return syncService;
 }
 
 async function refreshStartupReport() {
@@ -71,7 +111,6 @@ async function refreshStartupReport() {
     appVersion: app.getVersion(),
     databaseService: localDatabase
   });
-
   return startupReport;
 }
 
@@ -98,20 +137,13 @@ function currentPreferences(profile) {
 }
 
 function applyWindowPreferences(preferences) {
-  if (!mainWindow || mainWindow.isDestroyed()) {
-    return;
-  }
-
-  if (preferences?.startMaximized) {
-    mainWindow.maximize();
-  } else if (mainWindow.isMaximized()) {
-    mainWindow.unmaximize();
-  }
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+  if (preferences?.startMaximized) mainWindow.maximize();
+  else if (mainWindow.isMaximized()) mainWindow.unmaximize();
 }
 
 function windowState() {
   const available = Boolean(mainWindow && !mainWindow.isDestroyed());
-
   return {
     available,
     visible: available ? mainWindow.isVisible() : false,
@@ -120,13 +152,32 @@ function windowState() {
   };
 }
 
+async function requireProfile() {
+  const profile = await readProfile(app.getPath("userData"));
+  if (!profile) {
+    const error = new Error("Primero debes elegir quién utilizará esta computadora.");
+    error.code = "PROFILE_REQUIRED";
+    throw error;
+  }
+  if (!localDatabase.getSummary().initialized) await initializeLocalDatabase(profile);
+  else localDatabase.registerDeviceProfile(profile, app.getVersion());
+  return profile;
+}
+
+function contextFromProfile(profile) {
+  return {
+    userId: profile.id,
+    deviceId: profile.deviceId,
+    channelId: profile.channelId,
+    role: profile.role
+  };
+}
+
 async function buildAdminStatus() {
   const userDataPath = app.getPath("userData");
   const profile = await readProfile(userDataPath);
-
   try {
     const configured = await isAdminConfigured(userDataPath);
-
     return {
       configured,
       canInitialize: profile?.id === "jefferson",
@@ -135,8 +186,6 @@ async function buildAdminStatus() {
       ...adminSession.getStatus()
     };
   } catch (error) {
-    console.error("No fue posible obtener el estado administrativo:", error);
-
     return {
       configured: false,
       canInitialize: false,
@@ -151,10 +200,10 @@ async function buildAdminStatus() {
 
 function createMainWindow(preferences = null) {
   mainWindow = new BrowserWindow({
-    width: 1280,
-    height: 820,
-    minWidth: 900,
-    minHeight: 650,
+    width: 1360,
+    height: 860,
+    minWidth: 960,
+    minHeight: 680,
     show: false,
     autoHideMenuBar: true,
     backgroundColor: "#f7f8fb",
@@ -169,36 +218,25 @@ function createMainWindow(preferences = null) {
   });
 
   mainWindow.loadFile(path.join(__dirname, "../renderer/index.html"));
-
   mainWindow.once("ready-to-show", () => {
     applyWindowPreferences(preferences);
     mainWindow?.show();
   });
-
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-    if (url.startsWith("https://")) {
-      shell.openExternal(url).catch((error) => {
-        console.error("No fue posible abrir el enlace externo:", error);
-      });
-    }
-
+    if (url.startsWith("https://")) shell.openExternal(url).catch(console.error);
     return { action: "deny" };
   });
-
   mainWindow.webContents.on("will-navigate", (event, url) => {
     const currentUrl = mainWindow?.webContents.getURL();
-    if (currentUrl && url !== currentUrl) {
-      event.preventDefault();
-    }
+    if (currentUrl && url !== currentUrl) event.preventDefault();
   });
-
   mainWindow.on("closed", () => {
     mainWindow = null;
     adminSession.logout();
   });
 }
 
-function registerIpcHandlers() {
+function registerCoreHandlers() {
   ipcMain.handle("app:get-info", () => ({
     name: app.getName(),
     version: app.getVersion(),
@@ -206,113 +244,27 @@ function registerIpcHandlers() {
   }));
 
   ipcMain.handle("startup:get-state", async () => {
-    if (!startupReport) {
-      await refreshStartupReport();
-    }
-
+    if (!startupReport) await refreshStartupReport();
     return success({ startup: startupReport });
   });
 
   ipcMain.handle("profile:list", () => Object.values(PROFILES));
-
-  ipcMain.handle("profile:get", async () => {
-    return readProfile(app.getPath("userData"));
-  });
-
+  ipcMain.handle("profile:get", () => readProfile(app.getPath("userData")));
   ipcMain.handle("profile:save", async (_event, profileId) => {
     const profile = await saveProfile(app.getPath("userData"), profileId);
-
-    try {
-      if (!localDatabase.getSummary().initialized) {
-        await initializeLocalDatabase(profile);
-      } else {
-        localDatabase.registerDeviceProfile(profile, app.getVersion());
-      }
-
-      currentPreferences(profile);
-      await refreshStartupReport();
-    } catch (error) {
-      console.error("El perfil se guardó, pero no pudo registrarse en la base local:", error);
-    }
-
+    if (!localDatabase.getSummary().initialized) await initializeLocalDatabase(profile);
+    else localDatabase.registerDeviceProfile(profile, app.getVersion());
+    currentPreferences(profile);
+    await refreshStartupReport();
+    scheduleAutomaticSync();
     return profile;
   });
 
   ipcMain.handle("device:get-preferences", async () => {
-    const profile = await readProfile(app.getPath("userData"));
-
-    if (!profile) {
-      return failure(
-        "PROFILE_REQUIRED",
-        "Primero debes elegir quién utilizará esta computadora."
-      );
-    }
-
-    return success({
-      preferences: currentPreferences(profile),
-      device: {
-        id: profile.deviceId,
-        systemName: os.hostname(),
-        platform: process.platform,
-        profileId: profile.id,
-        profileName: profile.displayName,
-        channelName: profile.channelName
-      }
-    });
-  });
-
-  ipcMain.handle("device:set-text-size", async (_event, textSize) => {
-    const profile = await readProfile(app.getPath("userData"));
-
-    if (!profile) {
-      return failure(
-        "PROFILE_REQUIRED",
-        "Primero debes elegir quién utilizará esta computadora."
-      );
-    }
-
     try {
-      const preferences = saveTextSize(localDatabase, profile, textSize);
-      return success({ preferences });
-    } catch (error) {
-      console.error("No fue posible guardar el tamaño de letra:", error);
-      return failure(
-        error.code || "PREFERENCES_SAVE_FAILED",
-        error.message || "No se pudo guardar el tamaño de letra."
-      );
-    }
-  });
-
-  ipcMain.handle("device:update-preferences", async (_event, preferences) => {
-    if (!adminSession.isUnlocked()) {
-      return failure(
-        "ADMIN_SESSION_REQUIRED",
-        "La sesión administrativa terminó. Ingresa nuevamente.",
-        { status: await buildAdminStatus() }
-      );
-    }
-
-    const profile = await readProfile(app.getPath("userData"));
-
-    if (!profile) {
-      return failure(
-        "PROFILE_REQUIRED",
-        "Este equipo todavía no tiene un perfil configurado.",
-        { status: await buildAdminStatus() }
-      );
-    }
-
-    try {
-      const saved = saveDevicePreferences(localDatabase, profile, preferences);
-      applyWindowPreferences(saved);
-      adminSession.touch();
-
-      if (startupReport) {
-        startupReport = { ...startupReport, preferences: saved };
-      }
-
+      const profile = await requireProfile();
       return success({
-        preferences: saved,
+        preferences: currentPreferences(profile),
         device: {
           id: profile.deviceId,
           systemName: os.hostname(),
@@ -320,351 +272,184 @@ function registerIpcHandlers() {
           profileId: profile.id,
           profileName: profile.displayName,
           channelName: profile.channelName
-        },
-        status: await buildAdminStatus()
+        }
       });
     } catch (error) {
-      console.error("No fue posible guardar la configuración del equipo:", error);
-      return failure(
-        error.code || "PREFERENCES_SAVE_FAILED",
-        error.message || "No se pudo guardar la configuración del equipo.",
-        { status: await buildAdminStatus() }
-      );
+      return errorResponse(error, "PREFERENCES_READ_FAILED", "No se pudo leer la configuración visual.");
     }
   });
 
-  ipcMain.handle("database:get-summary", () => {
-    return success({ database: localDatabase.getSummary() });
+  ipcMain.handle("device:set-text-size", async (_event, textSize) => {
+    try {
+      const profile = await requireProfile();
+      return success({ preferences: saveTextSize(localDatabase, profile, textSize) });
+    } catch (error) {
+      return errorResponse(error, "PREFERENCES_SAVE_FAILED", "No se pudo guardar el tamaño de letra.");
+    }
   });
 
+  ipcMain.handle("device:update-preferences", async (_event, preferences) => {
+    if (!adminSession.isUnlocked()) {
+      return failure("ADMIN_SESSION_REQUIRED", "La sesión administrativa terminó. Ingresa nuevamente.", {
+        status: await buildAdminStatus()
+      });
+    }
+    try {
+      const profile = await requireProfile();
+      const saved = saveDevicePreferences(localDatabase, profile, preferences);
+      applyWindowPreferences(saved);
+      adminSession.touch();
+      if (startupReport) startupReport = { ...startupReport, preferences: saved };
+      return success({ preferences: saved, status: await buildAdminStatus() });
+    } catch (error) {
+      return errorResponse(error, "PREFERENCES_SAVE_FAILED", "No se pudo guardar la configuración del equipo.", {
+        status: await buildAdminStatus()
+      });
+    }
+  });
+
+  ipcMain.handle("database:get-summary", () => success({ database: localDatabase.getSummary() }));
   ipcMain.handle("database:run-diagnostic", async () => {
     if (!adminSession.isUnlocked()) {
-      return failure(
-        "ADMIN_SESSION_REQUIRED",
-        "La sesión administrativa terminó. Ingresa nuevamente.",
-        { status: await buildAdminStatus() }
-      );
+      return failure("ADMIN_SESSION_REQUIRED", "La sesión administrativa terminó. Ingresa nuevamente.", {
+        status: await buildAdminStatus()
+      });
     }
-
     try {
       const diagnostic = localDatabase.runDiagnostic();
       adminSession.touch();
-      return success({
-        diagnostic,
+      return success({ diagnostic, database: localDatabase.getAdminStatus(), status: await buildAdminStatus() });
+    } catch (error) {
+      return errorResponse(error, "DATABASE_DIAGNOSTIC_FAILED", "No se pudo probar la base local.", {
         database: localDatabase.getAdminStatus(),
         status: await buildAdminStatus()
       });
-    } catch (error) {
-      console.error("No fue posible probar la base local:", error);
-      return failure(
-        error.code || "DATABASE_DIAGNOSTIC_FAILED",
-        error.message || "No se pudo probar la base local.",
-        {
-          database: localDatabase.getAdminStatus(),
-          status: await buildAdminStatus()
-        }
-      );
     }
   });
+}
 
+function registerBackupHandlers() {
   ipcMain.handle("backups:get-summary", async () => {
-    if (!adminSession.isUnlocked()) {
-      return failure(
-        "ADMIN_SESSION_REQUIRED",
-        "La sesión administrativa terminó. Ingresa nuevamente.",
-        { status: await buildAdminStatus() }
-      );
-    }
-
+    if (!adminSession.isUnlocked()) return failure("ADMIN_SESSION_REQUIRED", "La sesión administrativa terminó.");
     try {
-      return success({
-        backups: await getBackupService().getSummary(),
-        status: await buildAdminStatus()
-      });
+      return success({ backups: await getBackupService().getSummary(), status: await buildAdminStatus() });
     } catch (error) {
-      console.error("No fue posible consultar los respaldos:", error);
-      return failure(
-        error.code || "BACKUP_LIST_FAILED",
-        error.message || "No se pudieron consultar los respaldos.",
-        { status: await buildAdminStatus() }
-      );
+      return errorResponse(error, "BACKUP_LIST_FAILED", "No se pudieron consultar los respaldos.");
     }
   });
 
   ipcMain.handle("backups:create", async () => {
-    if (!adminSession.isUnlocked()) {
-      return failure(
-        "ADMIN_SESSION_REQUIRED",
-        "La sesión administrativa terminó. Ingresa nuevamente.",
-        { status: await buildAdminStatus() }
-      );
-    }
-
+    if (!adminSession.isUnlocked()) return failure("ADMIN_SESSION_REQUIRED", "La sesión administrativa terminó.");
     try {
       const backup = await getBackupService().create("manual");
       adminSession.touch();
-      return success({
-        backup,
-        backups: await getBackupService().getSummary(),
-        status: await buildAdminStatus()
-      });
+      return success({ backup, backups: await getBackupService().getSummary() });
     } catch (error) {
-      console.error("No fue posible crear el respaldo manual:", error);
-      return failure(
-        error.code || "BACKUP_CREATE_FAILED",
-        error.message || "No se pudo crear el respaldo.",
-        { status: await buildAdminStatus() }
-      );
+      return errorResponse(error, "BACKUP_CREATE_FAILED", "No se pudo crear el respaldo.");
     }
   });
 
   ipcMain.handle("backups:verify", async (_event, fileName) => {
-    if (!adminSession.isUnlocked()) {
-      return failure(
-        "ADMIN_SESSION_REQUIRED",
-        "La sesión administrativa terminó. Ingresa nuevamente.",
-        { status: await buildAdminStatus() }
-      );
-    }
-
+    if (!adminSession.isUnlocked()) return failure("ADMIN_SESSION_REQUIRED", "La sesión administrativa terminó.");
     try {
-      const verification = await getBackupService().verify(fileName);
-      adminSession.touch();
-      return success({ verification, status: await buildAdminStatus() });
+      return success({ verification: await getBackupService().verify(fileName) });
     } catch (error) {
-      console.error("No fue posible verificar el respaldo:", error);
-      return failure(
-        error.code || "BACKUP_VERIFY_FAILED",
-        error.message || "No se pudo verificar el respaldo.",
-        { status: await buildAdminStatus() }
-      );
+      return errorResponse(error, "BACKUP_VERIFY_FAILED", "No se pudo verificar el respaldo.");
     }
   });
 
   ipcMain.handle("backups:open-folder", async () => {
-    if (!adminSession.isUnlocked()) {
-      return failure(
-        "ADMIN_SESSION_REQUIRED",
-        "La sesión administrativa terminó. Ingresa nuevamente.",
-        { status: await buildAdminStatus() }
-      );
-    }
-
+    if (!adminSession.isUnlocked()) return failure("ADMIN_SESSION_REQUIRED", "La sesión administrativa terminó.");
     try {
       const directory = await getBackupService().ensureDirectory();
       const openError = await shell.openPath(directory);
-
-      if (openError) {
-        return failure("BACKUP_FOLDER_OPEN_FAILED", openError, {
-          status: await buildAdminStatus()
-        });
-      }
-
-      adminSession.touch();
-      return success({ directory, status: await buildAdminStatus() });
+      return openError ? failure("BACKUP_FOLDER_OPEN_FAILED", openError) : success({ directory });
     } catch (error) {
-      console.error("No fue posible abrir la carpeta de respaldos:", error);
-      return failure(
-        error.code || "BACKUP_FOLDER_OPEN_FAILED",
-        error.message || "No se pudo abrir la carpeta de respaldos.",
-        { status: await buildAdminStatus() }
-      );
+      return errorResponse(error, "BACKUP_FOLDER_OPEN_FAILED", "No se pudo abrir la carpeta de respaldos.");
     }
   });
+}
 
+function registerDiagnosticsHandlers() {
   ipcMain.handle("diagnostics:report-screens", (_event, reports) => {
     try {
-      const saved = diagnostics.reportScreens(reports);
-      return success({ savedCount: saved.length });
+      return success({ savedCount: diagnostics.reportScreens(reports).length });
     } catch (error) {
-      console.error("No fue posible guardar el reporte de pantallas:", error);
-      return failure(
-        error.code || "SCREEN_REPORT_FAILED",
-        error.message || "No se pudo guardar el reporte de pantallas."
-      );
+      return errorResponse(error, "SCREEN_REPORT_FAILED", "No se pudo guardar el reporte de pantallas.");
     }
   });
 
   ipcMain.handle("diagnostics:get-summary", async () => {
-    if (!adminSession.isUnlocked()) {
-      return failure(
-        "ADMIN_SESSION_REQUIRED",
-        "La sesión administrativa terminó. Ingresa nuevamente.",
-        { status: await buildAdminStatus() }
-      );
-    }
-
+    if (!adminSession.isUnlocked()) return failure("ADMIN_SESSION_REQUIRED", "La sesión administrativa terminó.");
     try {
-      return success({
-        diagnostics: diagnostics.getSummary(),
-        status: await buildAdminStatus()
-      });
+      return success({ diagnostics: diagnostics.getSummary() });
     } catch (error) {
-      console.error("No fue posible leer los diagnósticos:", error);
-      return failure(
-        error.code || "DIAGNOSTICS_READ_FAILED",
-        error.message || "No se pudieron leer los diagnósticos.",
-        { status: await buildAdminStatus() }
-      );
+      return errorResponse(error, "DIAGNOSTICS_READ_FAILED", "No se pudieron leer los diagnósticos.");
     }
   });
 
   ipcMain.handle("diagnostics:run", async () => {
-    if (!adminSession.isUnlocked()) {
-      return failure(
-        "ADMIN_SESSION_REQUIRED",
-        "La sesión administrativa terminó. Ingresa nuevamente.",
-        { status: await buildAdminStatus() }
-      );
-    }
-
+    if (!adminSession.isUnlocked()) return failure("ADMIN_SESSION_REQUIRED", "La sesión administrativa terminó.");
     try {
       const profile = await readProfile(app.getPath("userData"));
-      const preferences = currentPreferences(profile);
       const result = diagnostics.run({
         appVersion: app.getVersion(),
         profile,
-        preferences,
+        preferences: currentPreferences(profile),
         windowState: windowState()
       });
       adminSession.touch();
-
-      return success({
-        result,
-        diagnostics: diagnostics.getSummary(),
-        database: localDatabase.getAdminStatus(),
-        status: await buildAdminStatus()
-      });
+      return success({ result, diagnostics: diagnostics.getSummary(), database: localDatabase.getAdminStatus() });
     } catch (error) {
-      console.error("No fue posible ejecutar el diagnóstico general:", error);
-      return failure(
-        error.code || "DIAGNOSTICS_RUN_FAILED",
-        error.message || "No se pudo ejecutar el diagnóstico general.",
-        { status: await buildAdminStatus() }
-      );
+      return errorResponse(error, "DIAGNOSTICS_RUN_FAILED", "No se pudo ejecutar el diagnóstico general.");
     }
   });
+}
 
-  ipcMain.handle("admin:get-status", async () => {
-    return success({ status: await buildAdminStatus() });
-  });
+function registerAdminHandlers() {
+  ipcMain.handle("admin:get-status", async () => success({ status: await buildAdminStatus() }));
 
   ipcMain.handle("admin:setup", async (_event, payload = {}) => {
     const userDataPath = app.getPath("userData");
     const profile = await readProfile(userDataPath);
     const status = await buildAdminStatus();
-
-    if (!profile) {
-      return failure(
-        "PROFILE_REQUIRED",
-        "Primero debes elegir quién utilizará esta computadora.",
-        { status }
-      );
-    }
-
+    if (!profile) return failure("PROFILE_REQUIRED", "Primero debes elegir quién utilizará esta computadora.", { status });
     if (profile.id !== "jefferson") {
-      return failure(
-        "SETUP_NOT_ALLOWED",
-        "La contraseña administrativa inicial solo puede configurarse desde el perfil de Jefferson.",
-        { status }
-      );
+      return failure("SETUP_NOT_ALLOWED", "La contraseña inicial solo puede configurarse desde Jefferson.", { status });
     }
-
-    if (status.configured) {
-      return failure(
-        "AUTH_ALREADY_CONFIGURED",
-        "La contraseña administrativa ya está configurada en este equipo.",
-        { status }
-      );
-    }
-
+    if (status.configured) return failure("AUTH_ALREADY_CONFIGURED", "La contraseña ya está configurada.", { status });
     if (payload.password !== payload.confirmation) {
-      return failure(
-        "PASSWORDS_DO_NOT_MATCH",
-        "Las contraseñas no coinciden.",
-        { status }
-      );
+      return failure("PASSWORDS_DO_NOT_MATCH", "Las contraseñas no coinciden.", { status });
     }
-
     try {
       await createAdminCredential(userDataPath, payload.password);
       adminSession.registerSuccessfulLogin();
       return success({ status: await buildAdminStatus() });
     } catch (error) {
-      console.error("No fue posible configurar la contraseña administrativa:", error);
-      return failure(
-        error.code || "AUTH_SETUP_FAILED",
-        error.message || "No se pudo configurar la contraseña administrativa.",
-        { status: await buildAdminStatus() }
-      );
+      return errorResponse(error, "AUTH_SETUP_FAILED", "No se pudo configurar la contraseña.", { status: await buildAdminStatus() });
     }
   });
 
   ipcMain.handle("admin:login", async (_event, password) => {
     const userDataPath = app.getPath("userData");
-    const statusBefore = await buildAdminStatus();
-
-    if (statusBefore.authDataError) {
-      return failure(
-        "AUTH_DATA_INVALID",
-        statusBefore.authDataErrorMessage || "La configuración administrativa está dañada.",
-        { status: statusBefore }
-      );
-    }
-
-    if (!statusBefore.configured) {
-      return failure(
-        "AUTH_NOT_CONFIGURED",
-        "La contraseña administrativa todavía no está configurada en este equipo.",
-        { status: statusBefore }
-      );
-    }
-
-    if (statusBefore.locked) {
-      return failure(
-        "AUTH_TEMPORARILY_LOCKED",
-        "El acceso está bloqueado temporalmente por varios intentos incorrectos.",
-        { status: statusBefore }
-      );
-    }
-
+    const before = await buildAdminStatus();
+    if (before.authDataError) return failure("AUTH_DATA_INVALID", before.authDataErrorMessage, { status: before });
+    if (!before.configured) return failure("AUTH_NOT_CONFIGURED", "La contraseña todavía no está configurada.", { status: before });
+    if (before.locked) return failure("AUTH_TEMPORARILY_LOCKED", "El acceso está bloqueado temporalmente.", { status: before });
     try {
       const valid = await verifyAdminPassword(userDataPath, password);
-
       if (!valid) {
-        const sessionStatus = adminSession.registerFailedLogin();
-        const status = await buildAdminStatus();
-
-        return failure(
-          sessionStatus.locked ? "AUTH_TEMPORARILY_LOCKED" : "INVALID_PASSWORD",
-          sessionStatus.locked
-            ? "El acceso fue bloqueado temporalmente por varios intentos incorrectos."
-            : "La contraseña no es correcta.",
-          { status }
-        );
+        const session = adminSession.registerFailedLogin();
+        return failure(session.locked ? "AUTH_TEMPORARILY_LOCKED" : "INVALID_PASSWORD", session.locked ? "El acceso fue bloqueado temporalmente." : "La contraseña no es correcta.", { status: await buildAdminStatus() });
       }
-
       adminSession.registerSuccessfulLogin();
       return success({ status: await buildAdminStatus() });
     } catch (error) {
-      console.error("No fue posible verificar la contraseña administrativa:", error);
-      return failure(
-        error.code || "AUTH_LOGIN_FAILED",
-        error.message || "No se pudo verificar la contraseña.",
-        { status: await buildAdminStatus() }
-      );
+      return errorResponse(error, "AUTH_LOGIN_FAILED", "No se pudo verificar la contraseña.", { status: await buildAdminStatus() });
     }
   });
 
-  ipcMain.handle("admin:touch", async () => {
-    return success({
-      status: {
-        ...(await buildAdminStatus()),
-        ...adminSession.touch()
-      }
-    });
-  });
-
+  ipcMain.handle("admin:touch", async () => success({ status: { ...(await buildAdminStatus()), ...adminSession.touch() } }));
   ipcMain.handle("admin:logout", async () => {
     adminSession.logout();
     return success({ status: await buildAdminStatus() });
@@ -672,71 +457,256 @@ function registerIpcHandlers() {
 
   ipcMain.handle("admin:get-dashboard", async () => {
     if (!adminSession.isUnlocked()) {
-      return failure(
-        "ADMIN_SESSION_REQUIRED",
-        "La sesión administrativa terminó. Ingresa nuevamente.",
-        { status: await buildAdminStatus() }
-      );
+      return failure("ADMIN_SESSION_REQUIRED", "La sesión administrativa terminó. Ingresa nuevamente.", { status: await buildAdminStatus() });
     }
-
-    const profile = await readProfile(app.getPath("userData"));
-    const sessionStatus = adminSession.touch();
-    const preferences = currentPreferences(profile);
-    let diagnosticSummary = null;
-    let backupSummary = null;
-
     try {
-      diagnosticSummary = diagnostics.getSummary();
+      const profile = await requireProfile();
+      const preferences = currentPreferences(profile);
+      const backupSummary = await getBackupService().getSummary().catch(() => null);
+      const diagnosticSummary = (() => { try { return diagnostics.getSummary(); } catch { return null; } })();
+      return success({
+        dashboard: {
+          appName: app.getName(),
+          appVersion: app.getVersion(),
+          deviceName: preferences.friendlyName,
+          systemDeviceName: os.hostname(),
+          platform: process.platform,
+          profile,
+          preferences,
+          startup: startupReport,
+          session: adminSession.touch(),
+          database: localDatabase.getAdminStatus(),
+          diagnostics: diagnosticSummary,
+          backups: backupSummary,
+          catalog: catalog.getSummary(),
+          commerce: commerce.getSummary(),
+          synchronization: getSyncService().getStatus(),
+          modules: {
+            startup: startupReport?.status === "ready" ? "ready" : "attention",
+            localDatabase: localDatabase.getSummary().healthy ? "ready" : "attention",
+            catalog: "ready",
+            commerce: "ready",
+            devicePreferences: "ready",
+            backups: backupSummary?.latest ? "ready" : "attention",
+            synchronization: getSyncService().getStatus().lastSuccessAt ? "ready" : "attention",
+            diagnostics: diagnosticSummary?.latest ? "ready" : "attention"
+          }
+        },
+        status: await buildAdminStatus()
+      });
     } catch (error) {
-      console.error("No fue posible leer el resumen de diagnóstico:", error);
+      return errorResponse(error, "ADMIN_DASHBOARD_FAILED", "No se pudo cargar Administración.");
     }
-
-    try {
-      backupSummary = await getBackupService().getSummary();
-    } catch (error) {
-      console.error("No fue posible leer el resumen de respaldos:", error);
-    }
-
-    return success({
-      dashboard: {
-        appName: app.getName(),
-        appVersion: app.getVersion(),
-        deviceName: preferences.friendlyName,
-        systemDeviceName: os.hostname(),
-        platform: process.platform,
-        profile,
-        preferences,
-        startup: startupReport,
-        session: sessionStatus,
-        database: localDatabase.getAdminStatus(),
-        diagnostics: diagnosticSummary,
-        backups: backupSummary,
-        modules: {
-          startup: startupReport?.status === "ready" ? "ready" : "attention",
-          localDatabase: localDatabase.getSummary().healthy ? "ready" : "attention",
-          devicePreferences: "ready",
-          backups: backupSummary?.latest ? "ready" : "attention",
-          synchronization: "pending",
-          diagnostics: diagnosticSummary?.latest ? "ready" : "attention"
-        }
-      },
-      status: await buildAdminStatus()
-    });
   });
+}
+
+function registerCatalogHandlers() {
+  ipcMain.handle("catalog:list", async (_event, options = {}) => {
+    try {
+      await requireProfile();
+      return success({ products: catalog.listProducts(options), summary: catalog.getSummary() });
+    } catch (error) {
+      return errorResponse(error, "CATALOG_LIST_FAILED", "No se pudieron buscar los productos.");
+    }
+  });
+
+  ipcMain.handle("catalog:get", async (_event, productId) => {
+    try {
+      const profile = await requireProfile();
+      const detail = catalog.getProduct(productId);
+      commerce.recordRecent(productId, "viewed", contextFromProfile(profile));
+      return success({ detail: { ...detail, commerce: commerce.getProductCommerce(productId) } });
+    } catch (error) {
+      return errorResponse(error, "CATALOG_READ_FAILED", "No se pudo abrir el producto.");
+    }
+  });
+
+  ipcMain.handle("catalog:create", async (_event, input) => {
+    try {
+      const profile = await requireProfile();
+      const created = catalog.createProduct(input, contextFromProfile(profile));
+      commerce.recordRecent(created.product.id, "created", contextFromProfile(profile));
+      return success({ created, detail: { ...catalog.getProduct(created.product.id), commerce: commerce.getProductCommerce(created.product.id) } });
+    } catch (error) {
+      return errorResponse(error, "CATALOG_CREATE_FAILED", "No se pudo crear el producto.");
+    }
+  });
+
+  ipcMain.handle("catalog:add-variant", async (_event, productId, input) => {
+    try {
+      const profile = await requireProfile();
+      const variant = catalog.addVariant(productId, input, contextFromProfile(profile));
+      commerce.recordRecent(productId, "variant_added", contextFromProfile(profile));
+      return success({ variant, detail: { ...catalog.getProduct(productId), commerce: commerce.getProductCommerce(productId) } });
+    } catch (error) {
+      return errorResponse(error, "VARIANT_CREATE_FAILED", "No se pudo agregar la variación.");
+    }
+  });
+
+  ipcMain.handle("catalog:set-product-status", async (_event, productId, status, reason) => {
+    try {
+      const profile = await requireProfile();
+      const product = catalog.setProductStatus(productId, status, reason, contextFromProfile(profile));
+      commerce.recordRecent(productId, `status_${status}`, contextFromProfile(profile));
+      return success({ product });
+    } catch (error) {
+      return errorResponse(error, "PRODUCT_STATUS_FAILED", "No se pudo cambiar el estado del producto.");
+    }
+  });
+
+  ipcMain.handle("catalog:set-variant-status", async (_event, variantId, status, reason) => {
+    try {
+      const profile = await requireProfile();
+      return success({ variant: catalog.setVariantStatus(variantId, status, reason, contextFromProfile(profile)) });
+    } catch (error) {
+      return errorResponse(error, "VARIANT_STATUS_FAILED", "No se pudo cambiar el estado de la variación.");
+    }
+  });
+
+  ipcMain.handle("catalog:add-photo", async (_event, productId, options = {}) => {
+    try {
+      const profile = await requireProfile();
+      const stored = await getPhotoStorageService().chooseAndStore(mainWindow);
+      if (!stored) return failure("PHOTO_CANCELLED", "No se seleccionó ninguna fotografía.");
+      const photo = catalog.addPhoto(productId, { ...stored, ...options }, contextFromProfile(profile));
+      commerce.recordRecent(productId, "photo_added", contextFromProfile(profile));
+      return success({ photo, detail: { ...catalog.getProduct(productId), commerce: commerce.getProductCommerce(productId) } });
+    } catch (error) {
+      return errorResponse(error, "PHOTO_ADD_FAILED", "No se pudo agregar la fotografía.");
+    }
+  });
+
+  ipcMain.handle("catalog:set-photo-status", async (_event, photoId, status) => {
+    try {
+      const profile = await requireProfile();
+      return success({ photo: catalog.setPhotoStatus(photoId, status, contextFromProfile(profile)) });
+    } catch (error) {
+      return errorResponse(error, "PHOTO_STATUS_FAILED", "No se pudo cambiar la fotografía.");
+    }
+  });
+
+  ipcMain.handle("catalog:references", async () => {
+    try {
+      await requireProfile();
+      const channels = localDatabase.database
+        .prepare("SELECT id, name, type FROM channels WHERE is_active = 1 ORDER BY name")
+        .all()
+        .map((row) => ({ id: row.id, name: row.name, type: row.type }));
+      return success({ channels, suppliers: commerce.listSuppliers() });
+    } catch (error) {
+      return errorResponse(error, "CATALOG_REFERENCES_FAILED", "No se pudieron cargar las opciones.");
+    }
+  });
+}
+
+function registerCommerceHandlers() {
+  ipcMain.handle("commerce:suppliers:list", async (_event, options = {}) => {
+    try {
+      await requireProfile();
+      return success({ suppliers: commerce.listSuppliers(options) });
+    } catch (error) {
+      return errorResponse(error, "SUPPLIERS_LIST_FAILED", "No se pudieron consultar los proveedores.");
+    }
+  });
+
+  ipcMain.handle("commerce:supplier:save", async (_event, input) => {
+    try {
+      const profile = await requireProfile();
+      return success({ supplier: commerce.saveSupplier(input, contextFromProfile(profile)), suppliers: commerce.listSuppliers() });
+    } catch (error) {
+      return errorResponse(error, "SUPPLIER_SAVE_FAILED", "No se pudo guardar el proveedor.");
+    }
+  });
+
+  ipcMain.handle("commerce:cost:save", async (_event, input) => {
+    try {
+      const profile = await requireProfile();
+      const cost = commerce.recordCost(input, contextFromProfile(profile));
+      return success({ cost, commerce: commerce.getProductCommerce(input.productId) });
+    } catch (error) {
+      return errorResponse(error, "COST_SAVE_FAILED", "No se pudo guardar el costo.");
+    }
+  });
+
+  ipcMain.handle("commerce:price:save", async (_event, input) => {
+    try {
+      const profile = await requireProfile();
+      const price = commerce.recordPrice(input, contextFromProfile(profile));
+      return success({ price, commerce: commerce.getProductCommerce(input.productId) });
+    } catch (error) {
+      return errorResponse(error, "PRICE_SAVE_FAILED", "No se pudo guardar el precio.");
+    }
+  });
+
+  ipcMain.handle("commerce:recent:list", async (_event, limit) => {
+    try {
+      const profile = await requireProfile();
+      return success({ products: commerce.listRecent(contextFromProfile(profile), limit) });
+    } catch (error) {
+      return errorResponse(error, "RECENT_LIST_FAILED", "No se pudieron cargar los productos recientes.");
+    }
+  });
+}
+
+function registerSyncHandlers() {
+  ipcMain.handle("sync:get-status", async () => {
+    try {
+      await requireProfile();
+      return success({ synchronization: getSyncService().getStatus() });
+    } catch (error) {
+      return errorResponse(error, "SYNC_STATUS_FAILED", "No se pudo leer el estado de sincronización.");
+    }
+  });
+
+  ipcMain.handle("sync:run", async () => {
+    try {
+      const profile = await requireProfile();
+      return await getSyncService().syncNow(profile, app.getVersion());
+    } catch (error) {
+      return errorResponse(error, "SYNC_FAILED", "No se pudo completar la sincronización.", {
+        synchronization: getSyncService().getStatus()
+      });
+    }
+  });
+}
+
+function registerIpcHandlers() {
+  registerCoreHandlers();
+  registerBackupHandlers();
+  registerDiagnosticsHandlers();
+  registerAdminHandlers();
+  registerCatalogHandlers();
+  registerCommerceHandlers();
+  registerSyncHandlers();
+}
+
+function scheduleAutomaticSync() {
+  if (automaticSyncTimer) clearInterval(automaticSyncTimer);
+  const run = async () => {
+    try {
+      const profile = await readProfile(app.getPath("userData"));
+      if (profile && localDatabase.getSummary().initialized && !getSyncService().running) {
+        await getSyncService().syncNow(profile, app.getVersion());
+      }
+    } catch (error) {
+      console.warn("La sincronización automática quedó pendiente:", error.message);
+    }
+  };
+  setTimeout(run, 20_000);
+  automaticSyncTimer = setInterval(run, 10 * 60 * 1000);
 }
 
 app.whenReady().then(async () => {
   await refreshStartupReport();
   getBackupService();
-
+  getPhotoStorageService();
+  getSyncService();
   if (localDatabase.getSummary().initialized) {
-    backupService.maybeCreateAutomatic().catch((error) => {
-      console.error("No fue posible crear el respaldo automático:", error);
-    });
+    backupService.maybeCreateAutomatic().catch((error) => console.error("No fue posible crear el respaldo automático:", error));
   }
-
   registerIpcHandlers();
   createMainWindow(startupReport?.preferences || defaultsForProfile(null));
+  scheduleAutomaticSync();
 
   app.on("activate", async () => {
     if (BrowserWindow.getAllWindows().length === 0) {
@@ -747,21 +717,14 @@ app.whenReady().then(async () => {
 });
 
 app.on("before-quit", () => {
+  if (automaticSyncTimer) clearInterval(automaticSyncTimer);
   localDatabase.close();
 });
 
 app.on("window-all-closed", () => {
   adminSession.logout();
-
-  if (process.platform !== "darwin") {
-    app.quit();
-  }
+  if (process.platform !== "darwin") app.quit();
 });
 
-process.on("uncaughtException", (error) => {
-  console.error("Error no controlado en el proceso principal:", error);
-});
-
-process.on("unhandledRejection", (reason) => {
-  console.error("Promesa rechazada sin controlar:", reason);
-});
+process.on("uncaughtException", (error) => console.error("Error no controlado en el proceso principal:", error));
+process.on("unhandledRejection", (reason) => console.error("Promesa rechazada sin controlar:", reason));
