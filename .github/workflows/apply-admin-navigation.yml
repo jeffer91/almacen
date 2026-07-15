@@ -1,0 +1,59 @@
+name: Aplicar menú lateral administrativo
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "tools/apply-admin-navigation.py"
+      - ".github/workflows/apply-admin-navigation.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  apply-navigation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Descargar main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Preparar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.16.0
+
+      - name: Activar menú lateral
+        run: python tools/apply-admin-navigation.py
+
+      - name: Validar sintaxis
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check app/renderer/admin-navigation.js
+          node --check tests/admin-navigation.test.js
+
+      - name: Ejecutar pruebas
+        run: npm test
+
+      - name: Guardar en main
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f tools/apply-admin-navigation.py
+          rm -f .github/workflows/apply-admin-navigation.yml
+          rmdir tools 2>/dev/null || true
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No hay cambios pendientes."
+            exit 0
+          fi
+          git commit -m "feat: organizar Administración con menú lateral"
+          git push origin HEAD:main
