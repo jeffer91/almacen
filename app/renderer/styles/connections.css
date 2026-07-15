@@ -1,0 +1,152 @@
+/* =========================================================
+Nombre completo: connections.css
+Ruta o ubicación: /app/renderer/styles/connections.css
+Función o funciones:
+- Diseñar la sección de conexiones externas.
+- Organizar Firebase, Supabase y Google Sheets en tarjetas claras.
+- Adaptar formularios y acciones a pantallas pequeñas.
+Con qué se conecta:
+- app/renderer/connections.js
+- app/renderer/admin-navigation.css
+========================================================= */
+
+.connections-panel {
+  display: grid;
+  gap: 22px;
+}
+
+.connections-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.connections-header h2 {
+  margin: 4px 0 8px;
+  color: var(--text);
+  font-size: clamp(1.7rem, 3vw, 2.5rem);
+}
+
+.connections-header p:last-child {
+  margin: 0;
+  color: var(--text-soft);
+}
+
+.connections-security-note {
+  padding: 16px 18px;
+  border-left: 5px solid var(--primary);
+  border-radius: 14px;
+  background: #eef3fb;
+  color: var(--text-soft);
+  font-weight: 700;
+}
+
+.connections-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.connection-card {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+  padding: 22px;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  background: #ffffff;
+  box-shadow: 0 10px 28px rgba(31, 45, 72, 0.07);
+}
+
+.connection-card.is-busy {
+  opacity: 0.72;
+}
+
+.connection-card-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.connection-card-heading h3 {
+  margin: 5px 0 0;
+  color: var(--text);
+  font-size: 1.15rem;
+  line-height: 1.35;
+}
+
+.connection-enabled {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 48px;
+  padding: 12px 14px;
+  border: 1px solid #cfdaeb;
+  border-radius: 14px;
+  background: #f7f9fc;
+  color: var(--text);
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.connection-enabled input {
+  width: 22px;
+  height: 22px;
+  accent-color: var(--primary);
+}
+
+.connection-fields {
+  display: grid;
+  gap: 14px;
+}
+
+.connection-field small {
+  display: block;
+  margin-top: 5px;
+  color: var(--text-soft);
+  font-size: 0.76rem;
+}
+
+.connection-last-test {
+  min-height: 44px;
+  margin: 0;
+  color: var(--text-soft);
+  font-size: 0.88rem;
+  line-height: 1.45;
+}
+
+.connection-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: auto;
+}
+
+.connection-actions .button {
+  min-height: 52px;
+  padding-inline: 14px;
+}
+
+@media (max-width: 1280px) {
+  .connections-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 760px) {
+  .connections-header,
+  .connection-card-heading {
+    flex-direction: column;
+  }
+
+  .connections-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .connection-actions {
+    grid-template-columns: 1fr;
+  }
+}
