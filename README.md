@@ -49,6 +49,16 @@ npm install
 npm start
 ```
 
+### Cambiar de perfil durante las pruebas
+
+```bash
+npm run start:test-profile
+```
+
+Este comando muestra **Cambiar perfil (pruebas)** y permite alternar entre Edgar, Gloria y Jefferson sin borrar la base. El cambio queda deshabilitado automáticamente al abrir con `npm start` o desde el instalador normal.
+
+La contraseña administrativa se mantiene local en cada instalación. Por seguridad, ni la contraseña ni su hash se sincronizan con Firebase.
+
 ## Ejecutar pruebas
 
 ```bash
