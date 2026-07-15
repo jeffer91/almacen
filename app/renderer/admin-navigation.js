@@ -84,6 +84,7 @@ function initializeAdminNavigation(window, document) {
 
   screen.dataset.navigationReady = "true";
   screen.classList.add("admin-navigation-ready");
+  screen.setAttribute("aria-labelledby", "admin-navigation-title");
 
   const create = (tag, className, text) => {
     const element = document.createElement(tag);
@@ -153,6 +154,7 @@ function initializeAdminNavigation(window, document) {
   const headingEyebrow = create("p", "eyebrow", "Centro de control");
   const headingTitle = create("h1", "", "Resumen general");
   headingTitle.id = "admin-navigation-title";
+  headingTitle.tabIndex = -1;
   const headingDescription = create("p", "lead", "Estado rápido del equipo y de los servicios principales.");
   headingText.append(headingEyebrow, headingTitle, headingDescription);
   compactHeader.append(menuToggle, headingText);
