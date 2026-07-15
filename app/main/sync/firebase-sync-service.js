@@ -17,9 +17,11 @@ Con qué se conecta:
 const fs = require("node:fs");
 const path = require("node:path");
 
+const MAX_FIRESTORE_PHOTO_BYTES = 520 * 1024;
+
 const DEFAULT_CONFIG = Object.freeze({
-  apiKey: process.env.ALMACEN_FIREBASE_API_KEY || "AIzaSyAJgkVqr7p_GKnYFTSHybvBLyFGHplE_uc",
-  projectId: process.env.ALMACEN_FIREBASE_PROJECT_ID || "jeff-2f92d",
+  apiKey: process.env.ALMACEN_FIREBASE_API_KEY || "AIzaSyAXO_u1O0-8NYQL6oM8GWBdcmr2_--9Dp8",
+  projectId: process.env.ALMACEN_FIREBASE_PROJECT_ID || "almacen-59227",
   collection: process.env.ALMACEN_FIREBASE_COLLECTION || "almacen_familiar_devices"
 });
 
@@ -248,6 +250,20 @@ class FirebaseSyncService {
     this.database
       .prepare("UPDATE product_prices SET sync_status = 'synced', synchronized_at = ? WHERE sync_status = 'pending'")
       .run(timestamp);
+    this.database
+      .prepare(
+        `UPDATE sync_queue
+         SET completed_at = ?, updated_at = ?, last_error = NULL
+         WHERE completed_at IS NULL
+           AND source_table = 'product_photos'
+           AND EXISTS (
+             SELECT 1
+             FROM product_photos pp
+             WHERE pp.id = sync_queue.record_id
+               AND (pp.status <> 'active' OR pp.sync_status = 'synced')
+           )`
+      )
+      .run(timestamp, timestamp);
 
     return { pushedRecords: Number(pending.total || 0), snapshot };
   }
@@ -284,7 +300,7 @@ class FirebaseSyncService {
       }
 
       const buffer = fs.readFileSync(photo.local_path);
-      if (!buffer.length || buffer.length > 760 * 1024) {
+      if (!buffer.length || buffer.length > MAX_FIRESTORE_PHOTO_BYTES) {
         this.database
           .prepare("UPDATE product_photos SET sync_status = 'failed', sync_error = ? WHERE id = ?")
           .run("La fotografía supera el tamaño permitido para sincronización.", photo.id);
@@ -370,7 +386,7 @@ class FirebaseSyncService {
       } catch {
         continue;
       }
-      if (!buffer.length || buffer.length > 760 * 1024) continue;
+      if (!buffer.length || buffer.length > MAX_FIRESTORE_PHOTO_BYTES) continue;
       if (document.checksumSha256) {
         const actual = require("node:crypto").createHash("sha256").update(buffer).digest("hex");
         if (actual !== document.checksumSha256) continue;
@@ -683,6 +699,11 @@ class FirebaseSyncService {
       const pushed = await this.pushSnapshot(profile, appVersion);
       const uploadedPhotos = await this.uploadPhotos();
       const snapshots = await this.fetchSnapshots();
+      for (const item of snapshots) {
+        if (item.payload?.device?.id && item.payload.device.id !== profile.deviceId) {
+          this.ensureRemoteDevice(item.payload);
+        }
+      }
       let pulledRecords = 0;
       for (const item of snapshots) {
         pulledRecords += this.mergeSnapshot(item.payload, profile.deviceId);
@@ -715,5 +736,6 @@ class FirebaseSyncService {
 
 module.exports = {
   DEFAULT_CONFIG,
-  FirebaseSyncService
+  FirebaseSyncService,
+  MAX_FIRESTORE_PHOTO_BYTES
 };

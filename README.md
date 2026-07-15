@@ -1,6 +1,6 @@
 # Almacén Familiar
 
-Aplicación de escritorio local-first para compartir productos, costos y precios entre:
+Aplicación de escritorio **local-first** para compartir productos, fotografías, proveedores, costos y precios entre:
 
 - Edgar — Local físico.
 - Gloria — Local físico.
@@ -8,79 +8,41 @@ Aplicación de escritorio local-first para compartir productos, costos y precios
 
 ## Estado actual
 
-Etapa 2 iniciada. Versión actual: `0.9.0`.
+Versión actual: `1.0.0`. La primera versión funcional del catálogo está completa.
 
-Ya está implementado:
+Funciones implementadas:
 
-- Proyecto base con Electron.
-- Ventana principal con aislamiento de contexto y sin acceso directo a Node.js desde la interfaz.
-- Selección inicial de Edgar, Gloria o Jefferson.
-- Perfil fijo guardado localmente por computadora.
-- Pantalla principal sencilla con texto grande y botones amplios.
-- Botón superior de Administración.
-- Creación inicial de la contraseña desde el perfil de Jefferson.
-- Contraseña almacenada mediante hash `scrypt`, sin texto plano.
-- Inicio y cierre de sesión administrativa.
-- Cierre automático después de 15 minutos sin actividad.
-- Bloqueo temporal después de cinco intentos incorrectos.
-- Centro de control administrativo inicial.
-- Base local SQLite creada automáticamente.
-- Migraciones versionadas y protegidas mediante checksum SHA-256.
-- Usuarios y canales iniciales insertados automáticamente.
-- Registro local del equipo y del perfil asignado.
-- Configuraciones persistentes por dispositivo.
-- Tablas iniciales de auditoría, salud y cola de sincronización.
-- Diagnóstico administrativo de integridad, claves foráneas, tablas y tamaño.
-- Nombre fácil para cada computadora.
-- Tamaños de letra normal, grande y muy grande.
-- Botón rápido para cambiar la letra sin entrar a Administración.
-- Contraste alto y movimiento reducido.
-- Apertura maximizada configurable.
-- Valores visuales recomendados automáticamente para Edgar y Gloria.
-- Diagnóstico general de aplicación, perfil, preferencias, base y pantallas.
-- Reporte automático de controles obligatorios de cada pantalla.
-- Historial local de diagnósticos con resultados y duración.
-- Arranque coordinado antes de mostrar la ventana.
-- Detección de primera ejecución, perfil válido y perfil dañado.
-- Recuperación de configuraciones dañadas mediante respaldo local.
-- Verificación de escritura después de guardar un perfil.
-- Bloqueo de cambios de usuario fuera de Administración.
-- Respaldos automáticos diarios de SQLite.
-- Creación manual de respaldos desde Administración.
-- Verificación de integridad, claves foráneas, esquema y checksum SHA-256.
-- Retención de 10 respaldos automáticos y 20 manuales.
-- Listado y apertura de la carpeta local de respaldos.
-- Configuración de instalador NSIS para Windows x64.
-- Compilación automatizada del instalador mediante GitHub Actions.
-- Verificación del contenido de `app.asar`.
-- Instalación silenciosa de prueba en Windows.
-- Generación de hash SHA-256 y reporte JSON del instalador.
-- Publicación del instalador verificado como artefacto de GitHub durante 30 días.
-- Estructura local de productos, variaciones y fotografías.
+- Aplicación de escritorio con Electron y SQLite.
+- Interfaz sencilla, texto grande y botones amplios para Edgar y Gloria.
+- Perfiles fijos por computadora.
+- Administración protegida con contraseña `scrypt`, bloqueo por intentos y cierre por inactividad.
+- Catálogo con búsqueda, creación de productos y variaciones.
+- Fotografías comprimidas y almacenadas localmente.
+- Proveedores, historial de costos y precios por local.
+- Productos recientes por computadora.
 - Estados activo, inactivo y retirado sin borrado físico.
-- Fotografías independientes por usuario y canal.
-- Etapas preparadas para sincronización progresiva de fotografías.
-- Historial no destructivo mediante eventos del catálogo.
-- Cola de sincronización para productos, variaciones, fotografías y relaciones.
-- Relaciones administrativas entre productos reemplazados, duplicados o destinados a fusión.
-- Restauración reservada para Jefferson.
-- Pruebas automáticas en Linux y Windows.
-- Pruebas para contraseña, sesión, migraciones, persistencia, preferencias, diagnósticos, arranque, perfiles, respaldos y catálogo.
+- Restauración de productos, variaciones y fotografías reservada para Jefferson.
+- Historial de acciones, auditoría y cola de sincronización.
+- Sincronización local-first con Firebase Firestore del proyecto `almacen-59227`.
+- Respaldos automáticos y manuales de SQLite.
+- Diagnósticos de base, pantallas y módulos principales.
+- Instalador NSIS x64 para Windows.
+- Pruebas automáticas en Windows y Ubuntu.
 
-## Regla temporal de configuración administrativa
+## Prioridad de almacenamiento
 
-Mientras todavía no exista sincronización entre dispositivos, la contraseña inicial solo puede crearse en la computadora configurada con el perfil de Jefferson.
+1. SQLite local es la base principal y permite trabajar sin internet.
+2. Firebase comparte los cambios entre las tres computadoras.
+3. Los respaldos locales protegen la base de cada equipo.
 
-Cuando se implemente la sincronización segura, las computadoras de Edgar y Gloria podrán recibir la credencial administrativa protegida para que Jefferson ingrese desde esos equipos sin permitir que otros usuarios creen una contraseña nueva.
+Los datos de la aplicación se guardan en la carpeta `userData` de Electron, no dentro de la carpeta de instalación.
 
-## Ejecutar en desarrollo
-
-Requisitos:
+## Requisitos de desarrollo
 
 - Node.js 22.16 o superior.
-- npm disponible.
+- npm.
 
-Comandos:
+## Ejecutar en desarrollo
 
 ```bash
 npm install
@@ -95,21 +57,12 @@ npm test
 
 ## Generar y verificar el instalador de Windows
 
-En Windows:
-
 ```powershell
 npm install
 npm run release:win
 ```
 
-También puede ejecutarse por partes:
-
-```powershell
-npm run build:win
-npm run verify:win
-```
-
-Los resultados se generan dentro de `dist`:
+Los archivos se generan en `dist`:
 
 ```text
 Almacen-Familiar-Setup-<version>-x64.exe
@@ -117,13 +70,12 @@ installer-verification.json
 asar-files.txt
 ```
 
-## Estructura actual
+## Estructura principal
 
 ```text
-.github/
-└── workflows/
-    ├── tests.yml
-    └── windows-installer.yml
+.github/workflows/
+├── tests.yml
+└── windows-installer.yml
 
 app/
 ├── main/
@@ -132,103 +84,81 @@ app/
 │   ├── admin-auth-store.js
 │   ├── admin-session.js
 │   ├── device-preferences.js
-│   ├── startup/
-│   │   └── startup-service.js
-│   ├── diagnostics/
-│   │   └── diagnostics-service.js
-│   ├── backups/
-│   │   └── backup-service.js
+│   ├── backups/backup-service.js
 │   ├── catalog/
-│   │   └── catalog-service.js
-│   └── database/
-│       ├── connection.js
-│       ├── migrations.js
-│       ├── migration-runner.js
-│       └── local-database-service.js
-├── preload/
-│   └── preload.js
+│   │   ├── catalog-service.js
+│   │   ├── commerce-service.js
+│   │   └── photo-storage-service.js
+│   ├── database/
+│   │   ├── connection.js
+│   │   ├── migrations.js
+│   │   ├── migration-runner.js
+│   │   └── local-database-service.js
+│   ├── diagnostics/diagnostics-service.js
+│   ├── startup/startup-service.js
+│   └── sync/firebase-sync-service.js
+├── preload/preload.js
 └── renderer/
     ├── index.html
     ├── app.js
-    ├── preferences.js
+    ├── catalog.js
     ├── diagnostics.js
     ├── backups.js
+    ├── preferences.js
     └── styles/
-        ├── global.css
-        ├── easy-mode.css
-        ├── admin.css
-        ├── preferences.css
-        ├── diagnostics.css
-        └── backups.css
-
-build/
-└── README.md
-
-scripts/
-└── verify-windows-build.ps1
 
 tests/
 ├── admin-auth.test.js
-├── local-database.test.js
+├── backups.test.js
+├── catalog.test.js
+├── commerce.test.js
 ├── device-preferences.test.js
 ├── diagnostics.test.js
+├── local-database.test.js
 ├── startup-profile.test.js
-├── backups.test.js
-└── catalog.test.js
-
-docs/
-├── database.md
-├── device-preferences.md
-├── diagnostics.md
-├── startup-and-profiles.md
-├── backups.md
-├── windows-installer.md
-└── catalog-model.md
+└── sync.test.js
 ```
 
-## Base local actual
+## Tablas SQLite
 
-Tablas creadas:
+- `schema_migrations`
+- `users`
+- `channels`
+- `devices`
+- `device_settings`
+- `audit_events`
+- `sync_queue`
+- `system_health`
+- `diagnostic_runs`
+- `diagnostic_checks`
+- `screen_reports`
+- `products`
+- `product_variants`
+- `product_photos`
+- `product_links`
+- `catalog_events`
+- `suppliers`
+- `product_costs`
+- `product_prices`
+- `recent_product_activity`
+- `sync_state`
 
-- `schema_migrations`;
-- `users`;
-- `channels`;
-- `devices`;
-- `device_settings`;
-- `audit_events`;
-- `sync_queue`;
-- `system_health`;
-- `diagnostic_runs`;
-- `diagnostic_checks`;
-- `screen_reports`;
-- `products`;
-- `product_variants`;
-- `product_photos`;
-- `product_links`;
-- `catalog_events`.
+## Firebase
 
-## Consideraciones del primer instalador
+La configuración predeterminada corresponde a:
 
-- Todavía no se utiliza un certificado de firma de código.
-- Windows puede mostrar una advertencia de editor desconocido.
-- El primer instalador utiliza el icono predeterminado de Electron.
-- La firma y el icono institucional se incorporarán antes de una distribución pública definitiva.
+- Proyecto: `almacen-59227`.
+- Colección de equipos: `almacen_familiar_devices`.
+- Colección de fotografías: `almacen_familiar_devices_photos`.
 
-## Documentación técnica
+La configuración puede reemplazarse mediante estas variables de entorno:
 
-- `docs/database.md`;
-- `docs/device-preferences.md`;
-- `docs/diagnostics.md`;
-- `docs/startup-and-profiles.md`;
-- `docs/backups.md`;
-- `docs/windows-installer.md`;
-- `docs/catalog-model.md`.
+- `ALMACEN_FIREBASE_API_KEY`
+- `ALMACEN_FIREBASE_PROJECT_ID`
+- `ALMACEN_FIREBASE_COLLECTION`
 
-## Próximos bloques de la etapa 2
+Las reglas de Firestore deben permitir las operaciones necesarias de la aplicación. No se deben guardar datos sensibles mientras las reglas sean públicas.
 
-1. Pantalla para buscar y consultar productos.
-2. Pantalla para crear productos y variaciones.
-3. Captura, compresión y almacenamiento local de fotografías.
-4. Pantalla para retirar y restaurar productos.
-5. Costos y proveedores.
-6. Precios por canal.
+## Instalador
+
+El instalador actual no está firmado digitalmente, por lo que Windows puede mostrar una advertencia de editor desconocido. La información local no se elimina al desinstalar (`deleteAppDataOnUninstall: false`).
