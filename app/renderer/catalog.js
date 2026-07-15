@@ -134,6 +134,10 @@ Con qué se conecta:
     return { active: "Activo", inactive: "Inactivo", retired: "Retirado", hidden: "Oculta" }[status] || status || "—";
   }
 
+  function isAdministrator() {
+    return window.AlmacenShell?.getProfile?.()?.role === "administrator";
+  }
+
   function eventLabel(eventType) {
     const labels = {
       product_created: "Producto creado",
@@ -279,7 +283,12 @@ Con qué se conecta:
           const visual = url
             ? `<img src="${url}" alt="Fotografía de ${esc(detail.product.canonicalName)}">`
             : '<div class="catalog-photo-placeholder">Foto registrada en otro equipo</div>';
-          return `<article class="catalog-photo-card">${visual}<p><strong>${esc(photo.fileName)}</strong></p><p class="catalog-muted">${statusLabel(photo.status)} · ${esc(photo.channelId)}</p>${photo.status !== "retired" ? `<button class="button button-secondary" type="button" data-photo-retire="${esc(photo.id)}">Retirar foto</button>` : ""}</article>`;
+          const action = photo.status === "retired"
+            ? isAdministrator()
+              ? `<button class="button button-secondary" type="button" data-photo-status="active" data-photo-id="${esc(photo.id)}">Restaurar foto</button>`
+              : '<span class="catalog-muted">Solo Jefferson puede restaurarla.</span>'
+            : `<button class="button button-secondary" type="button" data-photo-status="retired" data-photo-id="${esc(photo.id)}">Retirar foto</button>`;
+          return `<article class="catalog-photo-card">${visual}<p><strong>${esc(photo.fileName)}</strong></p><p class="catalog-muted">${statusLabel(photo.status)} · ${esc(photo.channelId)}</p>${action}</article>`;
         }).join("")
       : '<p class="catalog-muted">Todavía no hay fotografías.</p>';
 
@@ -302,7 +311,11 @@ Con qué se conecta:
             <div class="catalog-inline-actions">
               ${variant.status === "active" ? `<button class="button button-secondary" type="button" data-variant-status="inactive" data-variant-id="${esc(variant.id)}">Inactivar</button>` : ""}
               ${variant.status === "inactive" ? `<button class="button button-secondary" type="button" data-variant-status="active" data-variant-id="${esc(variant.id)}">Activar</button>` : ""}
-              ${variant.status !== "retired" ? `<button class="button button-secondary" type="button" data-variant-status="retired" data-variant-id="${esc(variant.id)}">Retirar</button>` : `<button class="button button-secondary" type="button" data-variant-status="active" data-variant-id="${esc(variant.id)}">Restaurar</button>`}
+              ${variant.status !== "retired"
+                ? `<button class="button button-secondary" type="button" data-variant-status="retired" data-variant-id="${esc(variant.id)}">Retirar</button>`
+                : isAdministrator()
+                  ? `<button class="button button-secondary" type="button" data-variant-status="active" data-variant-id="${esc(variant.id)}">Restaurar</button>`
+                  : '<span class="catalog-muted">Solo Jefferson puede restaurarla.</span>'}
             </div>
           </article>
         `).join("")
@@ -335,7 +348,9 @@ Con qué se conecta:
       ? '<button class="button button-secondary" type="button" data-product-status="inactive">Inactivar</button><button class="button button-secondary" type="button" data-product-status="retired">Retirar</button>'
       : product.status === "inactive"
         ? '<button class="button button-secondary" type="button" data-product-status="active">Activar</button><button class="button button-secondary" type="button" data-product-status="retired">Retirar</button>'
-        : '<button class="button button-primary" type="button" data-product-status="active">Restaurar</button>';
+        : isAdministrator()
+          ? '<button class="button button-primary" type="button" data-product-status="active">Restaurar</button>'
+          : '<span class="catalog-muted">Solo Jefferson puede restaurar este producto.</span>';
 
     elements.detail.innerHTML = `
       <div class="catalog-detail-heading">
@@ -367,8 +382,8 @@ Con qué se conecta:
     elements.detail.querySelectorAll("[data-variant-status]").forEach((button) => {
       button.addEventListener("click", () => changeVariantStatus(button.dataset.variantId, button.dataset.variantStatus));
     });
-    elements.detail.querySelectorAll("[data-photo-retire]").forEach((button) => {
-      button.addEventListener("click", () => retirePhoto(button.dataset.photoRetire));
+    elements.detail.querySelectorAll("[data-photo-status]").forEach((button) => {
+      button.addEventListener("click", () => changePhotoStatus(button.dataset.photoId, button.dataset.photoStatus));
     });
 
     if (state.quickUpdate) document.getElementById("catalog-commerce-section")?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -610,14 +625,14 @@ Con qué se conecta:
     }
   }
 
-  async function retirePhoto(photoId) {
-    if (!window.confirm("¿Retirar esta fotografía?")) return;
+  async function changePhotoStatus(photoId, status) {
+    if (status === "retired" && !window.confirm("¿Retirar esta fotografía?")) return;
     try {
-      const response = await window.almacen.setPhotoStatus(photoId, "retired");
-      if (!response.ok) throw new Error(response.message || "No se pudo retirar la fotografía.");
+      const response = await window.almacen.setPhotoStatus(photoId, status);
+      if (!response.ok) throw new Error(response.message || "No se pudo cambiar la fotografía.");
       await openProduct(state.currentDetail.product.id);
     } catch (error) {
-      showMessage(error.message || "No se pudo retirar la fotografía.", "error");
+      showMessage(error.message || "No se pudo cambiar la fotografía.", "error");
     }
   }
 
