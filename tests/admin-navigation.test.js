@@ -17,10 +17,10 @@ const {
   summarizeSyncError
 } = require("../app/renderer/admin-navigation.js");
 
-test("define las seis secciones del Centro de control", () => {
+test("define las siete secciones del Centro de control", () => {
   assert.deepEqual(
     ADMIN_SECTIONS.map((section) => section.id),
-    ["summary", "equipment", "database", "sync", "diagnostics", "backups"]
+    ["summary", "equipment", "database", "connections", "sync", "diagnostics", "backups"]
   );
 });
 

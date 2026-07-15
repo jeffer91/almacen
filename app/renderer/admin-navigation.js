@@ -20,6 +20,7 @@ const ADMIN_SECTIONS = Object.freeze([
   { id: "summary", label: "Resumen", icon: "⌂", title: "Resumen general", description: "Estado rápido del equipo y de los servicios principales." },
   { id: "equipment", label: "Equipo", icon: "▣", title: "Equipo y perfil", description: "Identidad de esta computadora y preferencias de uso." },
   { id: "database", label: "Base local", icon: "◉", title: "Base local SQLite", description: "Integridad, esquema y tamaño de la información guardada en este equipo." },
+  { id: "connections", label: "Conexiones", icon: "⚙", title: "Conexiones externas", description: "Configuración de Firebase, Supabase y Google Sheets." },
   { id: "sync", label: "Sincronización", icon: "↻", title: "Sincronización Firebase", description: "Envío y recepción de cambios entre las computadoras." },
   { id: "diagnostics", label: "Diagnóstico", icon: "✓", title: "Diagnóstico general", description: "Comprobación de la aplicación, la base y las pantallas." },
   { id: "backups", label: "Respaldos", icon: "▤", title: "Respaldos locales", description: "Copias verificables de la base SQLite de esta computadora." }
@@ -71,12 +72,13 @@ function initializeAdminNavigation(window, document) {
   const pageHeader = screen.querySelector(".admin-page-header");
   const sessionBanner = screen.querySelector(".admin-session-banner");
   const originalGrid = screen.querySelector(".admin-grid");
+  const connectionsPanel = document.getElementById("connections-panel");
   const diagnosticsPanel = document.getElementById("diagnostics-panel");
   const backupsPanel = document.getElementById("backups-panel");
   const backButton = document.getElementById("admin-back-button");
   const logoutButton = document.getElementById("admin-logout-button");
 
-  if (!pageHeader || !sessionBanner || !originalGrid || !diagnosticsPanel || !backupsPanel || !backButton || !logoutButton) return;
+  if (!pageHeader || !sessionBanner || !originalGrid || !connectionsPanel || !diagnosticsPanel || !backupsPanel || !backButton || !logoutButton) return;
 
   const originalCards = Array.from(originalGrid.children);
   const [deviceCard, profileCard, versionCard, preferencesCard, databaseCard, syncCard] = originalCards;
@@ -126,7 +128,7 @@ function initializeAdminNavigation(window, document) {
     icon.setAttribute("aria-hidden", "true");
     const label = create("span", "admin-nav-label", section.label);
     button.append(icon, label);
-    if (["database", "sync", "diagnostics", "backups"].includes(section.id)) {
+    if (["database", "connections", "sync", "diagnostics", "backups"].includes(section.id)) {
       const dot = create("span", "admin-nav-status admin-nav-status-neutral");
       dot.setAttribute("aria-hidden", "true");
       button.append(dot);
@@ -183,9 +185,10 @@ function initializeAdminNavigation(window, document) {
   const summarySection = createSection(ADMIN_SECTIONS[0]);
   const equipmentSection = createSection(ADMIN_SECTIONS[1]);
   const databaseSection = createSection(ADMIN_SECTIONS[2]);
-  const syncSection = createSection(ADMIN_SECTIONS[3]);
-  const diagnosticsSection = createSection(ADMIN_SECTIONS[4]);
-  const backupsSection = createSection(ADMIN_SECTIONS[5]);
+  const connectionsSection = createSection(ADMIN_SECTIONS[3]);
+  const syncSection = createSection(ADMIN_SECTIONS[4]);
+  const diagnosticsSection = createSection(ADMIN_SECTIONS[5]);
+  const backupsSection = createSection(ADMIN_SECTIONS[6]);
 
   summarySection.append(sessionBanner);
 
@@ -209,6 +212,7 @@ function initializeAdminNavigation(window, document) {
   const statusOverview = create("div", "admin-status-overview");
   const overviewDefinitions = [
     { id: "database", label: "Base local", badgeId: "admin-database-badge" },
+    { id: "connections", label: "Conexiones", badgeId: "connections-badge" },
     { id: "sync", label: "Sincronización", badgeId: "sync-badge" },
     { id: "diagnostics", label: "Diagnóstico", badgeId: "diagnostics-overall-badge" },
     { id: "backups", label: "Respaldos", badgeId: "backups-badge" }
@@ -232,6 +236,7 @@ function initializeAdminNavigation(window, document) {
   equipmentGrid.append(deviceCard, profileCard, versionCard, preferencesCard);
   equipmentSection.append(equipmentGrid);
   databaseSection.append(databaseCard);
+  connectionsSection.append(connectionsPanel);
   syncSection.append(syncCard);
   diagnosticsSection.append(diagnosticsPanel);
   backupsSection.append(backupsPanel);

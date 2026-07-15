@@ -67,7 +67,7 @@ class FirebaseSyncService {
   }
 
   isConfigured() {
-    return Boolean(this.config.apiKey && this.config.projectId && this.config.collection && this.fetch);
+    return Boolean(this.config.enabled !== false && this.config.apiKey && this.config.projectId && this.config.collection && this.fetch);
   }
 
   baseUrl() {
@@ -148,6 +148,7 @@ class FirebaseSyncService {
       .get();
 
     return {
+      enabled: this.config.enabled !== false,
       configured: this.isConfigured(),
       running: this.running,
       status: row?.status || "idle",

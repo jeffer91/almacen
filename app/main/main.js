@@ -23,7 +23,8 @@ const {
   ipcMain,
   shell,
   dialog,
-  nativeImage
+  nativeImage,
+  safeStorage
 } = require("electron");
 const { PROFILES, readProfile, saveProfile } = require("./profile-store");
 const {
@@ -40,6 +41,7 @@ const { CatalogService } = require("./catalog/catalog-service");
 const { CommerceService } = require("./catalog/commerce-service");
 const { PhotoStorageService } = require("./catalog/photo-storage-service");
 const { FirebaseSyncService } = require("./sync/firebase-sync-service");
+const { ConnectionConfigService } = require("./connections/connection-config-service");
 const {
   defaultsForProfile,
   getDevicePreferences,
@@ -51,6 +53,7 @@ let mainWindow = null;
 let startupReport = null;
 let backupService = null;
 let photoStorageService = null;
+let connectionConfigService = null;
 let syncService = null;
 let automaticSyncTimer = null;
 
@@ -98,11 +101,22 @@ function getPhotoStorageService() {
   return photoStorageService;
 }
 
+function getConnectionConfigService() {
+  if (!connectionConfigService) {
+    connectionConfigService = new ConnectionConfigService({
+      userDataPath: app.getPath("userData"),
+      safeStorage
+    });
+  }
+  return connectionConfigService;
+}
+
 function getSyncService() {
   if (!syncService) {
     syncService = new FirebaseSyncService({
       databaseService: localDatabase,
-      userDataPath: app.getPath("userData")
+      userDataPath: app.getPath("userData"),
+      config: getConnectionConfigService().getRuntimeConfig("firebase")
     });
   }
   return syncService;
@@ -489,6 +503,7 @@ function registerAdminHandlers() {
           catalog: catalog.getSummary(),
           commerce: commerce.getSummary(),
           synchronization: getSyncService().getStatus(),
+          connections: getConnectionConfigService().getPublicConfig(),
           modules: {
             startup: startupReport?.status === "ready" ? "ready" : "attention",
             localDatabase: localDatabase.getSummary().healthy ? "ready" : "attention",
@@ -656,6 +671,47 @@ function registerCommerceHandlers() {
   });
 }
 
+function registerConnectionHandlers() {
+  ipcMain.handle("connections:get", async () => {
+    if (!adminSession.isUnlocked()) {
+      return failure("ADMIN_SESSION_REQUIRED", "La sesión administrativa terminó. Ingresa nuevamente.");
+    }
+    try {
+      adminSession.touch();
+      return success({ connections: getConnectionConfigService().getPublicConfig() });
+    } catch (error) {
+      return errorResponse(error, "CONNECTIONS_READ_FAILED", "No se pudo leer la configuración de conexiones.");
+    }
+  });
+
+  ipcMain.handle("connections:save", async (_event, providerId, payload = {}) => {
+    if (!adminSession.isUnlocked()) {
+      return failure("ADMIN_SESSION_REQUIRED", "La sesión administrativa terminó. Ingresa nuevamente.");
+    }
+    try {
+      getConnectionConfigService().save(providerId, payload);
+      if (providerId === "firebase") syncService = null;
+      adminSession.touch();
+      return success({ connections: getConnectionConfigService().getPublicConfig() });
+    } catch (error) {
+      return errorResponse(error, "CONNECTION_SAVE_FAILED", "No se pudo guardar la conexión.");
+    }
+  });
+
+  ipcMain.handle("connections:test", async (_event, providerId, payload = {}) => {
+    if (!adminSession.isUnlocked()) {
+      return failure("ADMIN_SESSION_REQUIRED", "La sesión administrativa terminó. Ingresa nuevamente.");
+    }
+    try {
+      const result = await getConnectionConfigService().test(providerId, payload);
+      adminSession.touch();
+      return success({ result, connections: getConnectionConfigService().getPublicConfig() });
+    } catch (error) {
+      return errorResponse(error, "CONNECTION_TEST_FAILED", "No se pudo probar la conexión.");
+    }
+  });
+}
+
 function registerSyncHandlers() {
   ipcMain.handle("sync:get-status", async () => {
     try {
@@ -685,6 +741,7 @@ function registerIpcHandlers() {
   registerAdminHandlers();
   registerCatalogHandlers();
   registerCommerceHandlers();
+  registerConnectionHandlers();
   registerSyncHandlers();
 }
 
@@ -693,7 +750,7 @@ function scheduleAutomaticSync() {
   const run = async () => {
     try {
       const profile = await readProfile(app.getPath("userData"));
-      if (profile && localDatabase.getSummary().initialized && !getSyncService().running) {
+      if (profile && localDatabase.getSummary().initialized && getSyncService().isConfigured() && !getSyncService().running) {
         await getSyncService().syncNow(profile, app.getVersion());
       }
     } catch (error) {
@@ -708,6 +765,7 @@ app.whenReady().then(async () => {
   await refreshStartupReport();
   getBackupService();
   getPhotoStorageService();
+  getConnectionConfigService();
   getSyncService();
   if (localDatabase.getSummary().initialized) {
     backupService.maybeCreateAutomatic().catch((error) => console.error("No fue posible crear el respaldo automático:", error));

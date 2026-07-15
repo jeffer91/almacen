@@ -60,6 +60,10 @@ const api = Object.freeze({
   savePrice: (input) => ipcRenderer.invoke("commerce:price:save", input),
   listRecentProducts: (limit) => ipcRenderer.invoke("commerce:recent:list", limit),
 
+  getConnectionsConfig: () => ipcRenderer.invoke("connections:get"),
+  saveConnectionConfig: (providerId, payload) => ipcRenderer.invoke("connections:save", providerId, payload),
+  testConnection: (providerId, payload) => ipcRenderer.invoke("connections:test", providerId, payload),
+
   getSyncStatus: () => ipcRenderer.invoke("sync:get-status"),
   runSync: () => ipcRenderer.invoke("sync:run")
 });
