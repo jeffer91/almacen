@@ -10,14 +10,15 @@
     "node": ">=22.16.0"
   },
   "scripts": {
-    "start": "electron .",
+    "start": "cross-env ALMACEN_ALLOW_PROFILE_CHANGE=1 electron .",
+    "start:locked": "electron .",
+    "start:test-profile": "cross-env ALMACEN_ALLOW_PROFILE_CHANGE=1 electron .",
     "dev": "cross-env NODE_ENV=development electron .",
     "test": "node --test",
     "pack": "electron-builder --dir",
     "build:win": "electron-builder --win nsis --x64",
     "verify:win": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/verify-windows-build.ps1",
-    "release:win": "npm test && npm run build:win && npm run verify:win",
-    "start:test-profile": "cross-env ALMACEN_ALLOW_PROFILE_CHANGE=1 electron ."
+    "release:win": "npm test && npm run build:win && npm run verify:win"
   },
   "devDependencies": {
     "cross-env": "7.0.3",
