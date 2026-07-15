@@ -7,12 +7,17 @@ on:
     paths:
       - "tools/apply-audit-fixes.py"
       - ".github/workflows/apply-audit-fixes.yml"
+  pull_request:
+    branches:
+      - main
+    types: [opened, synchronize, reopened]
 
 permissions:
   contents: write
 
 jobs:
   apply-audit:
+    if: github.head_ref == 'fix/auditoria-final-v1' || github.ref_name == 'fix/auditoria-final-v1'
     runs-on: ubuntu-latest
     timeout-minutes: 20
 
