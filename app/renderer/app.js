@@ -25,7 +25,8 @@ Con qué se conecta:
     adminMode: "login",
     adminUnlocked: false,
     lastAdminTouchAt: 0,
-    databaseSummary: null
+    databaseSummary: null,
+    profileTestingEnabled: false
   };
 
   const elements = {
@@ -42,6 +43,8 @@ Con qué se conecta:
     localDbTitle: document.getElementById("local-db-title"),
     localDbMessage: document.getElementById("local-db-message"),
     adminButton: document.getElementById("admin-button"),
+    profileChangeButton: document.getElementById("profile-change-button"),
+    profileSetupNotice: document.getElementById("profile-setup-notice"),
     profileDialog: document.getElementById("confirmation-dialog"),
     profileDialogTitle: document.getElementById("dialog-title"),
     profileDialogMessage: document.getElementById("dialog-message"),
@@ -213,6 +216,7 @@ Con qué se conecta:
     elements.welcomeTitle.textContent = `Hola, ${profile.displayName}`;
     elements.channelName.textContent = profile.channelName;
     elements.adminButton.textContent = state.adminUnlocked ? "Administración abierta" : "Administración";
+    elements.profileChangeButton?.classList.toggle("hidden", !state.profileTestingEnabled);
     showScreen(elements.homeScreen, "home");
   }
 
@@ -227,6 +231,16 @@ Con qué se conecta:
     }
   }
 
+  function openProfileTesting() {
+    if (!state.profileTestingEnabled) return;
+    state.selectedProfileId = null;
+    renderProfiles();
+    if (elements.profileSetupNotice) {
+      elements.profileSetupNotice.textContent = "Modo de pruebas activo. Puedes cambiar de perfil sin borrar la base local.";
+    }
+    showScreen(elements.setupScreen, "setup");
+  }
+
   async function confirmSelectedProfile(event) {
     event.preventDefault();
     if (!state.selectedProfileId) return elements.profileDialog.close();
@@ -236,6 +250,7 @@ Con qué se conecta:
       const profile = await window.almacen.saveProfile(state.selectedProfileId);
       elements.profileDialog.close();
       state.currentProfile = profile;
+      state.adminUnlocked = false;
       await refreshDatabaseSummary();
       renderHome(profile);
       showToast("Perfil guardado correctamente.");
@@ -302,8 +317,13 @@ Con qué se conecta:
 
     elements.adminDialogEyebrow.textContent = "Configuración pendiente";
     elements.adminDialogTitle.textContent = "Administración aún no configurada";
-    elements.adminDialogMessage.textContent = "La contraseña inicial solo se crea desde la computadora de Jefferson.";
-    elements.adminSecurityNote.textContent = "Después podrá sincronizarse el estado con los otros equipos.";
+    if (state.profileTestingEnabled) {
+      elements.adminDialogMessage.textContent = "Para esta prueba, cambia el perfil a Jefferson y crea la contraseña.";
+      elements.adminSecurityNote.textContent = "Usa el botón Cambiar perfil (pruebas). Al iniciar normalmente, ese botón desaparece.";
+    } else {
+      elements.adminDialogMessage.textContent = "La contraseña inicial se crea localmente desde la computadora configurada como Jefferson.";
+      elements.adminSecurityNote.textContent = "Por seguridad, la contraseña y su hash no se sincronizan con Firebase.";
+    }
   }
 
   async function openAdminAccess() {
@@ -454,6 +474,7 @@ Con qué se conecta:
 
   function bindEvents() {
     elements.confirmProfile.addEventListener("click", confirmSelectedProfile);
+    elements.profileChangeButton?.addEventListener("click", openProfileTesting);
     elements.adminButton.addEventListener("click", openAdminAccess);
     elements.adminForm.addEventListener("submit", submitAdminForm);
     elements.adminCancelButton.addEventListener("click", () => { elements.adminDialog.close(); resetAdminForm(); });
@@ -491,6 +512,13 @@ Con qué se conecta:
         window.almacen.getDatabaseSummary()
       ]);
       elements.appVersion.textContent = `Versión ${appInfo.version}`;
+      state.profileTestingEnabled = Boolean(appInfo.profileTestingEnabled);
+      elements.profileChangeButton?.classList.toggle("hidden", !state.profileTestingEnabled);
+      if (elements.profileSetupNotice) {
+        elements.profileSetupNotice.textContent = state.profileTestingEnabled
+          ? "Modo de pruebas activo. Puedes cambiar de perfil sin borrar la base local."
+          : "El perfil quedará fijo en este equipo.";
+      }
       state.profiles = profiles;
       state.adminUnlocked = Boolean(adminResponse.status?.unlocked);
       renderHomeDatabaseStatus(databaseResponse.database || null);

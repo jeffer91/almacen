@@ -16,7 +16,8 @@
     "pack": "electron-builder --dir",
     "build:win": "electron-builder --win nsis --x64",
     "verify:win": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/verify-windows-build.ps1",
-    "release:win": "npm test && npm run build:win && npm run verify:win"
+    "release:win": "npm test && npm run build:win && npm run verify:win",
+    "start:test-profile": "cross-env ALMACEN_ALLOW_PROFILE_CHANGE=1 electron ."
   },
   "devDependencies": {
     "cross-env": "7.0.3",

@@ -25,6 +25,7 @@
         </div>
       </div>
       <div class="topbar-actions">
+        <button class="button button-secondary hidden" id="profile-change-button" type="button">Cambiar perfil (pruebas)</button>
         <button class="button button-secondary view-button" id="view-button" type="button" disabled>Letra</button>
         <button class="button button-secondary topbar-admin" id="admin-button" type="button">Administración</button>
       </div>
@@ -44,7 +45,7 @@
           <h1 id="setup-title">¿Quién usará esta computadora?</h1>
           <p class="lead">Elige una sola persona. La selección quedará guardada en este equipo.</p>
           <div class="profile-grid" id="profile-list" aria-label="Perfiles disponibles"></div>
-          <div class="notice" role="note">El perfil solo podrá cambiarse posteriormente desde Administración.</div>
+          <div class="notice" id="profile-setup-notice" role="note">El perfil quedará fijo en este equipo.</div>
         </div>
       </section>
 

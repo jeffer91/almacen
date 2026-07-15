@@ -94,6 +94,18 @@ test("guardar el mismo perfil conserva el equipo y cambiarlo exige administraci�
   });
 });
 
+test("el modo autorizado permite cambiar de perfil conservando el equipo", async () => {
+  await withTempDirectory(async (directory) => {
+    const first = await saveProfile(directory, "edgar");
+    const changed = await saveProfile(directory, "jefferson", { allowChange: true });
+
+    assert.equal(changed.id, "jefferson");
+    assert.equal(changed.deviceId, first.deviceId);
+    assert.equal(changed.configuredAt, first.configuredAt);
+    assert.equal((await readProfile(directory)).id, "jefferson");
+  });
+});
+
 test("una configuración dañada se detecta, respalda y reemplaza", async () => {
   await withTempDirectory(async (directory) => {
     const filePath = path.join(directory, FILE_NAME);

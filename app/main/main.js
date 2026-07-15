@@ -60,6 +60,9 @@ const diagnostics = new DiagnosticsService(localDatabase);
 const catalog = new CatalogService(localDatabase);
 const commerce = new CommerceService(localDatabase);
 
+const PROFILE_TESTING_ENABLED =
+  process.env.NODE_ENV === "development" || process.env.ALMACEN_ALLOW_PROFILE_CHANGE === "1";
+
 function success(data = {}) {
   return { ok: true, ...data };
 }
@@ -240,7 +243,8 @@ function registerCoreHandlers() {
   ipcMain.handle("app:get-info", () => ({
     name: app.getName(),
     version: app.getVersion(),
-    platform: process.platform
+    platform: process.platform,
+    profileTestingEnabled: PROFILE_TESTING_ENABLED
   }));
 
   ipcMain.handle("startup:get-state", async () => {
@@ -251,10 +255,14 @@ function registerCoreHandlers() {
   ipcMain.handle("profile:list", () => Object.values(PROFILES));
   ipcMain.handle("profile:get", () => readProfile(app.getPath("userData")));
   ipcMain.handle("profile:save", async (_event, profileId) => {
-    const profile = await saveProfile(app.getPath("userData"), profileId);
+    const profile = await saveProfile(app.getPath("userData"), profileId, {
+      allowChange: PROFILE_TESTING_ENABLED
+    });
     if (!localDatabase.getSummary().initialized) await initializeLocalDatabase(profile);
     else localDatabase.registerDeviceProfile(profile, app.getVersion());
-    currentPreferences(profile);
+    adminSession.logout();
+    const preferences = currentPreferences(profile);
+    applyWindowPreferences(preferences);
     await refreshStartupReport();
     scheduleAutomaticSync();
     return profile;
