@@ -285,7 +285,7 @@ Con qué se conecta:
       elements.adminDialogMessage.textContent = "Esta contraseña protegerá el Centro de control.";
       elements.adminConfirmation.required = true;
       elements.adminSubmitButton.textContent = "Crear y entrar";
-      elements.adminSecurityNote.textContent = "Usa al menos 8 caracteres.";
+      elements.adminSecurityNote.textContent = "Usa al menos 4 caracteres. Puedes combinar letras, números o símbolos.";
       elements.adminSecurityNote.classList.remove("hidden");
       return;
     }

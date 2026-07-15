@@ -56,6 +56,13 @@ test("rechaza contraseñas demasiado cortas", async () => {
   });
 });
 
+test("acepta una contraseña sencilla de cuatro caracteres", async () => {
+  await withTempDirectory(async (directory) => {
+    await createAdminCredential(directory, "1234");
+    assert.equal(await verifyAdminPassword(directory, "1234"), true);
+  });
+});
+
 test("la sesión se cierra al vencer y bloquea después de varios intentos", () => {
   const session = new AdminSessionManager({
     sessionDurationMs: 1000,

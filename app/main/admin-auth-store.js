@@ -20,7 +20,7 @@ const scryptAsync = promisify(crypto.scrypt);
 const AUTH_VERSION = 1;
 const FILE_NAME = "admin-auth.json";
 const KEY_LENGTH = 64;
-const MIN_PASSWORD_LENGTH = 8;
+const MIN_PASSWORD_LENGTH = 4;
 const MAX_PASSWORD_LENGTH = 128;
 
 function createAuthError(code, message) {
