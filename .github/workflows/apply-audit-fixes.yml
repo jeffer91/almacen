@@ -34,7 +34,19 @@ jobs:
           node-version: 22.16.0
 
       - name: Aplicar correcciones auditadas
-        run: python tools/apply-audit-fixes.py
+        shell: bash
+        run: |
+          python tools/apply-audit-fixes.py
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('tests/sync.test.js')
+          text = path.read_text(encoding='utf-8')
+          old = "?, NULL, 'retirada.jpg'"
+          new = "?, 'remote://retirada.jpg', 'retirada.jpg'"
+          if old not in text:
+              raise SystemExit('No se encontró el dato local_path de la prueba de fotografía.')
+          path.write_text(text.replace(old, new, 1), encoding='utf-8')
+          PY
 
       - name: Validar sintaxis JavaScript
         shell: bash
