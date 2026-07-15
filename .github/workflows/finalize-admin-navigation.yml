@@ -1,0 +1,52 @@
+name: Finalizar menú lateral administrativo
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "tools/finalize-admin-navigation.py"
+      - ".github/workflows/finalize-admin-navigation.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  finalize-navigation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Descargar main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Preparar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.16.0
+
+      - name: Aplicar ajuste final
+        run: python tools/finalize-admin-navigation.py
+
+      - name: Validar y probar
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check app/renderer/admin-navigation.js
+          npm test
+
+      - name: Guardar en main
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f tools/finalize-admin-navigation.py
+          rm -f .github/workflows/finalize-admin-navigation.yml
+          rmdir tools 2>/dev/null || true
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "fix: completar accesibilidad del menú lateral"
+          git push origin HEAD:main
