@@ -2,12 +2,16 @@
 Nombre completo: app.js
 Ruta o ubicación: /app/renderer/app.js
 Función o funciones:
-- Cargar el perfil configurado en la computadora.
-- Mostrar la selección inicial de Edgar, Gloria o Jefferson.
-- Guardar el perfil elegido mediante la API segura de Electron.
-- Presentar la pantalla principal adaptada al usuario.
-- Gestionar el acceso administrativo, la sesión y el cierre por inactividad.
-- Mostrar y ejecutar pruebas de la base local SQLite.
+- Gestionar configuración inicial, inicio y Administración.
+- Activar los cuatro botones principales del catálogo.
+- Mostrar base local y sincronización.
+- Mantener la sesión administrativa protegida.
+Con qué se conecta:
+- app/preload/preload.js
+- app/renderer/catalog.js
+- app/renderer/preferences.js
+- app/renderer/diagnostics.js
+- app/renderer/backups.js
 ========================================================= */
 
 "use strict";
@@ -28,6 +32,7 @@ Función o funciones:
     loadingScreen: document.getElementById("loading-screen"),
     setupScreen: document.getElementById("setup-screen"),
     homeScreen: document.getElementById("home-screen"),
+    catalogScreen: document.getElementById("catalog-screen"),
     adminScreen: document.getElementById("admin-screen"),
     profileList: document.getElementById("profile-list"),
     appVersion: document.getElementById("app-version"),
@@ -72,34 +77,40 @@ Función o funciones:
     adminDatabaseSize: document.getElementById("admin-database-size"),
     adminDatabaseLastCheck: document.getElementById("admin-database-last-check"),
     adminDatabaseTestButton: document.getElementById("admin-database-test-button"),
+    syncCard: document.getElementById("sync-card"),
+    syncStatus: document.getElementById("sync-status"),
+    syncBadge: document.getElementById("sync-badge"),
+    syncDescription: document.getElementById("sync-description"),
+    syncPending: document.getElementById("sync-pending"),
+    syncPushed: document.getElementById("sync-pushed"),
+    syncPulled: document.getElementById("sync-pulled"),
+    syncLastSuccess: document.getElementById("sync-last-success"),
+    syncRunButton: document.getElementById("sync-run-button"),
     toast: document.getElementById("toast")
   };
 
-  function allScreens() {
+  function screens() {
     return [
       elements.loadingScreen,
       elements.setupScreen,
       elements.homeScreen,
+      elements.catalogScreen,
       elements.adminScreen
     ];
   }
 
   function showScreen(screen, name) {
-    allScreens().forEach((item) => {
-      item.classList.toggle("hidden", item !== screen);
-    });
-
+    screens().forEach((item) => item?.classList.toggle("hidden", item !== screen));
     state.currentScreen = name;
+    document.dispatchEvent(new CustomEvent("almacen:screen-changed", { detail: { name } }));
   }
 
-  function showToast(message, duration = 3200) {
+  function showToast(message, duration = 3400) {
+    if (!elements.toast) return;
     elements.toast.textContent = message;
     elements.toast.classList.remove("hidden");
-
     window.clearTimeout(showToast.timeoutId);
-    showToast.timeoutId = window.setTimeout(() => {
-      elements.toast.classList.add("hidden");
-    }, duration);
+    showToast.timeoutId = window.setTimeout(() => elements.toast.classList.add("hidden"), duration);
   }
 
   function setAdminError(message) {
@@ -107,100 +118,35 @@ Función o funciones:
     elements.adminFormError.classList.toggle("hidden", !message);
   }
 
-  function setAdminBusy(busy, label) {
-    elements.adminSubmitButton.disabled = busy;
-    elements.adminCancelButton.disabled = busy;
-    elements.adminSubmitButton.textContent = busy ? "Verificando…" : label;
-  }
-
-  function profileInitials(profile) {
-    return profile.displayName.slice(0, 1).toUpperCase();
-  }
-
-  function formatDateTime(isoDate) {
-    if (!isoDate) {
-      return "Sin prueba";
-    }
-
-    const date = new Date(isoDate);
-    if (Number.isNaN(date.getTime())) {
-      return "Fecha no disponible";
-    }
-
-    return new Intl.DateTimeFormat("es-EC", {
-      dateStyle: "short",
-      timeStyle: "short"
-    }).format(date);
+  function formatDateTime(value) {
+    if (!value) return "—";
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "—";
+    return new Intl.DateTimeFormat("es-EC", { dateStyle: "short", timeStyle: "short" }).format(date);
   }
 
   function formatBytes(bytes) {
     const value = Number(bytes);
-
-    if (!Number.isFinite(value) || value < 0) {
-      return "—";
-    }
-
-    if (value < 1024) {
-      return `${value} B`;
-    }
-
-    if (value < 1024 * 1024) {
-      return `${(value / 1024).toFixed(1)} KB`;
-    }
-
+    if (!Number.isFinite(value) || value < 0) return "—";
+    if (value < 1024) return `${value} B`;
+    if (value < 1024 * 1024) return `${(value / 1024).toFixed(1)} KB`;
     return `${(value / (1024 * 1024)).toFixed(2)} MB`;
   }
 
   function platformName(platform) {
-    const names = {
-      win32: "Windows",
-      darwin: "macOS",
-      linux: "Linux"
-    };
-
-    return names[platform] || platform || "Sistema no identificado";
+    return { win32: "Windows", darwin: "macOS", linux: "Linux" }[platform] || platform || "Sistema no identificado";
   }
 
   function databaseVisualStatus(database) {
-    if (database?.healthy) {
-      return {
-        title: "Base local funcionando",
-        message: `Esquema ${database.schemaVersion}. Datos guardados en esta computadora.`,
-        badge: "Correcta",
-        className: "healthy"
-      };
-    }
-
-    if (database?.status === "warning") {
-      return {
-        title: "Base local con advertencias",
-        message: "La información está disponible, pero Jefferson debe revisar el diagnóstico.",
-        badge: "Advertencia",
-        className: "warning"
-      };
-    }
-
-    if (database?.status === "error" || database?.startupError) {
-      return {
-        title: "Problema con la base local",
-        message: database.startupError?.message || "No se pudo comprobar la base local.",
-        badge: "Error",
-        className: "error"
-      };
-    }
-
-    return {
-      title: "Base local pendiente",
-      message: "Todavía no se ha completado la comprobación.",
-      badge: "Pendiente",
-      className: "neutral"
-    };
+    if (database?.healthy) return { title: "Base local funcionando", message: `Esquema ${database.schemaVersion}. Datos guardados en esta computadora.`, badge: "Correcta", className: "healthy" };
+    if (database?.status === "warning") return { title: "Base local con advertencias", message: "La información está disponible, pero debe revisarse el diagnóstico.", badge: "Advertencia", className: "warning" };
+    if (database?.status === "error" || database?.startupError) return { title: "Problema con la base local", message: database.startupError?.message || "No se pudo comprobar la base local.", badge: "Error", className: "error" };
+    return { title: "Base local pendiente", message: "Todavía no se ha completado la comprobación.", badge: "Pendiente", className: "neutral" };
   }
 
   function renderHomeDatabaseStatus(database) {
     state.databaseSummary = database || null;
     const visual = databaseVisualStatus(database);
-
     elements.localDbTitle.textContent = visual.title;
     elements.localDbMessage.textContent = visual.message;
     elements.localDbDot.className = `status-dot status-dot-${visual.className}`;
@@ -210,81 +156,63 @@ Función o funciones:
     const diagnostic = database?.diagnostic || null;
     const visual = databaseVisualStatus(database);
     const tableCount = Array.isArray(diagnostic?.tables) ? diagnostic.tables.length : null;
-
     elements.adminDatabaseStatus.textContent = visual.title;
-    elements.adminDatabaseDetails.textContent = database?.startupError?.message ||
-      (diagnostic?.healthy
-        ? `Integridad correcta, claves foráneas correctas y modo ${String(diagnostic.journalMode || "WAL").toUpperCase()}.`
-        : visual.message);
-    elements.adminDatabaseSchema.textContent = database?.schemaVersion
-      ? `v${database.schemaVersion}`
-      : "—";
+    elements.adminDatabaseDetails.textContent = database?.startupError?.message || (diagnostic?.healthy ? `Integridad correcta y modo ${String(diagnostic.journalMode || "WAL").toUpperCase()}.` : visual.message);
+    elements.adminDatabaseSchema.textContent = database?.schemaVersion ? `v${database.schemaVersion}` : "—";
     elements.adminDatabaseTables.textContent = tableCount === null ? "—" : String(tableCount);
     elements.adminDatabaseSize.textContent = formatBytes(diagnostic?.fileSizeBytes);
-    elements.adminDatabaseLastCheck.textContent = formatDateTime(
-      diagnostic?.checkedAt || database?.lastCheckAt
-    );
+    elements.adminDatabaseLastCheck.textContent = formatDateTime(diagnostic?.checkedAt || database?.lastCheckAt);
     elements.adminDatabaseBadge.textContent = visual.badge;
-    elements.adminDatabaseBadge.className =
-      `admin-state-badge admin-state-${visual.className}`;
+    elements.adminDatabaseBadge.className = `admin-state-badge admin-state-${visual.className}`;
     elements.adminDatabaseCard.dataset.status = visual.className;
     elements.adminDatabaseTestButton.disabled = !database?.initialized;
   }
 
+  function renderSync(sync) {
+    const running = Boolean(sync?.running || sync?.status === "running");
+    const healthy = Boolean(sync?.lastSuccessAt && sync?.status !== "error");
+    const error = sync?.status === "error";
+    const className = error ? "error" : running ? "neutral" : healthy ? "healthy" : "warning";
+    elements.syncStatus.textContent = error ? "Con error" : running ? "Sincronizando" : healthy ? "Conectada" : "Sin sincronización";
+    elements.syncBadge.textContent = error ? "Error" : running ? "Trabajando" : healthy ? "Lista" : "Pendiente";
+    elements.syncBadge.className = `admin-state-badge admin-state-${className}`;
+    elements.syncCard.dataset.status = className;
+    elements.syncDescription.textContent = error
+      ? sync.lastError || "No se pudo conectar con Firebase."
+      : healthy
+        ? `Proyecto ${sync.projectId}. Los datos locales siguen siendo la base principal.`
+        : "La app trabaja localmente. Usa Sincronizar ahora para compartir cambios.";
+    elements.syncPending.textContent = String(sync?.pendingRecords || 0);
+    elements.syncPushed.textContent = String(sync?.pushedRecords || 0);
+    elements.syncPulled.textContent = String(sync?.pulledRecords || 0);
+    elements.syncLastSuccess.textContent = formatDateTime(sync?.lastSuccessAt);
+    elements.syncRunButton.disabled = running || !sync?.configured;
+    elements.syncRunButton.textContent = running ? "Sincronizando…" : "Sincronizar ahora";
+  }
+
   function renderProfiles() {
     elements.profileList.replaceChildren();
-
     state.profiles.forEach((profile) => {
       const button = document.createElement("button");
       button.type = "button";
       button.className = "profile-card";
-      button.dataset.profileId = profile.id;
-      button.setAttribute("aria-label", `Elegir a ${profile.displayName}, ${profile.channelName}`);
-
-      const avatar = document.createElement("span");
-      avatar.className = "profile-avatar";
-      avatar.setAttribute("aria-hidden", "true");
-      avatar.textContent = profileInitials(profile);
-
-      const content = document.createElement("span");
-      content.className = "profile-content";
-
-      const name = document.createElement("strong");
-      name.textContent = profile.displayName;
-
-      const channel = document.createElement("span");
-      channel.textContent = profile.channelName;
-
-      content.append(name, channel);
-      button.append(avatar, content);
-      button.addEventListener("click", () => openProfileConfirmation(profile.id));
+      button.innerHTML = `<span class="profile-avatar" aria-hidden="true">${profile.displayName.slice(0, 1).toUpperCase()}</span><span class="profile-content"><strong>${profile.displayName}</strong><span>${profile.channelName}</span></span>`;
+      button.addEventListener("click", () => {
+        state.selectedProfileId = profile.id;
+        elements.profileDialogTitle.textContent = `¿Guardar el perfil de ${profile.displayName}?`;
+        elements.profileDialogMessage.textContent = `Esta computadora quedará asignada a ${profile.displayName} — ${profile.channelName}.`;
+        elements.profileDialog.showModal();
+      });
       elements.profileList.append(button);
     });
   }
 
-  function openProfileConfirmation(profileId) {
-    const profile = state.profiles.find((item) => item.id === profileId);
-    if (!profile) {
-      showToast("No fue posible seleccionar ese perfil.");
-      return;
-    }
-
-    state.selectedProfileId = profileId;
-    elements.profileDialogTitle.textContent = `¿Guardar el perfil de ${profile.displayName}?`;
-    elements.profileDialogMessage.textContent =
-      `Esta computadora quedará asignada a ${profile.displayName} — ${profile.channelName}.`;
-    elements.profileDialog.showModal();
-  }
-
   function renderHome(profile = state.currentProfile) {
-    if (!profile) {
-      return;
-    }
-
+    if (!profile) return;
     state.currentProfile = profile;
     elements.welcomeTitle.textContent = `Hola, ${profile.displayName}`;
     elements.channelName.textContent = profile.channelName;
-    elements.adminButton.textContent = "Administración";
+    elements.adminButton.textContent = state.adminUnlocked ? "Administración abierta" : "Administración";
     showScreen(elements.homeScreen, "home");
   }
 
@@ -294,26 +222,16 @@ Función o funciones:
       renderHomeDatabaseStatus(response.database || null);
       return response.database || null;
     } catch (error) {
-      console.error("No fue posible consultar la base local:", error);
-      renderHomeDatabaseStatus({
-        status: "error",
-        startupError: { message: "No se pudo leer el estado de la base local." }
-      });
+      renderHomeDatabaseStatus({ status: "error", startupError: { message: "No se pudo leer el estado de la base local." } });
       return null;
     }
   }
 
   async function confirmSelectedProfile(event) {
     event.preventDefault();
-
-    if (!state.selectedProfileId) {
-      elements.profileDialog.close();
-      return;
-    }
-
+    if (!state.selectedProfileId) return elements.profileDialog.close();
     elements.confirmProfile.disabled = true;
     elements.confirmProfile.textContent = "Guardando…";
-
     try {
       const profile = await window.almacen.saveProfile(state.selectedProfileId);
       elements.profileDialog.close();
@@ -322,8 +240,7 @@ Función o funciones:
       renderHome(profile);
       showToast("Perfil guardado correctamente.");
     } catch (error) {
-      console.error(error);
-      showToast("No se pudo guardar el perfil. Intenta nuevamente.", 5000);
+      showToast("No se pudo guardar el perfil.", 5000);
     } finally {
       elements.confirmProfile.disabled = false;
       elements.confirmProfile.textContent = "Sí, guardar";
@@ -340,35 +257,25 @@ Función o funciones:
   function configureAdminDialog(mode, status = {}) {
     state.adminMode = mode;
     resetAdminForm();
-    elements.adminCancelButton.disabled = false;
-    elements.adminSubmitButton.disabled = false;
-
-    elements.adminPasswordFields.classList.toggle(
-      "hidden",
-      mode === "unavailable" || mode === "locked" || mode === "damaged"
-    );
+    const unavailable = ["unavailable", "locked", "damaged"].includes(mode);
+    elements.adminPasswordFields.classList.toggle("hidden", unavailable);
     elements.adminConfirmationField.classList.toggle("hidden", mode !== "setup");
-    elements.adminSecurityNote.classList.add("hidden");
-    elements.adminSubmitButton.classList.remove("hidden");
-    elements.adminCancelButton.textContent = "Volver";
+    elements.adminSecurityNote.classList.toggle("hidden", !unavailable && mode !== "setup");
+    elements.adminSubmitButton.classList.toggle("hidden", unavailable);
+    elements.adminCancelButton.textContent = unavailable ? "Cerrar" : "Volver";
 
     if (mode === "setup") {
       elements.adminDialogEyebrow.textContent = "Primera configuración administrativa";
       elements.adminDialogTitle.textContent = "Crear contraseña de Jefferson";
-      elements.adminDialogMessage.textContent =
-        "Esta contraseña protegerá el Centro de control en esta computadora.";
-      elements.adminPassword.autocomplete = "new-password";
+      elements.adminDialogMessage.textContent = "Esta contraseña protegerá el Centro de control.";
       elements.adminConfirmation.required = true;
       elements.adminSubmitButton.textContent = "Crear y entrar";
-      elements.adminSecurityNote.textContent =
-        "Usa al menos 8 caracteres. La contraseña no se guardará como texto visible.";
+      elements.adminSecurityNote.textContent = "Usa al menos 8 caracteres.";
       elements.adminSecurityNote.classList.remove("hidden");
       return;
     }
 
     elements.adminConfirmation.required = false;
-    elements.adminPassword.autocomplete = "current-password";
-
     if (mode === "login") {
       elements.adminDialogEyebrow.textContent = "Acceso protegido";
       elements.adminDialogTitle.textContent = "Ingresar a Administración";
@@ -377,155 +284,83 @@ Función o funciones:
       return;
     }
 
-    elements.adminSubmitButton.classList.add("hidden");
-    elements.adminCancelButton.textContent = "Cerrar";
-    elements.adminSecurityNote.classList.remove("hidden");
-
     if (mode === "locked") {
-      elements.adminDialogEyebrow.textContent = "Acceso temporalmente bloqueado";
+      elements.adminDialogEyebrow.textContent = "Acceso bloqueado";
       elements.adminDialogTitle.textContent = "Espera antes de volver a intentar";
-      elements.adminDialogMessage.textContent =
-        "Se ingresaron varias contraseñas incorrectas.";
-      elements.adminSecurityNote.textContent = status.lockedUntil
-        ? `Podrás volver a intentarlo después de ${formatDateTime(status.lockedUntil)}.`
-        : "Podrás volver a intentarlo dentro de unos minutos.";
+      elements.adminDialogMessage.textContent = "Se ingresaron varias contraseñas incorrectas.";
+      elements.adminSecurityNote.textContent = status.lockedUntil ? `Podrás intentar después de ${formatDateTime(status.lockedUntil)}.` : "Intenta nuevamente en unos minutos.";
       return;
     }
 
     if (mode === "damaged") {
       elements.adminDialogEyebrow.textContent = "Configuración dañada";
       elements.adminDialogTitle.textContent = "No se puede abrir Administración";
-      elements.adminDialogMessage.textContent =
-        "La configuración administrativa local necesita revisión.";
-      elements.adminSecurityNote.textContent =
-        status.authDataErrorMessage || "Jefferson deberá reparar la configuración local.";
+      elements.adminDialogMessage.textContent = "La configuración local necesita revisión.";
+      elements.adminSecurityNote.textContent = status.authDataErrorMessage || "Jefferson deberá reparar la configuración.";
       return;
     }
 
     elements.adminDialogEyebrow.textContent = "Configuración pendiente";
     elements.adminDialogTitle.textContent = "Administración aún no configurada";
-    elements.adminDialogMessage.textContent =
-      "La contraseña inicial solo se crea desde la computadora configurada como Jefferson.";
-    elements.adminSecurityNote.textContent =
-      "En una etapa posterior, la credencial administrativa se distribuirá de forma segura a los otros equipos mediante sincronización.";
+    elements.adminDialogMessage.textContent = "La contraseña inicial solo se crea desde la computadora de Jefferson.";
+    elements.adminSecurityNote.textContent = "Después podrá sincronizarse el estado con los otros equipos.";
   }
 
   async function openAdminAccess() {
-    if (!state.currentProfile) {
-      showToast("Primero elige quién utilizará esta computadora.", 4200);
-      return;
-    }
-
+    if (!state.currentProfile) return showToast("Primero elige quién utilizará esta computadora.");
     try {
       const response = await window.almacen.getAdminStatus();
       const status = response.status || {};
       state.adminUnlocked = Boolean(status.unlocked);
-
-      if (status.authDataError) {
-        configureAdminDialog("damaged", status);
-        elements.adminDialog.showModal();
-        return;
-      }
-
-      if (status.unlocked) {
-        await openAdminDashboard();
-        return;
-      }
-
-      if (status.locked) {
-        configureAdminDialog("locked", status);
-        elements.adminDialog.showModal();
-        return;
-      }
-
-      if (!status.configured) {
-        configureAdminDialog(status.canInitialize ? "setup" : "unavailable", status);
-        elements.adminDialog.showModal();
-        if (status.canInitialize) {
-          elements.adminPassword.focus();
-        }
-        return;
-      }
-
-      configureAdminDialog("login", status);
+      if (status.authDataError) configureAdminDialog("damaged", status);
+      else if (status.unlocked) return openAdminDashboard();
+      else if (status.locked) configureAdminDialog("locked", status);
+      else if (!status.configured) configureAdminDialog(status.canInitialize ? "setup" : "unavailable", status);
+      else configureAdminDialog("login", status);
       elements.adminDialog.showModal();
-      elements.adminPassword.focus();
+      if (["setup", "login"].includes(state.adminMode)) elements.adminPassword.focus();
     } catch (error) {
-      console.error(error);
-      showToast("No se pudo abrir el acceso administrativo.", 5000);
+      showToast("No se pudo abrir Administración.", 5000);
     }
   }
 
   async function submitAdminForm(event) {
     event.preventDefault();
     setAdminError("");
-
-    if (state.adminMode !== "setup" && state.adminMode !== "login") {
-      return;
-    }
-
+    if (!["setup", "login"].includes(state.adminMode)) return;
     const normalLabel = state.adminMode === "setup" ? "Crear y entrar" : "Ingresar";
-    setAdminBusy(true, normalLabel);
-
+    elements.adminSubmitButton.disabled = true;
+    elements.adminSubmitButton.textContent = "Verificando…";
     try {
-      const password = elements.adminPassword.value;
-      let response;
-
-      if (state.adminMode === "setup") {
-        response = await window.almacen.setupAdminPassword(
-          password,
-          elements.adminConfirmation.value
-        );
-      } else {
-        response = await window.almacen.loginAdmin(password);
-      }
-
+      const response = state.adminMode === "setup"
+        ? await window.almacen.setupAdminPassword(elements.adminPassword.value, elements.adminConfirmation.value)
+        : await window.almacen.loginAdmin(elements.adminPassword.value);
       if (!response.ok) {
-        const status = response.status || {};
-
-        if (status.locked) {
-          configureAdminDialog("locked", status);
-          return;
-        }
-
-        const attemptsText =
-          response.code === "INVALID_PASSWORD" && Number.isInteger(status.attemptsRemaining)
-            ? ` Intentos disponibles: ${status.attemptsRemaining}.`
-            : "";
-
-        setAdminError(`${response.message || "No se pudo ingresar."}${attemptsText}`);
-        elements.adminPassword.select();
+        if (response.status?.locked) configureAdminDialog("locked", response.status);
+        else setAdminError(response.message || "No se pudo ingresar.");
         return;
       }
-
       state.adminUnlocked = true;
       elements.adminDialog.close();
-      resetAdminForm();
       await openAdminDashboard();
     } catch (error) {
-      console.error(error);
-      setAdminError("No se pudo verificar el acceso. Intenta nuevamente.");
+      setAdminError("No se pudo verificar el acceso.");
     } finally {
-      if (state.adminMode === "setup" || state.adminMode === "login") {
-        setAdminBusy(false, normalLabel);
-      }
+      elements.adminSubmitButton.disabled = false;
+      elements.adminSubmitButton.textContent = normalLabel;
     }
   }
 
   async function openAdminDashboard() {
     try {
       const response = await window.almacen.getAdminDashboard();
-
       if (!response.ok) {
         state.adminUnlocked = false;
         renderHome();
-        showToast(response.message || "La sesión administrativa terminó.", 5000);
-        return;
+        return showToast(response.message || "La sesión administrativa terminó.", 5000);
       }
-
       const dashboard = response.dashboard;
       const profile = dashboard.profile || state.currentProfile;
-
       state.adminUnlocked = true;
       state.lastAdminTouchAt = Date.now();
       elements.adminDeviceName.textContent = dashboard.deviceName || "Equipo actual";
@@ -533,195 +368,151 @@ Función o funciones:
       elements.adminProfileName.textContent = profile?.displayName || "Sin perfil";
       elements.adminProfileChannel.textContent = profile?.channelName || "Sin canal";
       elements.adminAppVersion.textContent = dashboard.appVersion || "—";
-      elements.adminSessionText.textContent = dashboard.session?.expiresAt
-        ? `Activa hasta ${formatDateTime(dashboard.session.expiresAt)} si no hay actividad.`
-        : "Se cerrará después de 15 minutos sin actividad.";
+      elements.adminSessionText.textContent = dashboard.session?.expiresAt ? `Activa hasta ${formatDateTime(dashboard.session.expiresAt)} si no hay actividad.` : "Se cerrará después de 15 minutos sin actividad.";
       elements.adminButton.textContent = "Administración abierta";
       renderAdminDatabase(dashboard.database || null);
       renderHomeDatabaseStatus(dashboard.database || null);
+      renderSync(dashboard.synchronization || {});
       showScreen(elements.adminScreen, "admin");
     } catch (error) {
-      console.error(error);
       state.adminUnlocked = false;
       renderHome();
-      showToast("No se pudo cargar el Centro de control.", 5000);
+      showToast("No se pudo cargar Administración.", 5000);
     }
   }
 
   async function runDatabaseDiagnostic() {
     elements.adminDatabaseTestButton.disabled = true;
     elements.adminDatabaseTestButton.textContent = "Probando…";
-    elements.adminDatabaseBadge.textContent = "Revisando";
-    elements.adminDatabaseBadge.className = "admin-state-badge admin-state-neutral";
-
     try {
       const response = await window.almacen.runDatabaseDiagnostic();
-
-      if (!response.ok) {
-        if (response.code === "ADMIN_SESSION_REQUIRED") {
-          state.adminUnlocked = false;
-          renderHome();
-        }
-
-        renderAdminDatabase(response.database || null);
-        showToast(response.message || "No se pudo probar la base local.", 5000);
-        return;
-      }
-
+      if (!response.ok) return showToast(response.message || "No se pudo probar la base local.", 5000);
       renderAdminDatabase(response.database);
       renderHomeDatabaseStatus(response.database);
-      showToast(
-        response.diagnostic?.healthy
-          ? "La base local funciona correctamente."
-          : "La prueba terminó con advertencias.",
-        4800
-      );
-    } catch (error) {
-      console.error(error);
-      showToast("Ocurrió un error al probar la base local.", 5000);
+      showToast(response.diagnostic?.healthy ? "La base local funciona correctamente." : "La prueba terminó con advertencias.");
     } finally {
       elements.adminDatabaseTestButton.disabled = false;
       elements.adminDatabaseTestButton.textContent = "Probar base local";
     }
   }
 
+  async function runSync() {
+    elements.syncRunButton.disabled = true;
+    elements.syncRunButton.textContent = "Sincronizando…";
+    try {
+      const response = await window.almacen.runSync();
+      renderSync(response.status || response.synchronization || {});
+      showToast(response.ok ? "Sincronización completada." : response.message || "No se pudo sincronizar.", 5000);
+    } catch (error) {
+      showToast("No se pudo sincronizar.", 5000);
+    } finally {
+      try {
+        const status = await window.almacen.getSyncStatus();
+        renderSync(status.synchronization || {});
+      } catch {}
+    }
+  }
+
   async function logoutAdmin() {
     elements.adminLogoutButton.disabled = true;
-
     try {
       await window.almacen.logoutAdmin();
       state.adminUnlocked = false;
       renderHome();
       showToast("Administración cerrada correctamente.");
-    } catch (error) {
-      console.error(error);
-      showToast("No se pudo cerrar la sesión administrativa.", 5000);
     } finally {
       elements.adminLogoutButton.disabled = false;
     }
   }
 
   async function touchAdminSession() {
-    if (!state.adminUnlocked || state.currentScreen !== "admin") {
-      return;
-    }
-
+    if (!state.adminUnlocked || state.currentScreen !== "admin") return;
     const now = Date.now();
-    if (now - state.lastAdminTouchAt < 60_000) {
-      return;
-    }
-
+    if (now - state.lastAdminTouchAt < 60_000) return;
     state.lastAdminTouchAt = now;
-
     try {
       const response = await window.almacen.touchAdminSession();
-      const status = response.status || {};
-
-      if (!status.unlocked) {
+      if (!response.status?.unlocked) {
         state.adminUnlocked = false;
         renderHome();
         showToast("La sesión administrativa terminó por inactividad.", 5000);
-        return;
       }
-
-      elements.adminSessionText.textContent = status.expiresAt
-        ? `Activa hasta ${formatDateTime(status.expiresAt)} si no hay actividad.`
-        : "Se cerrará después de 15 minutos sin actividad.";
-    } catch (error) {
-      console.error("No fue posible extender la sesión administrativa:", error);
-    }
+    } catch {}
   }
 
   async function checkAdminSession() {
-    if (!state.adminUnlocked) {
-      return;
-    }
-
+    if (!state.adminUnlocked) return;
     try {
       const response = await window.almacen.getAdminStatus();
-      const status = response.status || {};
-
-      if (!status.unlocked) {
+      if (!response.status?.unlocked && state.currentScreen === "admin") {
         state.adminUnlocked = false;
-
-        if (state.currentScreen === "admin") {
-          renderHome();
-          showToast("La sesión administrativa terminó por inactividad.", 5000);
-        }
+        renderHome();
+        showToast("La sesión administrativa terminó por inactividad.", 5000);
       }
-    } catch (error) {
-      console.error("No fue posible comprobar la sesión administrativa:", error);
-    }
-  }
-
-  function togglePasswordVisibility() {
-    const type = elements.showAdminPassword.checked ? "text" : "password";
-    elements.adminPassword.type = type;
-    elements.adminConfirmation.type = type;
+    } catch {}
   }
 
   function bindEvents() {
     elements.confirmProfile.addEventListener("click", confirmSelectedProfile);
     elements.adminButton.addEventListener("click", openAdminAccess);
     elements.adminForm.addEventListener("submit", submitAdminForm);
-    elements.adminCancelButton.addEventListener("click", () => {
-      elements.adminDialog.close();
-      resetAdminForm();
+    elements.adminCancelButton.addEventListener("click", () => { elements.adminDialog.close(); resetAdminForm(); });
+    elements.showAdminPassword.addEventListener("change", () => {
+      const type = elements.showAdminPassword.checked ? "text" : "password";
+      elements.adminPassword.type = type;
+      elements.adminConfirmation.type = type;
     });
-    elements.showAdminPassword.addEventListener("change", togglePasswordVisibility);
     elements.adminBackButton.addEventListener("click", () => renderHome());
     elements.adminLogoutButton.addEventListener("click", logoutAdmin);
     elements.adminDatabaseTestButton.addEventListener("click", runDatabaseDiagnostic);
+    elements.syncRunButton.addEventListener("click", runSync);
 
     document.querySelectorAll("[data-action]").forEach((button) => {
       button.addEventListener("click", () => {
-        showToast("Esta función se habilitará en la etapa de productos y precios.", 4200);
+        const action = button.dataset.action;
+        if (window.AlmacenCatalog?.open) window.AlmacenCatalog.open(action);
+        else showToast("El catálogo todavía está iniciando.");
       });
     });
 
-    ["pointerdown", "keydown"].forEach((eventName) => {
-      document.addEventListener(eventName, touchAdminSession, { passive: true });
-    });
-
+    ["pointerdown", "keydown"].forEach((eventName) => document.addEventListener(eventName, touchAdminSession, { passive: true }));
     window.setInterval(checkAdminSession, 30_000);
   }
 
   async function start() {
     bindEvents();
-
-    if (!window.almacen) {
-      showToast("No se pudo iniciar la comunicación segura con la aplicación.", 6000);
-      return;
-    }
-
+    if (!window.almacen) return showToast("No se pudo iniciar la comunicación segura.", 6000);
     try {
-      const [appInfo, profiles, currentProfile, adminResponse, databaseResponse] =
-        await Promise.all([
-          window.almacen.getAppInfo(),
-          window.almacen.listProfiles(),
-          window.almacen.getProfile(),
-          window.almacen.getAdminStatus(),
-          window.almacen.getDatabaseSummary()
-        ]);
-
+      const [appInfo, profiles, currentProfile, adminResponse, databaseResponse] = await Promise.all([
+        window.almacen.getAppInfo(),
+        window.almacen.listProfiles(),
+        window.almacen.getProfile(),
+        window.almacen.getAdminStatus(),
+        window.almacen.getDatabaseSummary()
+      ]);
       elements.appVersion.textContent = `Versión ${appInfo.version}`;
       state.profiles = profiles;
       state.adminUnlocked = Boolean(adminResponse.status?.unlocked);
       renderHomeDatabaseStatus(databaseResponse.database || null);
-
       if (currentProfile) {
         state.currentProfile = currentProfile;
         renderHome(currentProfile);
-        return;
+      } else {
+        renderProfiles();
+        showScreen(elements.setupScreen, "setup");
       }
-
-      renderProfiles();
-      showScreen(elements.setupScreen, "setup");
     } catch (error) {
-      console.error(error);
       showToast("No se pudo iniciar la aplicación. Ciérrala y vuelve a abrirla.", 6000);
     }
   }
+
+  window.AlmacenShell = Object.freeze({
+    showHome: () => renderHome(),
+    showCatalog: () => showScreen(elements.catalogScreen, "catalog"),
+    showToast,
+    getProfile: () => state.currentProfile,
+    getCurrentScreen: () => state.currentScreen
+  });
 
   start();
 })(window, document);

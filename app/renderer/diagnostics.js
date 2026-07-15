@@ -2,10 +2,12 @@
 Nombre completo: diagnostics.js
 Ruta o ubicación: /app/renderer/diagnostics.js
 Función o funciones:
-- Comprobar que las pantallas y controles obligatorios existan.
-- Enviar el reporte de la interfaz al proceso principal.
-- Mostrar el último diagnóstico en Administración.
-- Ejecutar una prueba general bajo solicitud de Jefferson.
+- Comprobar pantallas y controles obligatorios.
+- Verificar que catálogo, comercio y sincronización estén expuestos.
+- Ejecutar y mostrar el diagnóstico general.
+Con qué se conecta:
+- app/preload/preload.js
+- app/main/diagnostics/diagnostics-service.js
 ========================================================= */
 
 "use strict";
@@ -20,24 +22,28 @@ Función o funciones:
     {
       screenKey: "home-screen",
       label: "Pantalla principal",
+      requiredIds: ["home-screen", "welcome-title", "local-db-title", "admin-button"],
+      requiredActions: ["buscar", "agregar", "actualizar", "recientes"]
+    },
+    {
+      screenKey: "catalog-screen",
+      label: "Catálogo comercial",
       requiredIds: [
-        "home-screen",
-        "welcome-title",
-        "local-db-title",
-        "local-db-message",
-        "admin-button"
-      ],
-      minimumActions: 4
+        "catalog-screen",
+        "catalog-search-input",
+        "catalog-search-button",
+        "catalog-results",
+        "catalog-detail",
+        "product-form-dialog",
+        "variant-form-dialog",
+        "cost-form-dialog",
+        "price-form-dialog"
+      ]
     },
     {
       screenKey: "admin-access",
       label: "Acceso administrativo",
-      requiredIds: [
-        "admin-dialog",
-        "admin-form",
-        "admin-password",
-        "admin-submit-button"
-      ]
+      requiredIds: ["admin-dialog", "admin-form", "admin-password", "admin-submit-button"]
     },
     {
       screenKey: "admin-screen",
@@ -47,26 +53,38 @@ Función o funciones:
         "admin-database-card",
         "admin-device-configure-button",
         "diagnostics-panel",
-        "diagnostics-run-button"
+        "backups-panel",
+        "sync-card",
+        "sync-run-button"
       ]
     },
     {
       screenKey: "preferences-screen",
       label: "Configuración visual",
-      requiredIds: [
-        "view-button",
-        "device-preferences-dialog",
-        "device-preferences-form",
-        "device-friendly-name"
-      ]
+      requiredIds: ["view-button", "device-preferences-dialog", "device-preferences-form", "device-friendly-name"]
     }
   ]);
 
-  const state = {
-    reporting: false,
-    loading: false
-  };
+  const API_METHODS = Object.freeze([
+    "getAppInfo",
+    "getProfile",
+    "getDatabaseSummary",
+    "getDevicePreferences",
+    "getAdminStatus",
+    "listProducts",
+    "getProduct",
+    "createProduct",
+    "addVariant",
+    "addProductPhoto",
+    "saveSupplier",
+    "saveCost",
+    "savePrice",
+    "listRecentProducts",
+    "getSyncStatus",
+    "runSync"
+  ]);
 
+  const state = { reporting: false, loading: false };
   const elements = {
     adminScreen: document.getElementById("admin-screen"),
     panel: document.getElementById("diagnostics-panel"),
@@ -84,143 +102,82 @@ Función o funciones:
     toast: document.getElementById("toast")
   };
 
-  function showToast(message, duration = 3600) {
-    if (!elements.toast) {
-      return;
-    }
-
+  function showToast(message, duration = 4200) {
+    if (!elements.toast) return;
     elements.toast.textContent = message;
     elements.toast.classList.remove("hidden");
     window.clearTimeout(showToast.timeoutId);
-    showToast.timeoutId = window.setTimeout(() => {
-      elements.toast.classList.add("hidden");
-    }, duration);
+    showToast.timeoutId = window.setTimeout(() => elements.toast.classList.add("hidden"), duration);
   }
 
   function formatDateTime(value) {
-    if (!value) {
-      return "Todavía no ejecutado";
-    }
-
+    if (!value) return "Todavía no ejecutado";
     const date = new Date(value);
-    if (Number.isNaN(date.getTime())) {
-      return "Fecha no disponible";
-    }
+    if (Number.isNaN(date.getTime())) return "Fecha no disponible";
+    return new Intl.DateTimeFormat("es-EC", { dateStyle: "short", timeStyle: "short" }).format(date);
+  }
 
-    return new Intl.DateTimeFormat("es-EC", {
-      dateStyle: "short",
-      timeStyle: "short"
-    }).format(date);
+  function statusClass(status) {
+    if (["healthy", "passed"].includes(status)) return "healthy";
+    if (status === "warning") return "warning";
+    if (["error", "failed"].includes(status)) return "error";
+    return "neutral";
   }
 
   function statusLabel(status) {
-    const labels = {
+    return {
       healthy: "Correcto",
       warning: "Con advertencias",
       error: "Con errores",
       passed: "Correcto",
       failed: "Error"
-    };
-
-    return labels[status] || "Pendiente";
-  }
-
-  function statusClass(status) {
-    if (status === "healthy" || status === "passed") {
-      return "healthy";
-    }
-
-    if (status === "warning") {
-      return "warning";
-    }
-
-    if (status === "error" || status === "failed") {
-      return "error";
-    }
-
-    return "neutral";
+    }[status] || "Pendiente";
   }
 
   function testScreen(definition) {
     const missingIds = definition.requiredIds.filter((id) => !document.getElementById(id));
-    const actionCount = definition.minimumActions
-      ? document.querySelectorAll("[data-action]").length
-      : null;
-
-    if (definition.minimumActions && actionCount < definition.minimumActions) {
-      return {
-        screenKey: definition.screenKey,
-        label: definition.label,
-        status: "failed",
-        message: `Faltan botones principales: se encontraron ${actionCount} de ${definition.minimumActions}.`,
-        details: {
-          missingElements: missingIds.length,
-          actionCount
-        }
-      };
-    }
-
-    if (missingIds.length > 0) {
-      return {
-        screenKey: definition.screenKey,
-        label: definition.label,
-        status: "failed",
-        message: `Faltan ${missingIds.length} elementos obligatorios.`,
-        details: {
-          missingElements: missingIds.length,
-          missingIds: missingIds.join(", ")
-        }
-      };
-    }
-
+    const missingActions = (definition.requiredActions || []).filter(
+      (action) => !document.querySelector(`[data-action="${action}"]`)
+    );
+    const missing = [...missingIds, ...missingActions.map((action) => `data-action:${action}`)];
     return {
       screenKey: definition.screenKey,
       label: definition.label,
-      status: "passed",
-      message: "La pantalla y sus controles obligatorios están disponibles.",
-      details: {
-        requiredElements: definition.requiredIds.length,
-        actionCount
-      }
+      status: missing.length ? "failed" : "passed",
+      message: missing.length
+        ? `Faltan ${missing.length} controles: ${missing.join(", ")}.`
+        : "La pantalla y sus controles obligatorios están disponibles.",
+      details: { missingElements: missing.length, missingIds: missing.join(", ") }
     };
   }
 
   function createRendererReports() {
     const reports = SCREEN_DEFINITIONS.map(testScreen);
-    const apiMethods = [
-      "getAppInfo",
-      "getProfile",
-      "getDatabaseSummary",
-      "getDevicePreferences",
-      "getAdminStatus"
-    ];
-    const missingMethods = apiMethods.filter(
-      (method) => typeof window.almacen?.[method] !== "function"
-    );
-
+    const missingMethods = API_METHODS.filter((method) => typeof window.almacen?.[method] !== "function");
     reports.push({
       screenKey: "secure-bridge",
       label: "Comunicación segura",
-      status: missingMethods.length === 0 ? "passed" : "failed",
-      message: missingMethods.length === 0
-        ? "La interfaz puede comunicarse con las funciones autorizadas."
-        : `Faltan ${missingMethods.length} funciones de comunicación.`,
-      details: {
-        expectedMethods: apiMethods.length,
-        missingMethods: missingMethods.join(", ")
-      }
+      status: missingMethods.length ? "failed" : "passed",
+      message: missingMethods.length
+        ? `Faltan ${missingMethods.length} funciones: ${missingMethods.join(", ")}.`
+        : "Perfiles, catálogo, comercio y sincronización están conectados.",
+      details: { expectedMethods: API_METHODS.length, missingMethods: missingMethods.join(", ") }
     });
-
+    reports.push({
+      screenKey: "catalog-runtime",
+      label: "Módulo visible del catálogo",
+      status: typeof window.AlmacenCatalog?.open === "function" ? "passed" : "failed",
+      message: typeof window.AlmacenCatalog?.open === "function"
+        ? "Los botones principales pueden abrir funciones reales."
+        : "El controlador visible del catálogo no está disponible.",
+      details: {}
+    });
     return reports;
   }
 
   async function reportScreens() {
-    if (state.reporting || typeof window.almacen?.reportScreenDiagnostics !== "function") {
-      return null;
-    }
-
+    if (state.reporting || typeof window.almacen?.reportScreenDiagnostics !== "function") return null;
     state.reporting = true;
-
     try {
       return await window.almacen.reportScreenDiagnostics(createRendererReports());
     } catch (error) {
@@ -235,8 +192,7 @@ Función o funciones:
     elements.overallStatus.textContent = "Sin diagnóstico";
     elements.overallBadge.textContent = "Pendiente";
     elements.overallBadge.className = "admin-state-badge admin-state-neutral";
-    elements.description.textContent =
-      "Ejecuta la prueba general para revisar la aplicación, la base y las pantallas.";
+    elements.description.textContent = "Ejecuta la prueba general para revisar la aplicación, la base y las pantallas.";
     elements.passedCount.textContent = "0";
     elements.warningCount.textContent = "0";
     elements.failedCount.textContent = "0";
@@ -246,110 +202,73 @@ Función o funciones:
     elements.historyList.replaceChildren();
   }
 
-  function createCheckItem(check) {
+  function checkItem(check) {
     const item = document.createElement("li");
     item.className = `diagnostics-check diagnostics-check-${statusClass(check.status)}`;
-
-    const header = document.createElement("div");
-    header.className = "diagnostics-check-header";
-
-    const title = document.createElement("strong");
-    title.textContent = check.label;
-
-    const badge = document.createElement("span");
-    badge.className = `diagnostics-mini-badge diagnostics-mini-${statusClass(check.status)}`;
-    badge.textContent = statusLabel(check.status);
-
-    const message = document.createElement("p");
-    message.textContent = check.message;
-
-    header.append(title, badge);
-    item.append(header, message);
+    item.innerHTML = `<div class="diagnostics-check-header"><strong></strong><span class="diagnostics-mini-badge diagnostics-mini-${statusClass(check.status)}"></span></div><p></p>`;
+    item.querySelector("strong").textContent = check.label;
+    item.querySelector("span").textContent = statusLabel(check.status);
+    item.querySelector("p").textContent = check.message;
     return item;
   }
 
   function renderHistory(recent) {
     elements.historyList.replaceChildren();
-
-    if (!Array.isArray(recent) || recent.length === 0) {
+    if (!Array.isArray(recent) || !recent.length) {
       const empty = document.createElement("li");
       empty.textContent = "No existen diagnósticos anteriores.";
       elements.historyList.append(empty);
       return;
     }
-
     recent.slice(0, 5).forEach((run) => {
       const item = document.createElement("li");
       item.className = "diagnostics-history-item";
-
-      const status = document.createElement("strong");
-      status.textContent = statusLabel(run.overallStatus);
-
-      const detail = document.createElement("span");
-      detail.textContent = `${formatDateTime(run.completedAt)} · ${run.passedCount} correctas, ${run.failedCount} errores`;
-
-      item.append(status, detail);
+      item.innerHTML = "<strong></strong><span></span>";
+      item.querySelector("strong").textContent = statusLabel(run.overallStatus);
+      item.querySelector("span").textContent = `${formatDateTime(run.completedAt)} · ${run.passedCount} correctas, ${run.failedCount} errores`;
       elements.historyList.append(item);
     });
   }
 
   function renderSummary(summary) {
     const latest = summary?.latest;
-
     if (!latest) {
       renderEmpty();
       renderHistory(summary?.recent || []);
       return;
     }
-
     const visualClass = statusClass(latest.overallStatus);
     elements.overallStatus.textContent = statusLabel(latest.overallStatus);
     elements.overallBadge.textContent = statusLabel(latest.overallStatus);
-    elements.overallBadge.className =
-      `admin-state-badge admin-state-${visualClass}`;
+    elements.overallBadge.className = `admin-state-badge admin-state-${visualClass}`;
     elements.panel.dataset.status = visualClass;
     elements.description.textContent = latest.overallStatus === "healthy"
       ? "Las funciones comprobadas trabajan correctamente."
       : latest.overallStatus === "warning"
         ? "La aplicación funciona, pero existen puntos que deben revisarse."
-        : "Se encontraron errores que requieren atención administrativa.";
+        : "Se encontraron errores que requieren atención.";
     elements.passedCount.textContent = String(latest.passedCount);
     elements.warningCount.textContent = String(latest.warningCount);
     elements.failedCount.textContent = String(latest.failedCount);
     elements.duration.textContent = `${latest.durationMs} ms`;
     elements.lastRun.textContent = formatDateTime(latest.completedAt);
-
     elements.checkList.replaceChildren();
-    latest.checks.forEach((check) => {
-      elements.checkList.append(createCheckItem(check));
-    });
-
+    (latest.checks || []).forEach((check) => elements.checkList.append(checkItem(check)));
     renderHistory(summary.recent || []);
   }
 
   async function loadSummary({ quiet = true } = {}) {
-    if (state.loading || typeof window.almacen?.getDiagnosticsSummary !== "function") {
-      return;
-    }
-
+    if (state.loading || typeof window.almacen?.getDiagnosticsSummary !== "function") return;
     state.loading = true;
-
     try {
       const response = await window.almacen.getDiagnosticsSummary();
-
       if (!response.ok) {
-        if (!quiet && response.code !== "ADMIN_SESSION_REQUIRED") {
-          showToast(response.message || "No se pudo leer el diagnóstico.", 4600);
-        }
+        if (!quiet && response.code !== "ADMIN_SESSION_REQUIRED") showToast(response.message || "No se pudo leer el diagnóstico.");
         return;
       }
-
       renderSummary(response.diagnostics);
     } catch (error) {
-      console.error("No fue posible cargar el diagnóstico:", error);
-      if (!quiet) {
-        showToast("No se pudo cargar el diagnóstico general.", 4600);
-      }
+      if (!quiet) showToast("No se pudo cargar el diagnóstico general.");
     } finally {
       state.loading = false;
     }
@@ -358,27 +277,13 @@ Función o funciones:
   async function runDiagnostics() {
     elements.runButton.disabled = true;
     elements.runButton.textContent = "Probando…";
-
     try {
       await reportScreens();
       const response = await window.almacen.runFullDiagnostics();
-
-      if (!response.ok) {
-        showToast(response.message || "No se pudo ejecutar el diagnóstico.", 5000);
-        return;
-      }
-
+      if (!response.ok) return showToast(response.message || "No se pudo ejecutar el diagnóstico.", 5000);
       renderSummary(response.diagnostics);
-      showToast(
-        response.result.overallStatus === "healthy"
-          ? "Diagnóstico completado: todo funciona correctamente."
-          : response.result.overallStatus === "warning"
-            ? "Diagnóstico completado con advertencias."
-            : "Diagnóstico completado con errores.",
-        5000
-      );
+      showToast(response.result.overallStatus === "healthy" ? "Diagnóstico completado: todo funciona correctamente." : "Diagnóstico completado con puntos por revisar.", 5000);
     } catch (error) {
-      console.error("No fue posible ejecutar el diagnóstico:", error);
       showToast("Ocurrió un error al ejecutar el diagnóstico.", 5000);
     } finally {
       elements.runButton.disabled = false;
@@ -387,30 +292,19 @@ Función o funciones:
   }
 
   function observeAdministration() {
-    if (!elements.adminScreen) {
-      return;
-    }
-
+    if (!elements.adminScreen) return;
     const observer = new MutationObserver(() => {
       if (!elements.adminScreen.classList.contains("hidden")) {
         reportScreens();
         loadSummary({ quiet: true });
       }
     });
-
-    observer.observe(elements.adminScreen, {
-      attributes: true,
-      attributeFilter: ["class"]
-    });
+    observer.observe(elements.adminScreen, { attributes: true, attributeFilter: ["class"] });
   }
 
-  function start() {
-    renderEmpty();
-    elements.runButton?.addEventListener("click", runDiagnostics);
-    observeAdministration();
-    window.setTimeout(reportScreens, 250);
-    window.addEventListener("focus", reportScreens);
-  }
-
-  start();
+  renderEmpty();
+  elements.runButton?.addEventListener("click", runDiagnostics);
+  observeAdministration();
+  window.setTimeout(reportScreens, 500);
+  window.addEventListener("focus", reportScreens);
 })(window, document);
