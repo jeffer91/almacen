@@ -16,6 +16,8 @@ const os = require("node:os");
 const path = require("node:path");
 const { LocalDatabaseService } = require("../app/main/database/local-database-service");
 const { openLocalDatabase } = require("../app/main/database/connection");
+const { MIGRATIONS } = require("../app/main/database/migrations");
+const { runMigrations } = require("../app/main/database/migration-runner");
 
 async function withTempDirectory(callback) {
   const directory = await fs.mkdtemp(path.join(os.tmpdir(), "almacen-migration-repair-"));
@@ -38,20 +40,24 @@ function profile() {
   };
 }
 
-test("repara el checksum legado de la migración 4 y conserva la base", async () => {
+function createLegacySchemaFour(directory) {
+  const opened = openLocalDatabase(directory);
+  runMigrations(
+    opened.database,
+    MIGRATIONS.filter((migration) => migration.version <= 4)
+  );
+  opened.database
+    .prepare("UPDATE schema_migrations SET checksum = ? WHERE version = 4")
+    .run("checksum-legado-por-formato");
+  opened.database.close();
+}
+
+test("repara el checksum legado de la migración 4 y aplica la migración 5", async () => {
   await withTempDirectory(async (directory) => {
-    const first = new LocalDatabaseService();
-    first.initialize({ userDataPath: directory, appVersion: "1.0.0", profile: profile() });
-    first.close();
+    createLegacySchemaFour(directory);
 
-    const opened = openLocalDatabase(directory);
-    opened.database
-      .prepare("UPDATE schema_migrations SET checksum = ? WHERE version = 4")
-      .run("checksum-legado-por-formato");
-    opened.database.close();
-
-    const second = new LocalDatabaseService();
-    const summary = second.initialize({
+    const service = new LocalDatabaseService();
+    const summary = service.initialize({
       userDataPath: directory,
       appVersion: "1.0.0",
       profile: profile()
@@ -59,34 +65,35 @@ test("repara el checksum legado de la migración 4 y conserva la base", async ()
 
     assert.equal(summary.healthy, true);
     assert.equal(summary.schemaVersion, 5);
-    assert.deepEqual(second.migrationResult.repaired, [4]);
+    assert.deepEqual(service.migrationResult.repaired, [4]);
+    assert.deepEqual(service.migrationResult.newlyApplied, [5]);
 
-    const migration = second.database
+    const migration = service.database
       .prepare("SELECT checksum FROM schema_migrations WHERE version = 4")
       .get();
     assert.notEqual(migration.checksum, "checksum-legado-por-formato");
-    second.close();
+    assert.ok(
+      service.database
+        .prepare("SELECT 1 AS found FROM sqlite_master WHERE type = 'table' AND name = 'product_prices'")
+        .get()
+    );
+    service.close();
   });
 });
 
 test("no repara el checksum cuando falta un índice de la migración 4", async () => {
   await withTempDirectory(async (directory) => {
-    const first = new LocalDatabaseService();
-    first.initialize({ userDataPath: directory, appVersion: "1.0.0", profile: profile() });
-    first.close();
+    createLegacySchemaFour(directory);
 
     const opened = openLocalDatabase(directory);
     opened.database.exec("DROP INDEX idx_product_photos_sync");
-    opened.database
-      .prepare("UPDATE schema_migrations SET checksum = ? WHERE version = 4")
-      .run("checksum-invalido-con-esquema-incompleto");
     opened.database.close();
 
-    const second = new LocalDatabaseService();
+    const service = new LocalDatabaseService();
     assert.throws(
-      () => second.initialize({ userDataPath: directory, appVersion: "1.0.0", profile: profile() }),
+      () => service.initialize({ userDataPath: directory, appVersion: "1.0.0", profile: profile() }),
       (error) => error.code === "MIGRATION_CHECKSUM_MISMATCH"
     );
-    second.close();
+    service.close();
   });
 });
