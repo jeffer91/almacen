@@ -39,6 +39,7 @@ const { BackupService } = require("./backups/backup-service");
 const { inspectStartup } = require("./startup/startup-service");
 const { CatalogService } = require("./catalog/catalog-service");
 const { CommerceService } = require("./catalog/commerce-service");
+const { ProductEntryService } = require("./catalog/product-entry-service");
 const { PhotoStorageService } = require("./catalog/photo-storage-service");
 const { FirebaseSyncService } = require("./sync/firebase-sync-service");
 const { ConnectionConfigService } = require("./connections/connection-config-service");
@@ -62,6 +63,7 @@ const localDatabase = new LocalDatabaseService();
 const diagnostics = new DiagnosticsService(localDatabase);
 const catalog = new CatalogService(localDatabase);
 const commerce = new CommerceService(localDatabase);
+const productEntry = new ProductEntryService(localDatabase, catalog, commerce);
 
 const PROFILE_TESTING_ENABLED =
   process.env.NODE_ENV === "development" || process.env.ALMACEN_ALLOW_PROFILE_CHANGE === "1";
@@ -552,6 +554,17 @@ function registerCatalogHandlers() {
       return success({ created, detail: { ...catalog.getProduct(created.product.id), commerce: commerce.getProductCommerce(created.product.id) } });
     } catch (error) {
       return errorResponse(error, "CATALOG_CREATE_FAILED", "No se pudo crear el producto.");
+    }
+  });
+
+  ipcMain.handle("catalog:create-complete", async (_event, input) => {
+    try {
+      const profile = await requireProfile();
+      const result = productEntry.create(input, contextFromProfile(profile));
+      const productId = result.created.product.id;
+      return success({ ...result, detail: { ...catalog.getProduct(productId), commerce: commerce.getProductCommerce(productId) } });
+    } catch (error) {
+      return errorResponse(error, "PRODUCT_ENTRY_FAILED", "No se pudo completar el registro del producto.");
     }
   });
 

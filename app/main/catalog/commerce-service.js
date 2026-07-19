@@ -16,6 +16,29 @@ Con qué se conecta:
 
 const crypto = require("node:crypto");
 
+const DEFAULT_TAX_RATE = 15;
+const MONEY_FACTOR = 100;
+
+function roundMoney(value) {
+  return Math.round((Number(value) + Number.EPSILON) * MONEY_FACTOR) / MONEY_FACTOR;
+}
+
+function normalizeTaxRate(value) {
+  const number = value === null || typeof value === "undefined" || value === ""
+    ? DEFAULT_TAX_RATE
+    : Number(value);
+  if (!Number.isFinite(number) || number < 0 || number > 100) {
+    throw commerceError("TAX_RATE_INVALID", "El porcentaje de IVA debe estar entre 0 y 100.");
+  }
+  return roundMoney(number);
+}
+
+function calculatePriceWithoutTax(pvpWithTax, taxRate) {
+  const gross = positiveMoney(pvpWithTax, "El PVP con IVA");
+  const rate = normalizeTaxRate(taxRate);
+  return roundMoney(gross / (1 + rate / 100));
+}
+
 function nowIso() {
   return new Date().toISOString();
 }
@@ -353,46 +376,32 @@ class CommerceService {
     const channel = this.database.prepare("SELECT id FROM channels WHERE id = ? AND is_active = 1").get(channelId);
     if (!channel) throw commerceError("CHANNEL_NOT_FOUND", "No se encontró el local seleccionado.");
 
+    const pvpWithTax = positiveMoney(input?.pvpWithTax ?? input?.amount, "El PVP con IVA");
+    const taxRate = normalizeTaxRate(input?.taxRate);
+    const priceWithoutTax = calculatePriceWithoutTax(pvpWithTax, taxRate);
     const timestamp = nowIso();
     const price = {
-      id: crypto.randomUUID(),
-      productId,
-      variantId,
-      channelId,
-      amount: positiveMoney(input?.amount, "El precio"),
-      currency: "USD",
+      id: crypto.randomUUID(), productId, variantId, channelId, amount: pvpWithTax,
+      pvpWithTax, priceWithoutTax, taxRate, currency: "USD",
       notes: cleanText(input?.notes, { max: 1000 }),
-      createdByUserId: context.userId,
-      deviceId: context.deviceId,
-      createdAt: timestamp
+      createdByUserId: context.userId, deviceId: context.deviceId, createdAt: timestamp
     };
 
-    this.database
-      .prepare(
-        `INSERT INTO product_prices (
-          id, product_id, variant_id, channel_id, amount, currency, notes,
-          created_by_user_id, device_id, created_at, sync_status, synchronized_at
-        ) VALUES (?, ?, ?, ?, ?, 'USD', ?, ?, ?, ?, 'pending', NULL)`
-      )
-      .run(
-        price.id,
-        price.productId,
-        price.variantId,
-        price.channelId,
-        price.amount,
-        price.notes,
-        context.userId,
-        context.deviceId,
-        timestamp
-      );
+    this.database.prepare(
+      `INSERT INTO product_prices (
+        id, product_id, variant_id, channel_id, amount, pvp_with_tax,
+        price_without_tax, tax_rate, currency, notes, created_by_user_id,
+        device_id, created_at, sync_status, synchronized_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'USD', ?, ?, ?, ?, 'pending', NULL)`
+    ).run(
+      price.id, price.productId, price.variantId, price.channelId, price.amount,
+      price.pvpWithTax, price.priceWithoutTax, price.taxRate, price.notes,
+      context.userId, context.deviceId, timestamp
+    );
 
     this.insertAudit({
-      eventType: "product_price_recorded",
-      entityType: "product_price",
-      entityId: price.id,
-      context,
-      details: price,
-      timestamp
+      eventType: "product_price_recorded", entityType: "product_price",
+      entityId: price.id, context, details: price, timestamp
     });
     this.insertSync({ table: "product_prices", recordId: price.id, operation: "insert", payload: price, timestamp });
     this.recordRecent(productId, "price_updated", context);
@@ -441,7 +450,10 @@ class CommerceService {
         variantId: row.variant_id,
         channelId: row.channel_id,
         channelName: row.channel_name,
-        amount: Number(row.amount),
+        amount: Number(row.pvp_with_tax ?? row.amount),
+        pvpWithTax: Number(row.pvp_with_tax ?? row.amount),
+        priceWithoutTax: Number(row.price_without_tax ?? row.amount),
+        taxRate: Number(row.tax_rate ?? 0),
         currency: row.currency,
         notes: row.notes,
         userName: row.user_name,
@@ -532,7 +544,11 @@ class CommerceService {
 
 module.exports = {
   CommerceService,
+  DEFAULT_TAX_RATE,
+  calculatePriceWithoutTax,
   cleanText,
   normalizeName,
-  requireContext
+  normalizeTaxRate,
+  requireContext,
+  roundMoney
 };

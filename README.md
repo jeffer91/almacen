@@ -8,7 +8,7 @@ Aplicación de escritorio **local-first** para compartir productos, fotografías
 
 ## Estado actual
 
-Versión actual: `1.0.0`. La primera versión funcional del catálogo está completa.
+Versión actual: `1.1.0`. La primera versión funcional del catálogo está completa.
 
 Funciones implementadas:
 
@@ -20,13 +20,14 @@ Funciones implementadas:
 - Fotografías comprimidas y almacenadas localmente.
 - Proveedores, historial de costos y precios por local.
 - Productos recientes por computadora.
-- Estados activo, inactivo y retirado sin borrado físico.
+- Estados activo y retirado sin borrado físico.
 - Restauración de productos, variaciones y fotografías reservada para Jefferson.
 - Historial de acciones, auditoría y cola de sincronización.
 - Sincronización local-first con Firebase Firestore del proyecto `almacen-59227`.
 - Respaldos automáticos y manuales de SQLite.
 - Diagnósticos de base, pantallas y módulos principales.
 - Instalador NSIS x64 para Windows.
+- Aplicación móvil instalable (PWA) con trabajo local y sincronización Firebase.
 - Pruebas automáticas en Windows y Ubuntu.
 
 ## Prioridad de almacenamiento

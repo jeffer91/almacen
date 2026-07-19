@@ -1,6 +1,6 @@
 "use strict";
 
-const CACHE_NAME = "almacen-familiar-mobile-v1";
+const CACHE_NAME = "almacen-familiar-mobile-v2";
 const ASSETS = ["./", "./index.html", "./styles.css", "./app.js", "./manifest.webmanifest", "./icon.svg"];
 
 self.addEventListener("install", (event) => {

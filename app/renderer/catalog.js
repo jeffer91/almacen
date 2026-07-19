@@ -131,7 +131,7 @@ Con qué se conecta:
   }
 
   function statusLabel(status) {
-    return { active: "Activo", inactive: "Inactivo", retired: "Retirado", hidden: "Oculta" }[status] || status || "—";
+    return { active: "Activo", retired: "Retirado", hidden: "Oculta" }[status] || status || "—";
   }
 
   function isAdministrator() {
@@ -309,8 +309,6 @@ Con qué se conecta:
             <p>${esc([variant.presentation, variant.quantityValue, variant.unitName].filter((value) => value !== null && value !== "").join(" ") || "Sin presentación adicional")}</p>
             <p class="catalog-muted">${statusLabel(variant.status)}</p>
             <div class="catalog-inline-actions">
-              ${variant.status === "active" ? `<button class="button button-secondary" type="button" data-variant-status="inactive" data-variant-id="${esc(variant.id)}">Inactivar</button>` : ""}
-              ${variant.status === "inactive" ? `<button class="button button-secondary" type="button" data-variant-status="active" data-variant-id="${esc(variant.id)}">Activar</button>` : ""}
               ${variant.status !== "retired"
                 ? `<button class="button button-secondary" type="button" data-variant-status="retired" data-variant-id="${esc(variant.id)}">Retirar</button>`
                 : isAdministrator()
@@ -344,13 +342,11 @@ Con qué se conecta:
   function renderDetail(detail) {
     state.currentDetail = detail;
     const product = detail.product;
-    const statusActions = product.status === "active"
-      ? '<button class="button button-secondary" type="button" data-product-status="inactive">Inactivar</button><button class="button button-secondary" type="button" data-product-status="retired">Retirar</button>'
-      : product.status === "inactive"
-        ? '<button class="button button-secondary" type="button" data-product-status="active">Activar</button><button class="button button-secondary" type="button" data-product-status="retired">Retirar</button>'
-        : isAdministrator()
-          ? '<button class="button button-primary" type="button" data-product-status="active">Restaurar</button>'
-          : '<span class="catalog-muted">Solo Jefferson puede restaurar este producto.</span>';
+    const statusActions = product.status === "retired"
+      ? isAdministrator()
+        ? '<button class="button button-primary" type="button" data-product-status="active">Restaurar</button>'
+        : '<span class="catalog-muted">Solo Jefferson puede restaurar este producto.</span>'
+      : '<button class="button button-secondary" type="button" data-product-status="retired">Retirar</button>';
 
     elements.detail.innerHTML = `
       <div class="catalog-detail-heading">

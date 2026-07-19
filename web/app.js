@@ -2,6 +2,7 @@
 
 (() => {
   const FIREBASE = Object.freeze({
+    apiKey: "AIzaSyAXO_u1O0-8NYQL6oM8GWBdcmr2_--9Dp8",
     projectId: "almacen-59227",
     collection: "almacen_familiar_devices"
   });
@@ -16,6 +17,12 @@
   const emptyData = () => ({
     products: [], product_variants: [], product_photos: [], product_links: [], suppliers: [], product_costs: [], product_prices: []
   });
+  function normalizeLegacyData(data = {}) {
+    const merged = { ...emptyData(), ...data };
+    merged.products = (merged.products || []).map((row) => row?.status === "inactive" ? { ...row, status: "active" } : row);
+    merged.product_variants = (merged.product_variants || []).map((row) => row?.status === "inactive" ? { ...row, status: "active" } : row);
+    return merged;
+  }
   const state = loadState();
   const money = new Intl.NumberFormat("es-EC", { style: "currency", currency: "USD" });
 
@@ -39,7 +46,7 @@
         deviceId: stored?.deviceId || crypto.randomUUID(),
         profileId: stored?.profileId || null,
         firebaseApiKey: stored?.firebaseApiKey || "",
-        data: { ...emptyData(), ...(stored?.data || {}) },
+        data: normalizeLegacyData(stored?.data || {}),
         updatedAt: stored?.updatedAt || null
       };
     } catch {
@@ -262,11 +269,12 @@
 
   function buildSnapshot() {
     const current = profile();
-    return { schemaVersion: 6, appVersion: "web-1.0.0", generatedAt: now(), device: { id: state.deviceId, userId: current.id, channelId: current.channelId, role: current.role }, data: state.data };
+    return { schemaVersion: 6, appVersion: "web-1.1.0", generatedAt: now(), device: { id: state.deviceId, userId: current.id, channelId: current.channelId, role: current.role }, data: state.data };
   }
 
   function getFirebaseApiKey() {
     if (window.ALMACEN_FIREBASE_API_KEY) return String(window.ALMACEN_FIREBASE_API_KEY);
+    if (FIREBASE.apiKey) return FIREBASE.apiKey;
     if (state.firebaseApiKey) return state.firebaseApiKey;
     const supplied = window.prompt("Ingresa la API key de Firebase configurada en la aplicación de escritorio:", "");
     if (!supplied) throw new Error("Se necesita configurar Firebase para sincronizar.");
@@ -283,7 +291,7 @@
     const payload = buildSnapshot();
     const body = { fields: {
       deviceId: { stringValue: state.deviceId }, profileId: { stringValue: profile().id },
-      channelId: { stringValue: profile().channelId }, appVersion: { stringValue: "web-1.0.0" },
+      channelId: { stringValue: profile().channelId }, appVersion: { stringValue: "web-1.1.0" },
       updatedAt: { timestampValue: now() }, payload: { stringValue: JSON.stringify(payload) }
     }};
     const response = await fetch(`${firestoreBase()}/${encodeURIComponent(state.deviceId)}?key=${encodeURIComponent(apiKey)}`, {
@@ -319,8 +327,8 @@
 
   function mergeSnapshot(snapshot) {
     const data = snapshot.data || {};
-    mergeLatest("products", data.products || [], ["updated_at", "created_at", "retired_at", "restored_at"]);
-    mergeLatest("product_variants", data.product_variants || [], ["updated_at", "created_at", "retired_at", "restored_at"]);
+    mergeLatest("products", (data.products || []).map((row) => row?.status === "inactive" ? { ...row, status: "active" } : row), ["updated_at", "created_at", "retired_at", "restored_at"]);
+    mergeLatest("product_variants", (data.product_variants || []).map((row) => row?.status === "inactive" ? { ...row, status: "active" } : row), ["updated_at", "created_at", "retired_at", "restored_at"]);
     mergeLatest("suppliers", data.suppliers || [], ["updated_at", "created_at"]);
     mergeAppend("product_costs", data.product_costs || []);
     mergeAppend("product_prices", data.product_prices || []);

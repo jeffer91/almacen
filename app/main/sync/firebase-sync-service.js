@@ -658,15 +658,16 @@ class FirebaseSyncService {
     this.database.exec("BEGIN IMMEDIATE");
     try {
       let count = 0;
-      count += this.mergeProducts(data.products);
-      count += this.mergeVariants(data.product_variants);
+      count += this.mergeProducts((data.products || []).map((row) => row?.status === "inactive" ? { ...row, status: "active" } : row));
+      count += this.mergeVariants((data.product_variants || []).map((row) => row?.status === "inactive" ? { ...row, status: "active" } : row));
       count += this.mergeSuppliers(data.suppliers);
       count += this.mergeSimple("product_costs", data.product_costs, [
         "id", "product_id", "variant_id", "supplier_id", "amount", "currency", "notes",
         "created_by_user_id", "device_id", "created_at", "sync_status", "synchronized_at"
       ]);
       count += this.mergeSimple("product_prices", data.product_prices, [
-        "id", "product_id", "variant_id", "channel_id", "amount", "currency", "notes",
+        "id", "product_id", "variant_id", "channel_id", "amount",
+        "pvp_with_tax", "price_without_tax", "tax_rate", "currency", "notes",
         "created_by_user_id", "device_id", "created_at", "sync_status", "synchronized_at"
       ]);
       count += this.mergePhotos(data.product_photos);

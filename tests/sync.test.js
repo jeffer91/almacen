@@ -121,3 +121,20 @@ test("completa la cola de una fotografía retirada después de publicar metadato
     assert.equal(queue.last_error, null);
   });
 });
+
+
+test("normaliza estados antiguos y conserva precios con IVA", async () => {
+  await withDatabase((database, directory) => {
+    const service = new FirebaseSyncService({ databaseService: database, userDataPath: directory, fetchImpl: successfulFetch(), config: { apiKey: "test", projectId: "project-test", collection: "devices" } });
+    const at = new Date().toISOString();
+    const remote = "mobile-remote-001";
+    service.mergeSnapshot({ schemaVersion: 6, appVersion: "web-1.1.0", generatedAt: at, device: { id: remote, userId: "edgar", channelId: "local-edgar", role: "operator" }, data: {
+      products: [{ id: "remote-product", canonical_name: "Producto remoto", normalized_name: "producto remoto", brand: null, category: null, description: null, notes: null, status: "inactive", version: 1, created_by_user_id: "edgar", created_device_id: remote, created_at: at, updated_by_user_id: "edgar", updated_device_id: remote, updated_at: at, retired_by_user_id: null, retired_device_id: null, retired_at: null, retirement_reason: null, restored_by_user_id: null, restored_device_id: null, restored_at: null }],
+      product_variants: [], suppliers: [], product_costs: [], product_photos: [], product_links: [],
+      product_prices: [{ id: "remote-price", product_id: "remote-product", variant_id: null, channel_id: "local-edgar", amount: 2.3, pvp_with_tax: 2.3, price_without_tax: 2, tax_rate: 15, currency: "USD", notes: null, created_by_user_id: "edgar", device_id: remote, created_at: at, sync_status: "synced", synchronized_at: at }]
+    } }, profile().deviceId);
+    const product = database.database.prepare("SELECT status FROM products WHERE id = 'remote-product'").get();
+    const price = database.database.prepare("SELECT pvp_with_tax, price_without_tax, tax_rate FROM product_prices WHERE id = 'remote-price'").get();
+    assert.equal(product.status, "active"); assert.equal(price.pvp_with_tax, 2.3); assert.equal(price.price_without_tax, 2); assert.equal(price.tax_rate, 15);
+  });
+});

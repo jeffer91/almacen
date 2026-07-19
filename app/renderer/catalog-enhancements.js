@@ -157,63 +157,48 @@ Función:
     if (!Number.isFinite(pvpWithTax) || pvpWithTax <= 0) return setError(productError, "El PVP con IVA debe ser mayor que cero.");
     if (!Number.isFinite(taxRate) || taxRate < 0 || taxRate > 100) return setError(productError, "El IVA debe estar entre 0 y 100.");
     if (withoutTax === "") return setError(productError, "No se pudo calcular el precio sin IVA.");
+    if (typeof window.almacen.createCompleteProduct !== "function") {
+      return setError(productError, "La aplicación necesita actualizarse antes de registrar productos.");
+    }
 
     setError(productError, "");
     productForm.dataset.commercialBusy = "true";
-    if (productSave) {
-      productSave.disabled = true;
-      productSave.textContent = "Guardando…";
-    }
+    if (productSave) { productSave.disabled = true; productSave.textContent = "Guardando…"; }
 
-    let createdProduct = null;
     try {
       const initialVariantName = document.getElementById("product-variant-name")?.value.trim() || "";
-      const productResponse = await window.almacen.createProduct({
-        canonicalName: document.getElementById("product-name")?.value,
-        brand: document.getElementById("product-brand")?.value,
-        category: document.getElementById("product-category")?.value,
-        description: document.getElementById("product-description")?.value,
-        initialVariant: initialVariantName ? {
-          variantName: initialVariantName,
-          presentation: document.getElementById("product-presentation")?.value,
-          unitName: document.getElementById("product-unit")?.value,
-          quantityValue: document.getElementById("product-quantity")?.value || null
-        } : null
-      });
-      if (!productResponse?.ok) throw new Error(productResponse?.message || "No se pudo crear el producto.");
-
-      createdProduct = productResponse.created;
-      const productId = createdProduct.product.id;
-      const variantId = createdProduct.initialVariant?.id || null;
-
-      const costResponse = await window.almacen.saveCost({ productId, variantId, supplierId, amount: cost });
-      if (!costResponse?.ok) throw new Error(costResponse?.message || "El producto se creó, pero no se pudo guardar el costo.");
-
       const profile = window.AlmacenShell?.getProfile?.();
-      const priceResponse = await window.almacen.savePrice({
-        productId,
-        variantId,
-        channelId: profile?.channelId,
-        pvpWithTax,
-        taxRate,
-        notes: `Precio sin IVA calculado: ${withoutTax.toFixed(2)}`
+      const response = await window.almacen.createCompleteProduct({
+        product: {
+          canonicalName: document.getElementById("product-name")?.value,
+          brand: document.getElementById("product-brand")?.value,
+          category: document.getElementById("product-category")?.value,
+          description: document.getElementById("product-description")?.value,
+          initialVariant: initialVariantName ? {
+            variantName: initialVariantName,
+            presentation: document.getElementById("product-presentation")?.value,
+            unitName: document.getElementById("product-unit")?.value,
+            quantityValue: document.getElementById("product-quantity")?.value || null
+          } : null
+        },
+        cost: { supplierId, amount: cost },
+        price: {
+          channelId: profile?.channelId, pvpWithTax, taxRate,
+          notes: `Precio sin IVA calculado: ${withoutTax.toFixed(2)}`
+        }
       });
-      if (!priceResponse?.ok) throw new Error(priceResponse?.message || "El producto se creó, pero no se pudo guardar el precio.");
+      if (!response?.ok) throw new Error(response?.message || "No se pudo completar el registro.");
 
       productDialog?.close();
       const searchInput = document.getElementById("catalog-search-input");
-      if (searchInput) searchInput.value = createdProduct.product.canonicalName;
+      if (searchInput) searchInput.value = response.created.product.canonicalName;
       document.getElementById("catalog-search-button")?.click();
       window.AlmacenShell?.showToast?.("Producto, proveedor, costo y precios guardados.");
     } catch (error) {
-      const prefix = createdProduct ? "El producto fue creado. " : "";
-      setError(productError, `${prefix}${error.message || "No se pudo completar el registro."}`);
+      setError(productError, error.message || "No se pudo completar el registro.");
     } finally {
       productForm.dataset.commercialBusy = "false";
-      if (productSave) {
-        productSave.disabled = false;
-        productSave.textContent = "Guardar producto";
-      }
+      if (productSave) { productSave.disabled = false; productSave.textContent = "Guardar producto"; }
     }
   }
 
