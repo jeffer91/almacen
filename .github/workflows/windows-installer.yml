@@ -2,13 +2,28 @@ name: Instalador de Windows
 
 on:
   workflow_dispatch:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "app/**"
+      - "scripts/**"
+      - "web/**"
+      - "tests/**"
+      - "package.json"
+      - "package-lock.json"
+      - "electron-builder.yml"
+      - ".github/workflows/windows-installer.yml"
   push:
     branches:
       - main
     paths:
       - "app/**"
       - "scripts/**"
+      - "web/**"
+      - "tests/**"
       - "package.json"
+      - "package-lock.json"
       - "electron-builder.yml"
       - ".github/workflows/windows-installer.yml"
 
@@ -19,7 +34,7 @@ jobs:
   build-installer:
     name: Compilar y verificar NSIS x64
     runs-on: windows-latest
-    timeout-minutes: 30
+    timeout-minutes: 35
 
     env:
       CSC_IDENTITY_AUTO_DISCOVERY: "false"
@@ -32,12 +47,13 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22.16.0
+          cache: npm
 
       - name: Instalar dependencias
-        run: npm install
+        run: npm ci
 
-      - name: Ejecutar pruebas automáticas
-        run: npm test
+      - name: Validar aplicación de Windows y web
+        run: npm run release:check
 
       - name: Compilar instalador
         run: npm run build:win
