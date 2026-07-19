@@ -1,0 +1,116 @@
+:root {
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  color: #17283d;
+  background: #f3f6fa;
+  color-scheme: light;
+}
+
+* { box-sizing: border-box; }
+body { margin: 0; min-height: 100vh; }
+button, input, select, textarea { font: inherit; }
+button { cursor: pointer; }
+.hidden { display: none !important; }
+
+.app-header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: max(1rem, env(safe-area-inset-top)) 1rem 1rem;
+  color: #fff;
+  background: #173b6c;
+  box-shadow: 0 3px 14px rgba(9, 28, 54, 0.2);
+}
+
+.app-header h1 { margin: 0.1rem 0; font-size: 1.35rem; }
+.app-header p { margin: 0.1rem 0; }
+.eyebrow { margin: 0; font-size: 0.75rem; font-weight: 800; letter-spacing: 0.09em; text-transform: uppercase; }
+.header-actions { display: flex; flex-direction: column; gap: 0.45rem; min-width: 118px; }
+main { width: min(900px, 100%); margin: 0 auto; padding: 1rem 1rem calc(2rem + env(safe-area-inset-bottom)); }
+
+.panel {
+  background: #fff;
+  border: 1px solid #dce4ee;
+  border-radius: 18px;
+  padding: 1rem;
+  box-shadow: 0 8px 22px rgba(25, 53, 86, 0.07);
+}
+
+.profile-grid { display: grid; gap: 0.75rem; margin-top: 1rem; }
+.profile-card {
+  display: grid;
+  grid-template-columns: 52px 1fr;
+  gap: 0.8rem;
+  align-items: center;
+  width: 100%;
+  min-height: 72px;
+  padding: 0.8rem;
+  text-align: left;
+  border: 1px solid #cfdbea;
+  border-radius: 14px;
+  background: #f8fbff;
+}
+.profile-avatar { display: grid; place-content: center; width: 48px; height: 48px; border-radius: 50%; background: #dcecff; color: #173b6c; font-weight: 900; font-size: 1.2rem; }
+.profile-card span { display: block; }
+.profile-card strong { display: block; font-size: 1.05rem; }
+
+.button {
+  border: 0;
+  border-radius: 12px;
+  min-height: 46px;
+  padding: 0.7rem 1rem;
+  font-weight: 750;
+}
+.button-primary { color: #fff; background: #1c5fa8; }
+.button-secondary { color: #173b6c; background: #fff; }
+.button-ghost { color: #fff; background: rgba(255,255,255,0.13); border: 1px solid rgba(255,255,255,0.35); }
+.button:disabled { cursor: not-allowed; opacity: 0.55; }
+
+.status-message { margin-bottom: 0.8rem; padding: 0.8rem 0.9rem; border-radius: 12px; background: #eaf3ff; color: #173b6c; }
+.status-message[data-state="success"] { background: #e9f7ee; color: #17572d; }
+.status-message[data-state="error"] { background: #fff0ee; color: #7a241c; }
+
+.mobile-tabs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.45rem; margin-bottom: 0.8rem; }
+.tab-button { min-height: 45px; border: 1px solid #cbd8e8; border-radius: 11px; background: #fff; color: #34516f; font-weight: 750; }
+.tab-button.active { color: #fff; background: #173b6c; border-color: #173b6c; }
+
+.search-row { display: grid; grid-template-columns: 1fr auto; gap: 0.55rem; margin-bottom: 0.8rem; }
+input, textarea, select {
+  width: 100%;
+  min-height: 46px;
+  padding: 0.7rem 0.8rem;
+  border: 1px solid #bdcada;
+  border-radius: 11px;
+  background: #fff;
+  color: #17283d;
+}
+textarea { min-height: 96px; resize: vertical; }
+label { display: grid; gap: 0.35rem; font-weight: 700; }
+label span { font-size: 0.9rem; color: #3e536c; }
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.8rem; }
+.full { grid-column: 1 / -1; }
+.calculated { background: #eaf7ef; border-color: #9ac9aa; color: #164d29; font-weight: 850; }
+.form-error { grid-column: 1 / -1; margin: 0; padding: 0.7rem; border-radius: 10px; background: #fff0ee; color: #7a241c; }
+
+.product-list, .supplier-list { display: grid; gap: 0.75rem; }
+.product-card, .supplier-card { border: 1px solid #d7e0eb; border-radius: 14px; padding: 0.9rem; background: #fbfdff; }
+.product-card h3, .supplier-card h3 { margin: 0 0 0.35rem; }
+.product-card p, .supplier-card p { margin: 0.25rem 0; color: #5a6c80; }
+.price-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.45rem; margin-top: 0.65rem; }
+.price-box { border-radius: 10px; padding: 0.55rem; background: #eef4fa; }
+.price-box span { display: block; color: #62758a; font-size: 0.76rem; }
+.price-box strong { display: block; margin-top: 0.15rem; }
+.empty-state { padding: 2.5rem 1rem; text-align: center; color: #64768a; }
+.empty-state p { margin-bottom: 0; }
+
+@media (max-width: 620px) {
+  .app-header { align-items: flex-start; }
+  .form-grid { grid-template-columns: 1fr; }
+  .full { grid-column: auto; }
+  .search-row { grid-template-columns: 1fr; }
+  .price-grid { grid-template-columns: 1fr; }
+  main { padding-left: 0.65rem; padding-right: 0.65rem; }
+  .panel { border-radius: 14px; padding: 0.85rem; }
+}

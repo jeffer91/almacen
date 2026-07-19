@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Almacén Familiar">
+  <rect width="512" height="512" rx="112" fill="#173b6c"/>
+  <path d="M104 228 256 112l152 116v174a34 34 0 0 1-34 34H138a34 34 0 0 1-34-34Z" fill="#fff"/>
+  <path d="M177 436V278h158v158" fill="#dcecff"/>
+  <text x="256" y="375" text-anchor="middle" font-family="Arial, sans-serif" font-size="88" font-weight="700" fill="#173b6c">AF</text>
+</svg>

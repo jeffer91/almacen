@@ -1,0 +1,93 @@
+/* Mejoras comerciales y adaptación móvil del catálogo. */
+
+[data-product-status="inactive"],
+[data-variant-status="inactive"],
+.catalog-status[data-status="inactive"] {
+  display: none !important;
+}
+
+.catalog-field-with-action {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.65rem;
+  align-items: stretch;
+}
+
+.catalog-field-with-action .button {
+  white-space: nowrap;
+}
+
+.calculated-price {
+  background: #eef7f1 !important;
+  border-color: #9fcdb0 !important;
+  color: #154f2a !important;
+  font-weight: 800;
+}
+
+.catalog-tax-detail {
+  margin-top: 0.4rem !important;
+  font-weight: 650;
+  color: #355c43;
+}
+
+@media (max-width: 760px) {
+  .topbar,
+  .home-heading,
+  .catalog-header,
+  .catalog-search-bar,
+  .catalog-detail-heading,
+  .catalog-section-heading {
+    align-items: stretch !important;
+    flex-direction: column !important;
+  }
+
+  .topbar-actions,
+  .catalog-header-actions,
+  .catalog-inline-actions,
+  .catalog-action-row {
+    display: grid !important;
+    grid-template-columns: 1fr;
+    width: 100%;
+  }
+
+  .topbar-actions .button,
+  .catalog-header-actions .button,
+  .catalog-inline-actions .button,
+  .catalog-action-row .button,
+  .catalog-search-bar .button {
+    width: 100%;
+    min-height: 48px;
+  }
+
+  .catalog-field-with-action {
+    grid-template-columns: 1fr;
+  }
+
+  .catalog-layout {
+    display: block !important;
+  }
+
+  .catalog-results-panel {
+    margin-bottom: 1rem;
+  }
+
+  .catalog-results {
+    max-height: 45vh !important;
+  }
+
+  .catalog-detail-panel,
+  .catalog-results-panel,
+  .catalog-search-bar {
+    border-radius: 12px !important;
+  }
+
+  .catalog-form {
+    width: min(100%, calc(100vw - 1rem)) !important;
+    max-height: 92vh;
+    overflow-y: auto;
+  }
+
+  .dialog-content {
+    padding: 1rem !important;
+  }
+}

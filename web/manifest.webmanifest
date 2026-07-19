@@ -1,0 +1,19 @@
+{
+  "name": "Almacén Familiar Móvil",
+  "short_name": "Almacén",
+  "description": "Catálogo familiar local-first para productos, proveedores, costos y precios.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f3f6fa",
+  "theme_color": "#173b6c",
+  "lang": "es-EC",
+  "icons": [
+    {
+      "src": "./icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
