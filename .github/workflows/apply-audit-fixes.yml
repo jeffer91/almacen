@@ -48,10 +48,7 @@ jobs:
             node --check "$file"
           done
 
-      - name: Ejecutar pruebas
-        run: npm test
-
-      - name: Guardar cambios en la rama
+      - name: Guardar cambios para diagnóstico
         shell: bash
         run: |
           set -euo pipefail
@@ -63,3 +60,6 @@ jobs:
           git add -A
           git commit -m "fix: consolidar precios y alta atómica"
           git push origin HEAD:auditoria-integridad
+
+      - name: Ejecutar pruebas
+        run: npm test
