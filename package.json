@@ -1,7 +1,7 @@
 {
   "name": "almacen-familiar",
   "version": "1.1.0",
-  "description": "Aplicación de escritorio local-first para gestionar productos, fotografías, proveedores, costos y precios familiares.",
+  "description": "Aplicación local-first para Windows y web para gestionar productos, fotografías, proveedores, costos y precios familiares.",
   "main": "app/main/main.js",
   "author": "Jefferson Villarreal",
   "license": "UNLICENSED",
@@ -15,10 +15,12 @@
     "start:test-profile": "cross-env ALMACEN_ALLOW_PROFILE_CHANGE=1 electron .",
     "dev": "cross-env NODE_ENV=development electron .",
     "test": "node --test",
+    "web:check": "node --check web/app.js && node --check web/service-worker.js",
+    "release:check": "npm test && npm run web:check",
     "pack": "electron-builder --dir",
     "build:win": "electron-builder --win nsis --x64",
     "verify:win": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/verify-windows-build.ps1",
-    "release:win": "npm test && npm run build:win && npm run verify:win"
+    "release:win": "npm run release:check && npm run build:win && npm run verify:win"
   },
   "devDependencies": {
     "cross-env": "7.0.3",

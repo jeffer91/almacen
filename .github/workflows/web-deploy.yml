@@ -1,4 +1,4 @@
-name: Publicar aplicación móvil
+name: Publicar aplicación web
 
 on:
   push:
@@ -26,9 +26,15 @@ jobs:
     steps:
       - name: Descargar repositorio
         uses: actions/checkout@v4
+      - name: Validar archivos web
+        run: |
+          node --check web/app.js
+          node --check web/service-worker.js
+          test -f web/index.html
+          test -f web/manifest.webmanifest
       - name: Configurar GitHub Pages
         uses: actions/configure-pages@v5
-      - name: Preparar aplicación móvil
+      - name: Preparar aplicación web
         run: touch web/.nojekyll
       - name: Cargar archivos
         uses: actions/upload-pages-artifact@v3

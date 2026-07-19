@@ -2,13 +2,28 @@ name: Instalador de Windows
 
 on:
   workflow_dispatch:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "app/**"
+      - "scripts/**"
+      - "web/**"
+      - "tests/**"
+      - "package.json"
+      - "package-lock.json"
+      - "electron-builder.yml"
+      - ".github/workflows/windows-installer.yml"
   push:
     branches:
       - main
     paths:
       - "app/**"
       - "scripts/**"
+      - "web/**"
+      - "tests/**"
       - "package.json"
+      - "package-lock.json"
       - "electron-builder.yml"
       - ".github/workflows/windows-installer.yml"
 
@@ -19,7 +34,7 @@ jobs:
   build-installer:
     name: Compilar y verificar NSIS x64
     runs-on: windows-latest
-    timeout-minutes: 30
+    timeout-minutes: 35
 
     env:
       CSC_IDENTITY_AUTO_DISCOVERY: "false"
@@ -32,12 +47,13 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22.16.0
+          cache: npm
 
       - name: Instalar dependencias
-        run: npm install
+        run: npm ci
 
-      - name: Ejecutar pruebas automáticas
-        run: npm test
+      - name: Validar aplicación de Windows y web
+        run: npm run release:check
 
       - name: Compilar instalador
         run: npm run build:win
@@ -47,14 +63,16 @@ jobs:
         run: npm run verify:win
 
       - name: Publicar resumen de verificación
+        if: success()
         shell: powershell
         run: |
-          "## Instalador de Windows" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Encoding utf8 -Append
-          "```json" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Encoding utf8 -Append
+          '## Instalador de Windows' | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Encoding utf8 -Append
+          '```json' | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Encoding utf8 -Append
           Get-Content dist/installer-verification.json | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Encoding utf8 -Append
-          "```" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Encoding utf8 -Append
+          '```' | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Encoding utf8 -Append
 
-      - name: Subir instalador verificado
+      - name: Subir instalador y diagnóstico
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: Almacen-Familiar-Windows-${{ github.sha }}
@@ -64,5 +82,6 @@ jobs:
             dist/latest.yml
             dist/installer-verification.json
             dist/asar-files.txt
+            dist/verify-output.txt
           if-no-files-found: error
           retention-days: 30
