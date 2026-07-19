@@ -4,7 +4,7 @@ Ruta o ubicación: /app/main/catalog/catalog-service.js
 Función o funciones:
 - Crear productos y variaciones sin aprobación previa.
 - Registrar fotografías independientes por usuario y canal.
-- Aplicar estados activo, inactivo y retirado sin borrado físico.
+- Aplicar estados activo y retirado sin borrado físico.
 - Restaurar elementos retirados únicamente con rol administrativo.
 - Mantener eventos, auditoría y cola de sincronización.
 - Consultar productos, detalles e indicadores del catálogo.
@@ -14,7 +14,7 @@ Función o funciones:
 
 const crypto = require("node:crypto");
 
-const PRODUCT_STATUSES = Object.freeze(["active", "inactive", "retired"]);
+const PRODUCT_STATUSES = Object.freeze(["active", "retired"]);
 const PHOTO_STATUSES = Object.freeze(["active", "hidden", "retired"]);
 const PHOTO_SYNC_STATUSES = Object.freeze([
   "local_only",
@@ -221,18 +221,28 @@ class CatalogService {
 
   transaction(callback) {
     const database = this.database;
+    if (database.isTransaction) {
+      const savepoint = `catalog_${crypto.randomUUID().replace(/-/g, "")}`;
+      database.exec(`SAVEPOINT ${savepoint}`);
+      try {
+        const result = callback(database);
+        database.exec(`RELEASE SAVEPOINT ${savepoint}`);
+        return result;
+      } catch (error) {
+        try {
+          database.exec(`ROLLBACK TO SAVEPOINT ${savepoint}`);
+          database.exec(`RELEASE SAVEPOINT ${savepoint}`);
+        } catch {}
+        throw error;
+      }
+    }
     database.exec("BEGIN IMMEDIATE");
-
     try {
       const result = callback(database);
       database.exec("COMMIT");
       return result;
     } catch (error) {
-      try {
-        database.exec("ROLLBACK");
-      } catch {
-        // La transacción podría haberse cerrado por el propio motor.
-      }
+      try { database.exec("ROLLBACK"); } catch {}
       throw error;
     }
   }
@@ -283,7 +293,7 @@ class CatalogService {
     if (duplicate) {
       throw catalogError(
         "PRODUCT_DUPLICATE",
-        `Ya existe un producto activo o inactivo llamado ${duplicate.canonical_name}.`
+        `Ya existe un producto activo llamado ${duplicate.canonical_name}.`
       );
     }
   }

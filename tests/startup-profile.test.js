@@ -49,7 +49,7 @@ test("el primer arranque abre configuración e inicializa SQLite", async () => {
     assert.equal(startup.profileStatus, "missing");
     assert.equal(startup.database.initialized, true);
     assert.equal(startup.database.healthy, true);
-    assert.equal(startup.database.schemaVersion, 5);
+    assert.equal(startup.database.schemaVersion, 6);
     database.close();
   });
 });

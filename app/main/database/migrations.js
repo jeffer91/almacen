@@ -447,6 +447,27 @@ const MIGRATIONS = Object.freeze([
       CREATE INDEX idx_product_prices_variant_channel_date ON product_prices(variant_id, channel_id, created_at DESC);
       CREATE INDEX idx_recent_product_activity_date ON recent_product_activity(device_id, last_accessed_at DESC);
     `
+  }),
+  Object.freeze({
+    version: 6,
+    name: "precios_con_iva_y_estados_simplificados",
+    sql: `
+      UPDATE products SET status = 'active', updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+      WHERE status = 'inactive';
+
+      UPDATE product_variants SET status = 'active', updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+      WHERE status = 'inactive';
+
+      ALTER TABLE product_prices ADD COLUMN pvp_with_tax REAL;
+      ALTER TABLE product_prices ADD COLUMN price_without_tax REAL;
+      ALTER TABLE product_prices ADD COLUMN tax_rate REAL;
+
+      UPDATE product_prices
+      SET pvp_with_tax = amount,
+          price_without_tax = amount,
+          tax_rate = 0
+      WHERE pvp_with_tax IS NULL;
+    `
   })
 ]);
 

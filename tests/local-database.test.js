@@ -51,7 +51,7 @@ test("crea la base, aplica migraciones y registra el dispositivo", async () => {
 
     assert.equal(summary.initialized, true);
     assert.equal(summary.healthy, true);
-    assert.equal(summary.schemaVersion, 5);
+    assert.equal(summary.schemaVersion, 6);
 
     const device = service.getDevice("device-test-001");
     assert.equal(device.assigned_user_id, "jefferson");
@@ -95,7 +95,7 @@ test("guarda configuración local y la conserva al reabrir", async () => {
       profile: profile()
     });
 
-    assert.equal(summary.schemaVersion, 5);
+    assert.equal(summary.schemaVersion, 6);
     assert.equal(second.getDeviceSetting("device-test-001", "textScale"), 1.25);
     assert.equal(second.runDiagnostic().healthy, true);
     second.close();

@@ -47,6 +47,7 @@ const api = Object.freeze({
   listProducts: (options) => ipcRenderer.invoke("catalog:list", options),
   getProduct: (productId) => ipcRenderer.invoke("catalog:get", productId),
   createProduct: (input) => ipcRenderer.invoke("catalog:create", input),
+  createCompleteProduct: (input) => ipcRenderer.invoke("catalog:create-complete", input),
   addVariant: (productId, input) => ipcRenderer.invoke("catalog:add-variant", productId, input),
   setProductStatus: (productId, status, reason) => ipcRenderer.invoke("catalog:set-product-status", productId, status, reason),
   setVariantStatus: (variantId, status, reason) => ipcRenderer.invoke("catalog:set-variant-status", variantId, status, reason),

@@ -62,7 +62,7 @@ test("crea y verifica un respaldo manual de SQLite", async () => {
 
     assert.equal(backup.healthy, true);
     assert.equal(backup.kind, "manual");
-    assert.equal(backup.schemaVersion, 5);
+    assert.equal(backup.schemaVersion, 6);
     assert.ok(backup.tableCount >= 21);
     assert.match(backup.checksumSha256, /^[a-f0-9]{64}$/);
     assert.equal(parseBackupName(backup.fileName).kind, "manual");
@@ -74,7 +74,7 @@ test("crea y verifica un respaldo manual de SQLite", async () => {
 
     const verification = await service.verify(backup.fileName);
     assert.equal(verification.healthy, true);
-    assert.equal(verification.schemaVersion, 5);
+    assert.equal(verification.schemaVersion, 6);
     assert.equal(verification.checksumSha256, backup.checksumSha256);
     database.close();
   });

@@ -73,9 +73,9 @@ function insertProduct(database) {
     .run(timestamp, timestamp);
 }
 
-test("crea las tablas comerciales en la migración 5", async () => {
+test("crea las tablas comerciales en la migración 6", async () => {
   await withDatabase((database) => {
-    assert.equal(database.getSummary().schemaVersion, 5);
+    assert.equal(database.getSummary().schemaVersion, 6);
     const tables = database.runDiagnostic().tables;
     assert.equal(tables.includes("suppliers"), true);
     assert.equal(tables.includes("product_costs"), true);
