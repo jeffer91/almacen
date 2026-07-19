@@ -1,4 +1,11 @@
-/* Mejoras comerciales y adaptación móvil del catálogo. */
+/* =========================================================
+Nombre completo: catalog-enhancements.css
+Ruta o ubicación: /app/renderer/styles/catalog-enhancements.css
+Función o funciones:
+- Presentar el registro comercial de productos sin desbordamientos.
+- Mantener proveedor, costo, IVA y precio calculado claramente organizados.
+- Adaptar el catálogo y sus formularios a ventanas pequeñas.
+========================================================= */
 
 [data-product-status="inactive"],
 [data-variant-status="inactive"],
@@ -6,15 +13,122 @@
   display: none !important;
 }
 
+/* Modal de producto: nunca debe superar la ventana ni generar scroll horizontal. */
+.catalog-dialog {
+  width: min(900px, calc(100vw - 32px));
+  max-width: 900px;
+  max-height: calc(100vh - 32px);
+  margin: auto;
+  overflow: hidden;
+}
+
+.catalog-dialog .catalog-form {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: none;
+  max-height: calc(100vh - 32px);
+  padding: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
+.catalog-dialog .catalog-form > .eyebrow {
+  margin: 0;
+  padding: 26px 30px 0;
+  font-size: 0.78rem;
+}
+
+.catalog-dialog .catalog-form > h2 {
+  margin: 0;
+  padding: 4px 30px 18px;
+  border-bottom: 1px solid #e5eaf0;
+  font-size: clamp(1.55rem, 2.8vw, 2rem);
+  line-height: 1.08;
+}
+
+.catalog-dialog .catalog-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px 18px;
+  width: 100%;
+  padding: 22px 30px 6px;
+  align-items: start;
+}
+
+.catalog-dialog .catalog-form-grid > * {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.catalog-dialog .catalog-form .form-field {
+  min-width: 0;
+  margin-top: 0;
+  gap: 6px;
+}
+
+.catalog-dialog .catalog-form .form-field > span {
+  font-size: 0.92rem;
+  line-height: 1.25;
+}
+
+.catalog-dialog .catalog-form .text-input {
+  width: 100%;
+  min-width: 0;
+  min-height: 50px;
+  padding: 10px 13px;
+  border-radius: 12px;
+  font-size: 1rem;
+}
+
+.catalog-dialog .catalog-form textarea.text-input {
+  min-height: 92px;
+  resize: vertical;
+}
+
+.catalog-dialog .catalog-form-wide {
+  grid-column: 1 / -1;
+}
+
+.catalog-supplier-field {
+  min-width: 0;
+}
+
 .catalog-field-with-action {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
-  gap: 0.65rem;
+  gap: 10px;
+  width: 100%;
+  min-width: 0;
   align-items: stretch;
 }
 
+.catalog-field-with-action > * {
+  min-width: 0;
+}
+
 .catalog-field-with-action .button {
+  min-height: 50px;
+  padding: 10px 16px;
   white-space: nowrap;
+}
+
+.catalog-dialog .catalog-form > .form-error {
+  margin: 14px 30px 0;
+}
+
+.catalog-dialog .catalog-form > .dialog-actions {
+  position: sticky;
+  z-index: 2;
+  bottom: 0;
+  flex: 0 0 auto;
+  margin: 16px 0 0;
+  padding: 16px 30px 22px;
+  border-top: 1px solid #e5eaf0;
+  background: #ffffff;
+  box-shadow: 0 -8px 20px rgba(15, 35, 62, 0.06);
 }
 
 .calculated-price {
@@ -59,10 +173,6 @@
     min-height: 48px;
   }
 
-  .catalog-field-with-action {
-    grid-template-columns: 1fr;
-  }
-
   .catalog-layout {
     display: block !important;
   }
@@ -81,13 +191,69 @@
     border-radius: 12px !important;
   }
 
-  .catalog-form {
-    width: min(100%, calc(100vw - 1rem)) !important;
-    max-height: 92vh;
-    overflow-y: auto;
+  .catalog-dialog {
+    width: calc(100vw - 16px);
+    max-height: calc(100vh - 16px);
+    border-radius: 14px;
   }
 
-  .dialog-content {
-    padding: 1rem !important;
+  .catalog-dialog .catalog-form {
+    max-height: calc(100vh - 16px);
+  }
+
+  .catalog-dialog .catalog-form > .eyebrow {
+    padding: 20px 20px 0;
+  }
+
+  .catalog-dialog .catalog-form > h2 {
+    padding: 4px 20px 15px;
+    font-size: 1.6rem;
+  }
+
+  .catalog-dialog .catalog-form-grid {
+    grid-template-columns: 1fr;
+    gap: 14px;
+    padding: 18px 20px 4px;
+  }
+
+  .catalog-dialog .catalog-form-wide {
+    grid-column: auto;
+  }
+
+  .catalog-field-with-action {
+    grid-template-columns: 1fr;
+  }
+
+  .catalog-field-with-action .button {
+    width: 100%;
+  }
+
+  .catalog-dialog .catalog-form > .form-error {
+    margin-inline: 20px;
+  }
+
+  .catalog-dialog .catalog-form > .dialog-actions {
+    padding: 14px 20px 18px;
+  }
+}
+
+@media (max-height: 720px) {
+  .catalog-dialog .catalog-form > .eyebrow {
+    padding-top: 18px;
+  }
+
+  .catalog-dialog .catalog-form > h2 {
+    padding-bottom: 14px;
+    font-size: 1.55rem;
+  }
+
+  .catalog-dialog .catalog-form-grid {
+    gap: 12px 16px;
+    padding-top: 16px;
+  }
+
+  .catalog-dialog .catalog-form .text-input,
+  .catalog-field-with-action .button {
+    min-height: 46px;
   }
 }
