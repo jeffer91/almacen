@@ -3,7 +3,7 @@ Nombre completo: migration-repair.test.js
 Ruta o ubicación: /tests/migration-repair.test.js
 Función o funciones:
 - Verificar la reparación segura del checksum legado de la migración 4.
-- Confirmar que la migración 5 se aplique después de reparar los metadatos.
+- Confirmar que las migraciones 5 y 6 se apliquen después de reparar los metadatos.
 - Impedir la reparación cuando falta parte del esquema esperado.
 ========================================================= */
 
@@ -52,21 +52,21 @@ function createLegacySchemaFour(directory) {
   opened.database.close();
 }
 
-test("repara el checksum legado de la migración 4 y aplica la migración 6", async () => {
+test("repara el checksum legado de la migración 4 y aplica las migraciones 5 y 6", async () => {
   await withTempDirectory(async (directory) => {
     createLegacySchemaFour(directory);
 
     const service = new LocalDatabaseService();
     const summary = service.initialize({
       userDataPath: directory,
-      appVersion: "1.0.0",
+      appVersion: "1.1.0",
       profile: profile()
     });
 
     assert.equal(summary.healthy, true);
     assert.equal(summary.schemaVersion, 6);
     assert.deepEqual(service.migrationResult.repaired, [4]);
-    assert.deepEqual(service.migrationResult.newlyApplied, [5]);
+    assert.deepEqual(service.migrationResult.newlyApplied, [5, 6]);
 
     const migration = service.database
       .prepare("SELECT checksum FROM schema_migrations WHERE version = 4")
@@ -91,7 +91,7 @@ test("no repara el checksum cuando falta un índice de la migración 4", async (
 
     const service = new LocalDatabaseService();
     assert.throws(
-      () => service.initialize({ userDataPath: directory, appVersion: "1.0.0", profile: profile() }),
+      () => service.initialize({ userDataPath: directory, appVersion: "1.1.0", profile: profile() }),
       (error) => error.code === "MIGRATION_CHECKSUM_MISMATCH"
     );
     service.close();
