@@ -1,12 +1,6 @@
 name: Aplicar correcciones de auditoría
 
 on:
-  push:
-    branches:
-      - auditoria-integridad
-    paths:
-      - "tools/patch_*.py"
-      - ".github/workflows/apply-audit-fixes.yml"
   pull_request:
     branches:
       - main
@@ -14,6 +8,10 @@ on:
 
 permissions:
   contents: write
+
+concurrency:
+  group: auditoria-integridad
+  cancel-in-progress: true
 
 jobs:
   apply:
@@ -48,7 +46,7 @@ jobs:
             node --check "$file"
           done
 
-      - name: Guardar cambios para diagnóstico
+      - name: Guardar código auditado
         shell: bash
         run: |
           set -euo pipefail
@@ -60,6 +58,3 @@ jobs:
           git add -A
           git commit -m "fix: consolidar precios y alta atómica"
           git push origin HEAD:auditoria-integridad
-
-      - name: Ejecutar pruebas
-        run: npm test
