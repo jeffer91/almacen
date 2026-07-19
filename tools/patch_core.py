@@ -18,13 +18,41 @@ def replace_once(path, old, new, label):
 
 replace_once("package.json", '"version": "1.0.0"', '"version": "1.1.0"', "versión")
 replace_once("package.json", '"main": "app/main/main-entry.js"', '"main": "app/main/main.js"', "punto de entrada")
-replace_once("package-lock.json", '"version": "1.0.0"', '"version": "1.1.0"', "versión raíz")
-replace_once("package-lock.json", '"version": "1.0.0"', '"version": "1.1.0"', "versión paquete")
+package_lock = read("package-lock.json")
+if package_lock.count('"version": "1.0.0"') >= 2:
+    write("package-lock.json", package_lock.replace('"version": "1.0.0"', '"version": "1.1.0"', 2))
 
 migrations = read("app/main/database/migrations.js")
 if "version: 6" not in migrations:
-    old = """      CREATE INDEX idx_recent_product_activity_date ON recent_product_activity(device_id, last_accessed_at DESC);\n    `\n  })\n]);"""
-    new = """      CREATE INDEX idx_recent_product_activity_date ON recent_product_activity(device_id, last_accessed_at DESC);\n    `\n  }),\n  Object.freeze({\n    version: 6,\n    name: \"precios_con_iva_y_estados_simplificados\",\n    sql: `\n      UPDATE products SET status = 'active', updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')\n      WHERE status = 'inactive';\n\n      UPDATE product_variants SET status = 'active', updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')\n      WHERE status = 'inactive';\n\n      ALTER TABLE product_prices ADD COLUMN pvp_with_tax REAL;\n      ALTER TABLE product_prices ADD COLUMN price_without_tax REAL;\n      ALTER TABLE product_prices ADD COLUMN tax_rate REAL;\n\n      UPDATE product_prices\n      SET pvp_with_tax = amount,\n          price_without_tax = amount,\n          tax_rate = 0\n      WHERE pvp_with_tax IS NULL;\n    `\n  })\n]);"""
+    old = """      CREATE INDEX idx_recent_product_activity_date ON recent_product_activity(device_id, last_accessed_at DESC);
+    `
+  })
+]);"""
+    new = """      CREATE INDEX idx_recent_product_activity_date ON recent_product_activity(device_id, last_accessed_at DESC);
+    `
+  }),
+  Object.freeze({
+    version: 6,
+    name: "precios_con_iva_y_estados_simplificados",
+    sql: `
+      UPDATE products SET status = 'active', updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+      WHERE status = 'inactive';
+
+      UPDATE product_variants SET status = 'active', updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+      WHERE status = 'inactive';
+
+      ALTER TABLE product_prices ADD COLUMN pvp_with_tax REAL;
+      ALTER TABLE product_prices ADD COLUMN price_without_tax REAL;
+      ALTER TABLE product_prices ADD COLUMN tax_rate REAL;
+
+      UPDATE product_prices
+      SET pvp_with_tax = amount,
+          price_without_tax = amount,
+          tax_rate = 0
+      WHERE pvp_with_tax IS NULL;
+    `
+  })
+]);"""
     if old not in migrations:
         raise RuntimeError("No se encontró el cierre de la migración 5")
     write("app/main/database/migrations.js", migrations.replace(old, new, 1))
@@ -39,8 +67,50 @@ replace_once("app/main/catalog/catalog-service.js",
              "Ya existe un producto activo o inactivo llamado ${duplicate.canonical_name}.",
              "Ya existe un producto activo llamado ${duplicate.canonical_name}.", "mensaje duplicado")
 
-old_tx = """  transaction(callback) {\n    const database = this.database;\n    database.exec(\"BEGIN IMMEDIATE\");\n\n    try {\n      const result = callback(database);\n      database.exec(\"COMMIT\");\n      return result;\n    } catch (error) {\n      try {\n        database.exec(\"ROLLBACK\");\n      } catch {\n        // La transacción podría haberse cerrado por el propio motor.\n      }\n      throw error;\n    }\n  }"""
-new_tx = """  transaction(callback) {\n    const database = this.database;\n    if (database.inTransaction) {\n      const savepoint = `catalog_${crypto.randomUUID().replace(/-/g, \"\")}`;\n      database.exec(`SAVEPOINT ${savepoint}`);\n      try {\n        const result = callback(database);\n        database.exec(`RELEASE SAVEPOINT ${savepoint}`);\n        return result;\n      } catch (error) {\n        try {\n          database.exec(`ROLLBACK TO SAVEPOINT ${savepoint}`);\n          database.exec(`RELEASE SAVEPOINT ${savepoint}`);\n        } catch {}\n        throw error;\n      }\n    }\n    database.exec(\"BEGIN IMMEDIATE\");\n    try {\n      const result = callback(database);\n      database.exec(\"COMMIT\");\n      return result;\n    } catch (error) {\n      try { database.exec(\"ROLLBACK\"); } catch {}\n      throw error;\n    }\n  }"""
+old_tx = """  transaction(callback) {
+    const database = this.database;
+    database.exec("BEGIN IMMEDIATE");
+
+    try {
+      const result = callback(database);
+      database.exec("COMMIT");
+      return result;
+    } catch (error) {
+      try {
+        database.exec("ROLLBACK");
+      } catch {
+        // La transacción podría haberse cerrado por el propio motor.
+      }
+      throw error;
+    }
+  }"""
+new_tx = """  transaction(callback) {
+    const database = this.database;
+    if (database.inTransaction) {
+      const savepoint = `catalog_${crypto.randomUUID().replace(/-/g, "")}`;
+      database.exec(`SAVEPOINT ${savepoint}`);
+      try {
+        const result = callback(database);
+        database.exec(`RELEASE SAVEPOINT ${savepoint}`);
+        return result;
+      } catch (error) {
+        try {
+          database.exec(`ROLLBACK TO SAVEPOINT ${savepoint}`);
+          database.exec(`RELEASE SAVEPOINT ${savepoint}`);
+        } catch {}
+        throw error;
+      }
+    }
+    database.exec("BEGIN IMMEDIATE");
+    try {
+      const result = callback(database);
+      database.exec("COMMIT");
+      return result;
+    } catch (error) {
+      try { database.exec("ROLLBACK"); } catch {}
+      throw error;
+    }
+  }"""
 replace_once("app/main/catalog/catalog-service.js", old_tx, new_tx, "transacción")
 
 for relative in ["app/main/main-entry.js", "app/main/enhancements/register.js"]:
