@@ -1,0 +1,61 @@
+name: Aplicar correcciones de auditoría
+
+on:
+  push:
+    branches:
+      - auditoria-integridad
+    paths:
+      - "tools/patch_*.py"
+      - ".github/workflows/apply-audit-fixes.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Descargar rama
+        uses: actions/checkout@v4
+        with:
+          ref: auditoria-integridad
+          fetch-depth: 0
+
+      - name: Preparar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.16.0
+
+      - name: Aplicar parches
+        run: |
+          python tools/patch_core.py
+          python tools/patch_commerce.py
+          python tools/patch_entry.py
+          python tools/patch_renderer.py
+          python tools/patch_mobile.py
+          python tools/patch_tests.py
+
+      - name: Validar sintaxis
+        shell: bash
+        run: |
+          set -euo pipefail
+          find app tests web -type f -name "*.js" -print0 | while IFS= read -r -d '' file; do
+            node --check "$file"
+          done
+
+      - name: Ejecutar pruebas
+        run: npm test
+
+      - name: Guardar cambios en la rama
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f tools/patch_core.py tools/patch_commerce.py tools/patch_entry.py tools/patch_renderer.py tools/patch_mobile.py tools/patch_tests.py
+          rm -f .github/workflows/apply-audit-fixes.yml
+          rmdir tools 2>/dev/null || true
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "fix: consolidar precios y alta atómica"
+          git push origin HEAD:auditoria-integridad
