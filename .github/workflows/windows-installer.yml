@@ -60,9 +60,12 @@ jobs:
 
       - name: Verificar instalador e instalación silenciosa
         shell: powershell
-        run: npm run verify:win
+        run: |
+          npm run verify:win *>&1 | Tee-Object -FilePath dist/verify-output.txt
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Publicar resumen de verificación
+        if: success()
         shell: powershell
         run: |
           "## Instalador de Windows" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Encoding utf8 -Append
@@ -70,7 +73,8 @@ jobs:
           Get-Content dist/installer-verification.json | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Encoding utf8 -Append
           "```" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Encoding utf8 -Append
 
-      - name: Subir instalador verificado
+      - name: Subir instalador y diagnóstico
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: Almacen-Familiar-Windows-${{ github.sha }}
@@ -80,5 +84,6 @@ jobs:
             dist/latest.yml
             dist/installer-verification.json
             dist/asar-files.txt
+            dist/verify-output.txt
           if-no-files-found: error
           retention-days: 30
