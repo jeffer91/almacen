@@ -60,9 +60,7 @@ jobs:
 
       - name: Verificar instalador e instalación silenciosa
         shell: powershell
-        run: |
-          npm run verify:win *>&1 | Tee-Object -FilePath dist/verify-output.txt
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+        run: npm run verify:win
 
       - name: Publicar resumen de verificación
         if: success()
