@@ -37,6 +37,7 @@ jobs:
           python tools/patch_renderer.py
           python tools/patch_mobile.py
           python tools/patch_tests.py
+          git checkout -- .github/workflows/tests.yml
 
       - name: Validar sintaxis
         shell: bash
