@@ -216,6 +216,18 @@ function installSyncPricing() {
   const { FirebaseSyncService } = require("../sync/firebase-sync-service");
   if (FirebaseSyncService.prototype[PATCH_MARK]) return;
   const originalMergeSimple = FirebaseSyncService.prototype.mergeSimple;
+  const originalMergeProducts = FirebaseSyncService.prototype.mergeProducts;
+  const originalMergeVariants = FirebaseSyncService.prototype.mergeVariants;
+
+  FirebaseSyncService.prototype.mergeProducts = function mergeProducts(rows) {
+    const normalized = (rows || []).map((row) => row?.status === "inactive" ? { ...row, status: "active" } : row);
+    return originalMergeProducts.call(this, normalized);
+  };
+
+  FirebaseSyncService.prototype.mergeVariants = function mergeVariants(rows) {
+    const normalized = (rows || []).map((row) => row?.status === "inactive" ? { ...row, status: "active" } : row);
+    return originalMergeVariants.call(this, normalized);
+  };
 
   FirebaseSyncService.prototype.mergeSimple = function mergeSimple(table, rows, columns) {
     if (table === "product_prices") {
