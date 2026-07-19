@@ -221,7 +221,7 @@ class CatalogService {
 
   transaction(callback) {
     const database = this.database;
-    if (database.inTransaction) {
+    if (database.isTransaction) {
       const savepoint = `catalog_${crypto.randomUUID().replace(/-/g, "")}`;
       database.exec(`SAVEPOINT ${savepoint}`);
       try {

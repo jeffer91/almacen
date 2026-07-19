@@ -17,7 +17,7 @@ function entryError(code, message) {
 }
 
 function runAtomic(database, callback) {
-  if (database.inTransaction) {
+  if (database.isTransaction) {
     const savepoint = `entry_${crypto.randomUUID().replace(/-/g, "")}`;
     database.exec(`SAVEPOINT ${savepoint}`);
     try {

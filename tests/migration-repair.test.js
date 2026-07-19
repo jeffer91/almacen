@@ -52,7 +52,7 @@ function createLegacySchemaFour(directory) {
   opened.database.close();
 }
 
-test("repara el checksum legado de la migración 4 y aplica la migración 5", async () => {
+test("repara el checksum legado de la migración 4 y aplica la migración 6", async () => {
   await withTempDirectory(async (directory) => {
     createLegacySchemaFour(directory);
 
@@ -64,7 +64,7 @@ test("repara el checksum legado de la migración 4 y aplica la migración 5", as
     });
 
     assert.equal(summary.healthy, true);
-    assert.equal(summary.schemaVersion, 5);
+    assert.equal(summary.schemaVersion, 6);
     assert.deepEqual(service.migrationResult.repaired, [4]);
     assert.deepEqual(service.migrationResult.newlyApplied, [5]);
 
