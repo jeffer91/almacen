@@ -1,15 +1,12 @@
 # Almacén Familiar
 
-Aplicación **local-first** para compartir productos, fotografías, proveedores, costos y precios entre:
+Aplicación de escritorio **local-first para Windows** destinada a compartir productos, fotografías, proveedores, costos y precios entre:
 
 - Edgar — Local físico.
 - Gloria — Local físico.
 - Jefferson — Tienda virtual y administración.
 
-El proyecto tiene dos formas de uso:
-
-1. **Aplicación de Windows:** instalador `.exe` construido con Electron, SQLite y NSIS.
-2. **Aplicación web instalable:** PWA responsive ubicada en `web/`, lista para publicarse en una página HTTPS y añadirse al escritorio o a la pantalla de inicio.
+La aplicación se distribuye únicamente como programa de Windows mediante Electron, SQLite y un instalador NSIS.
 
 ## Estado actual
 
@@ -34,35 +31,34 @@ Funciones implementadas:
 - Respaldos automáticos y manuales de SQLite.
 - Diagnósticos de base, pantallas y módulos principales.
 - Instalador NSIS x64 para Windows.
-- Aplicación web instalable con funcionamiento offline y sincronización Firebase.
 - Pruebas automáticas en Windows y Ubuntu.
 
-## Prioridad de almacenamiento
+## Arquitectura de almacenamiento
 
-### Windows
-
-1. SQLite local es la base principal y permite trabajar sin internet.
-2. Firebase comparte los cambios entre los dispositivos.
-3. Los respaldos locales protegen la base de cada equipo.
+1. **SQLite local** es la base principal y permite trabajar sin internet.
+2. **Firebase Firestore** comparte los cambios entre los dispositivos.
+3. **Respaldos locales** protegen la base de cada equipo.
 
 Los datos se guardan en la carpeta `userData` de Electron, no dentro de la carpeta de instalación.
 
-### Web y PWA
-
-1. Los cambios se guardan primero en el almacenamiento local del navegador.
-2. La sincronización envía y recibe instantáneas mediante Firebase.
-3. La PWA puede abrirse sin conexión después de su primera carga.
+Firebase se utiliza para sincronización de datos entre instalaciones; no se utiliza Firebase Hosting ni existe una versión web/PWA de la aplicación.
 
 ## Requisitos de desarrollo
 
 - Node.js 22.16 o superior.
 - npm.
 
-## Ejecutar la aplicación de Windows en desarrollo
+## Ejecutar la aplicación en desarrollo
 
 ```bash
 npm install
 npm start
+```
+
+Para iniciar sin permitir el cambio de perfil:
+
+```bash
+npm run start:locked
 ```
 
 Para cambiar de perfil durante pruebas:
@@ -79,7 +75,7 @@ La contraseña administrativa se mantiene local en cada instalación. Ni la cont
 npm run release:check
 ```
 
-Este comando ejecuta la suite funcional y valida la sintaxis de la aplicación web.
+Este comando ejecuta la suite funcional de la aplicación de escritorio.
 
 ## Generar y verificar el instalador de Windows
 
@@ -98,40 +94,13 @@ installer-verification.json
 asar-files.txt
 ```
 
-El flujo `.github/workflows/windows-installer.yml` también compila, instala silenciosamente, verifica y publica el instalador como artefacto de GitHub Actions.
-
-## Publicar la aplicación web
-
-La carpeta que debe publicarse es:
-
-```text
-web/
-```
-
-Todos los recursos usan rutas relativas, por lo que puede alojarse en GitHub Pages, Firebase Hosting u otro servicio de archivos estáticos con HTTPS.
-
-### GitHub Pages
-
-El flujo `.github/workflows/web-deploy.yml` publica automáticamente `web/` cuando se integran cambios en `main`. GitHub Pages debe estar configurado para usar **GitHub Actions** como fuente.
-
-### Firebase Hosting
-
-El repositorio incluye `firebase.json` y `.firebaserc`.
-
-```bash
-npm install -g firebase-tools
-firebase login
-firebase deploy --only hosting
-```
-
-La aplicación se podrá instalar desde Chrome, Edge, Android o Safari mediante la opción **Instalar aplicación** o **Añadir a pantalla de inicio**.
+El flujo `.github/workflows/windows-installer.yml` compila, instala silenciosamente, verifica y publica el instalador como artefacto de GitHub Actions.
 
 ## Estructura principal
 
 ```text
 .github/workflows/
 ├── tests.yml
-├── web-deploy.yml
 └── windows-installer.yml
 
 app/
@@ -151,20 +120,15 @@ app/
 ├── preload/preload.js
 └── renderer/
 
-web/
-├── index.html
-├── app.js
-├── styles.css
-├── service-worker.js
-├── manifest.webmanifest
-└── icon.svg
-
+build/
+docs/
+scripts/
 tests/
 ```
 
 ## Firebase
 
-Configuración predeterminada:
+Configuración predeterminada de sincronización:
 
 - Proyecto: `almacen-59227`.
 - Colección de equipos: `almacen_familiar_devices`.
@@ -176,7 +140,7 @@ La configuración de escritorio puede reemplazarse mediante:
 - `ALMACEN_FIREBASE_PROJECT_ID`
 - `ALMACEN_FIREBASE_COLLECTION`
 
-**Importante:** la API key de Firebase identifica el proyecto, pero no protege los datos. Antes de publicar la página para acceso público se deben revisar las reglas de Firestore. No se deben guardar datos sensibles mientras las reglas permitan lectura o escritura pública.
+**Importante:** la API key de Firebase identifica el proyecto, pero no protege los datos. La protección depende de las reglas de Firestore. No se deben guardar datos sensibles mientras las reglas permitan lectura o escritura pública.
 
 ## Instalador
 

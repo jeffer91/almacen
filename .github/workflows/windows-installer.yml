@@ -8,7 +8,6 @@ on:
     paths:
       - "app/**"
       - "scripts/**"
-      - "web/**"
       - "tests/**"
       - "package.json"
       - "package-lock.json"
@@ -20,7 +19,6 @@ on:
     paths:
       - "app/**"
       - "scripts/**"
-      - "web/**"
       - "tests/**"
       - "package.json"
       - "package-lock.json"
@@ -52,7 +50,7 @@ jobs:
       - name: Instalar dependencias
         run: npm ci
 
-      - name: Validar aplicación de Windows y web
+      - name: Validar aplicación de Windows
         run: npm run release:check
 
       - name: Compilar instalador
