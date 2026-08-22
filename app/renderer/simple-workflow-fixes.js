@@ -145,16 +145,24 @@
     return [...costs, ...prices].sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0)).slice(0, 30);
   }
 
+  async function waitForHistorySection(dialog) {
+    for (let attempt = 0; attempt < 30; attempt += 1) {
+      if (!dialog?.open) return null;
+      const section = Array.from(dialog.querySelectorAll("section")).find((item) => /Historial/i.test(item.querySelector("h3")?.textContent || ""));
+      if (section) return section;
+      await new Promise((resolve) => window.setTimeout(resolve, 50));
+    }
+    return null;
+  }
+
   async function patchDetail(productId) {
-    await new Promise((resolve) => window.setTimeout(resolve, 0));
-    const dialog = document.getElementById("simple-detail-dialog");
-    if (!dialog?.open) return;
     try {
       const response = await window.almacen.getProduct(productId);
       if (!response?.ok) return;
-      const history = commercialHistory(response.detail);
-      const section = Array.from(dialog.querySelectorAll("section")).find((item) => /Historial/i.test(item.querySelector("h3")?.textContent || ""));
+      const dialog = document.getElementById("simple-detail-dialog");
+      const section = await waitForHistorySection(dialog);
       if (!section) return;
+      const history = commercialHistory(response.detail);
       section.innerHTML = `<h3>Historial de costos y precios</h3><div class="simple-history">${history.length ? history.map((item) => `<div><strong>${esc(item.type)} · ${amount(item.value)}</strong><span>${formatDate(item.date)}${item.user ? ` · ${esc(item.user)}` : ""}${item.note ? ` · ${esc(item.note)}` : ""}</span></div>`).join("") : '<p class="simple-muted">Todavía no hay cambios de costo o precio registrados.</p>'}</div>`;
     } catch {}
   }
