@@ -4,7 +4,7 @@ Ruta o ubicación: /app/preload/preload.js
 Función o funciones:
 - Exponer una API mínima y segura a la interfaz.
 - Conectar perfiles, administración, SQLite, catálogo, comercio y sincronización.
-- Evitar acceso directo de la pantalla a Node.js.
+- Exponer tabla sencilla e importación Excel sin dar acceso directo a Node.js.
 Con qué se conecta:
 - app/main/main.js
 - app/renderer/*.js
@@ -54,6 +54,14 @@ const api = Object.freeze({
   addProductPhoto: (productId, options) => ipcRenderer.invoke("catalog:add-photo", productId, options),
   setPhotoStatus: (photoId, status) => ipcRenderer.invoke("catalog:set-photo-status", photoId, status),
   getCatalogReferences: () => ipcRenderer.invoke("catalog:references"),
+
+  listSimpleProducts: (options) => ipcRenderer.invoke("simple:list", options),
+  createSimpleProduct: (input) => ipcRenderer.invoke("simple:create", input),
+  updateSimpleProduct: (input) => ipcRenderer.invoke("simple:update", input),
+  changeSimplePrice: (input) => ipcRenderer.invoke("simple:change-price", input),
+
+  importExcel: () => ipcRenderer.invoke("imports:excel:run"),
+  resolveExcelDuplicate: (duplicateId, action) => ipcRenderer.invoke("imports:excel:resolve", duplicateId, action),
 
   listSuppliers: (options) => ipcRenderer.invoke("commerce:suppliers:list", options),
   saveSupplier: (input) => ipcRenderer.invoke("commerce:supplier:save", input),

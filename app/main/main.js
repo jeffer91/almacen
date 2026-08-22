@@ -6,10 +6,12 @@ Función o funciones:
 - Gestionar perfiles, administración, SQLite, respaldos y diagnósticos.
 - Conectar catálogo, proveedores, costos, precios, fotografías y recientes.
 - Ejecutar sincronización local-first con Firebase.
+- Dar una tabla simple a Edgar y Gloria e importar Excel desde Administración.
 Con qué se conecta:
 - app/preload/preload.js
 - app/main/database/*
 - app/main/catalog/*
+- app/main/imports/excel-import-service.js
 - app/main/sync/firebase-sync-service.js
 ========================================================= */
 
@@ -40,7 +42,9 @@ const { inspectStartup } = require("./startup/startup-service");
 const { CatalogService } = require("./catalog/catalog-service");
 const { CommerceService } = require("./catalog/commerce-service");
 const { ProductEntryService } = require("./catalog/product-entry-service");
+const { SimpleCatalogService } = require("./catalog/simple-catalog-service");
 const { PhotoStorageService } = require("./catalog/photo-storage-service");
+const { ExcelImportService } = require("./imports/excel-import-service");
 const { FirebaseSyncService } = require("./sync/firebase-sync-service");
 const { ConnectionConfigService } = require("./connections/connection-config-service");
 const {
@@ -56,6 +60,7 @@ let backupService = null;
 let photoStorageService = null;
 let connectionConfigService = null;
 let syncService = null;
+let excelImportService = null;
 let automaticSyncTimer = null;
 
 const adminSession = new AdminSessionManager();
@@ -64,6 +69,7 @@ const diagnostics = new DiagnosticsService(localDatabase);
 const catalog = new CatalogService(localDatabase);
 const commerce = new CommerceService(localDatabase);
 const productEntry = new ProductEntryService(localDatabase, catalog, commerce);
+const simpleCatalog = new SimpleCatalogService(localDatabase, catalog, commerce);
 
 const PROFILE_TESTING_ENABLED =
   process.env.NODE_ENV === "development" || process.env.ALMACEN_ALLOW_PROFILE_CHANGE === "1";
@@ -122,6 +128,17 @@ function getSyncService() {
     });
   }
   return syncService;
+}
+
+function getExcelImportService() {
+  if (!excelImportService) {
+    excelImportService = new ExcelImportService({
+      databaseService: localDatabase,
+      simpleCatalogService: simpleCatalog,
+      dialog
+    });
+  }
+  return excelImportService;
 }
 
 async function refreshStartupReport() {
@@ -635,6 +652,74 @@ function registerCatalogHandlers() {
   });
 }
 
+function registerSimpleCatalogHandlers() {
+  ipcMain.handle("simple:list", async (_event, options = {}) => {
+    try {
+      const profile = await requireProfile();
+      return success({ rows: simpleCatalog.listRows(options, contextFromProfile(profile)) });
+    } catch (error) {
+      return errorResponse(error, "SIMPLE_LIST_FAILED", "No se pudo cargar la tabla de productos.");
+    }
+  });
+
+  ipcMain.handle("simple:create", async (_event, input = {}) => {
+    try {
+      const profile = await requireProfile();
+      return success({ row: simpleCatalog.createRow(input, contextFromProfile(profile)) });
+    } catch (error) {
+      return errorResponse(error, "SIMPLE_CREATE_FAILED", "No se pudo guardar el producto.");
+    }
+  });
+
+  ipcMain.handle("simple:update", async (_event, input = {}) => {
+    try {
+      const profile = await requireProfile();
+      return success({ row: simpleCatalog.updateRow(input, contextFromProfile(profile)) });
+    } catch (error) {
+      return errorResponse(error, "SIMPLE_UPDATE_FAILED", "No se pudo actualizar el producto.");
+    }
+  });
+
+  ipcMain.handle("simple:change-price", async (_event, input = {}) => {
+    try {
+      const profile = await requireProfile();
+      return success(simpleCatalog.changePrice(input, contextFromProfile(profile)));
+    } catch (error) {
+      return errorResponse(error, "SIMPLE_PRICE_FAILED", "No se pudo cambiar el precio.");
+    }
+  });
+}
+
+function registerExcelImportHandlers() {
+  ipcMain.handle("imports:excel:run", async () => {
+    if (!adminSession.isUnlocked()) {
+      return failure("ADMIN_SESSION_REQUIRED", "Abre Administración antes de importar el Excel.");
+    }
+    try {
+      const profile = await requireProfile();
+      const result = await getExcelImportService().selectAndImport(mainWindow, contextFromProfile(profile));
+      adminSession.touch();
+      return success(result);
+    } catch (error) {
+      return errorResponse(error, "EXCEL_IMPORT_FAILED", "No se pudo importar el Excel.");
+    }
+  });
+
+  ipcMain.handle("imports:excel:resolve", async (_event, duplicateId, action) => {
+    if (!adminSession.isUnlocked()) {
+      return failure("ADMIN_SESSION_REQUIRED", "La sesión administrativa terminó. Ingresa nuevamente.");
+    }
+    try {
+      const profile = await requireProfile();
+      const result = getExcelImportService().resolveDuplicate(duplicateId, action, contextFromProfile(profile));
+      adminSession.touch();
+      return success(result);
+    } catch (error) {
+      return errorResponse(error, "EXCEL_DUPLICATE_FAILED", "No se pudo resolver el posible duplicado.");
+    }
+  });
+}
+
 function registerCommerceHandlers() {
   ipcMain.handle("commerce:suppliers:list", async (_event, options = {}) => {
     try {
@@ -753,6 +838,8 @@ function registerIpcHandlers() {
   registerDiagnosticsHandlers();
   registerAdminHandlers();
   registerCatalogHandlers();
+  registerSimpleCatalogHandlers();
+  registerExcelImportHandlers();
   registerCommerceHandlers();
   registerConnectionHandlers();
   registerSyncHandlers();
@@ -780,6 +867,7 @@ app.whenReady().then(async () => {
   getPhotoStorageService();
   getConnectionConfigService();
   getSyncService();
+  getExcelImportService();
   if (localDatabase.getSummary().initialized) {
     backupService.maybeCreateAutomatic().catch((error) => console.error("No fue posible crear el respaldo automático:", error));
   }
