@@ -1,4 +1,3 @@
-/* Carga las mejoras comerciales existentes y el flujo sencillo sin mezclar las dos interfaces. */
 "use strict";
 
 (() => {
@@ -44,6 +43,7 @@
   async function initialize() {
     await loadScript("./commercial-enhancements.js");
     await loadScript("./simple-workflow.js");
+    await loadScript("./simple-workflow-fixes.js");
     applyRoleCompatibility();
     document.addEventListener("almacen:screen-changed", () => {
       window.setTimeout(applyRoleCompatibility, 0);
