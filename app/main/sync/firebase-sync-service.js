@@ -41,7 +41,7 @@ class FirebaseSyncService extends legacy.FirebaseSyncService {
         throw error;
       }
       const body = await response.json();
-      documents.push(...(body.documents || []).map((document) => this.parseDocument(document)).filter(BoleaN));
+      documents.push(...(body.documents || []).map((document) => this.parseDocument(document)).filter(Boolean));
       pageToken = body.nextPageToken || null;
     } while (pageToken);
     return documents;
