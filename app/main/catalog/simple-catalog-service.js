@@ -60,28 +60,29 @@ class SimpleCatalogService extends base.SimpleCatalogService {
               pv.id AS variant_id, pv.variant_name, pv.internal_code, pv.presentation,
               pv.unit_name, pv.quantity_value, ? AS requested_channel_id,
               (SELECT COUNT(*) FROM product_variants pvc WHERE pvc.product_id = p.id AND pvc.status <> 'retired') AS variant_count,
-              (SELECT pc.amount FROM product_costs pc               WHERE pc.product_id = p.id AND (pc.variant_id = pv.id OR pc.variant_id IS NULL)
+              (SELECT pc.amount FROM product_costs pc
+               WHERE pc.product_id = p.id AND (pc.variant_id = pv.id OR pc.variant_id IS NULL)
                ORDER BY CASE WHEN pc.variant_id IS NULL THEN 1 ELSE 0 END, pc.created_at DESC LIMIT 1) AS current_cost,
               (SELECT pc.supplier_id FROM product_costs pc
                WHERE pc.product_id = p.id AND (pc.variant_id = pv.id OR pc.variant_id IS NULL)
                ORDER BY CASE WHEN pc.variant_id IS NULL THEN 1 ELSE 0 END, pc.created_at DESC LIMIT 1) AS supplier_id,
-              (SELECT su.name FROM product_costs pc LEFT JOIN suppliers su ON su.id = pc.supplier_id
+              (SELECT s.name FROM product_costs pc LEFT JOIN suppliers s ON s.id = pc.supplier_id
                WHERE pc.product_id = p.id AND (pc.variant_id = pv.id OR pc.variant_id IS NULL)
                ORDER BY CASE WHEN pc.variant_id IS NULL THEN 1 ELSE 0 END, pc.created_at DESC LIMIT 1) AS supplier_name,
-              (SELECT p.pvp_with_tax FROM product_prices p
-               WHERE p.product_id = products.id AND p.channel_id IN (?, 'tienda-virtual')
-                 AND (p.variant_id = product_variants.id OR p.variant_id IS NULL)
-               ORDER BY CASE WHEN p.channel_id = ? THEN 0 ELSE 1 END,
-                        CASE WHEN p.variant_id IS NULL THEN 1 ELSE 0 END, p.created_at DESC LIMIT 1) AS current_price,
-              (SELECT p.channel_id FROM product_prices p
-               WHERE p.product_id = products.id AND p.channel_id IN (?, 'tienda-virtual')
-                 AND (p.variant_id = product_variants.id OR p.variant_id IS NULL)
-               ORDER BY CASE WHEN p.channel_id = ? THEN 0 ELSE 1 END,
-                        CASE WHEN p.variant_id IS NULL THEN 1 ELSE 0 END, p.created_at DESC LIMIT 1) AS current_price_channel_id
-      FROM products products
-      LEFT JOIN product_variants product_variants ON product_variants.product_id = products.id AND product_variants.status <> 'retired'
-      WHERE products.status <> 'retired' ${searchSql}
-      ORDER BY products.normalized_name, COALESCE(product_variants.normalized_name, '') LIMIT ?`
+              (SELECT pp.pvp_with_tax FROM product_prices pp
+               WHERE pp.product_id = p.id AND pp.channel_id IN (?, 'tienda-virtual')
+                 AND (pp.variant_id = pv.id OR pp.variant_id IS NULL)
+               ORDER BY CASE WHEN pp.channel_id = ? THEN 0 ELSE 1 END,
+                        CASE WHEN pp.variant_id IS NULL THEN 1 ELSE 0 END, pp.created_at DESC LIMIT 1) AS current_price,
+              (SELECT pp.channel_id FROM product_prices pp
+               WHERE pp.product_id = p.id AND pp.channel_id IN (?, 'tienda-virtual')
+                 AND (pp.variant_id = pv.id OR pp.variant_id IS NULL)
+               ORDER BY CASE WHEN pp.channel_id = ? THEN 0 ELSE 1 END,
+                        CASE WHEN pp.variant_id IS NULL THEN 1 ELSE 0 END, pp.created_at DESC LIMIT 1) AS current_price_channel_id
+       FROM products p
+       LEFT JOIN product_variants pv ON pv.product_id = p.id AND pv.status <> 'retired'
+       WHERE p.status <> 'retired' ${searchSql}
+       ORDER BY p.normalized_name, COALESCE(pv.normalized_name, '') LIMIT ?`
     ).all(...params);
     return rows.map((row) => this.mapRow(row));
   }
