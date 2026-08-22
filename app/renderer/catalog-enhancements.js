@@ -1,3 +1,4 @@
+/* Carga las mejoras comerciales existentes y el flujo sencillo sin mezclar las dos interfaces. */
 "use strict";
 
 (() => {
