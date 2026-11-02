@@ -1,147 +1,62 @@
-# Almacén Familiar
+# Almacén Familiar 2.0
 
-Aplicación de escritorio **local-first para Windows** destinada a compartir productos, fotografías, proveedores, costos y precios entre:
+Catálogo familiar sencillo para **Edgar**, **Gloria** y **Jefferson**. Aplicación web en GitHub Pages y escritorio Electron para Jefferson.
 
-- Edgar — Local físico.
-- Gloria — Local físico.
-- Jefferson — Tienda virtual y administración.
+## Tres accesos web
 
-La aplicación se distribuye únicamente como programa de Windows mediante Electron, SQLite y un instalador NSIS.
+- Edgar: https://jeffer91.github.io/almacen/edgar/
+- Gloria: https://jeffer91.github.io/almacen/gloria/
+- Jefferson: https://jeffer91.github.io/almacen/jefferson/
 
-## Estado actual
+**Esas direcciones requieren que GitHub Pages esté habilitado y que Supabase esté configurado.** Cada usuario recibe su enlace privado completo con el código de acceso en el fragmento de URL. No publicar esos códigos.
 
-Versión actual: `1.1.0`.
+## Funciones
 
-Funciones implementadas:
+- Buscar y crear productos desde los tres perfiles.
+- Presentaciones configurables: pieza, rollo, gruesa, caja, kilo, metro, yarda y otras; cantidad y unidad.
+- Una fotografía principal compartida y fotografías adicionales por color o variante.
+- Un único costo vigente **común** por presentación, registrado exclusivamente por Jefferson, con historial de costos.
+- Precios separados por Edgar, Gloria y Jefferson, editables por cada dueño; Jefferson puede editar todos.
+- Precio heredado del último cambio registrado entre los tres si un almacén no tiene precio propio.
+- El creador edita el producto y sus presentaciones; Jefferson puede editar todos.
+- Proveedores administrados únicamente por Jefferson.
+- Gloria ve la consulta sencilla; Edgar y Jefferson tienen acceso a más detalles.
+- Supabase PostgreSQL + Storage y permisos en Edge Functions. Caché SQLite en Electron.
+- Sin inventarios, ventas ni facturación en esta versión.
 
-- Aplicación de escritorio con Electron y SQLite.
-- Interfaz sencilla, texto grande y botones amplios para Edgar y Gloria.
-- Perfiles por dispositivo.
-- Administración protegida con contraseña `scrypt`, bloqueo por intentos y cierre por inactividad.
-- Catálogo con búsqueda, creación de productos y variaciones.
-- Proveedor, costo y PVP con IVA dentro del registro completo del producto.
-- Cálculo y almacenamiento automático del precio sin IVA.
-- Fotografías comprimidas y almacenadas localmente.
-- Historial de costos y precios por local.
-- Productos recientes por dispositivo.
-- Estados activo y retirado sin borrado físico.
-- Restauración de productos, variaciones y fotografías reservada para Jefferson.
-- Historial de acciones, auditoría y cola de sincronización.
-- Sincronización local-first con Firebase Firestore del proyecto `almacen-59227`.
-- Respaldos automáticos y manuales de SQLite.
-- Diagnósticos de base, pantallas y módulos principales.
-- Instalador NSIS x64 para Windows.
-- Pruebas automáticas en Windows y Ubuntu.
-
-## Arquitectura de almacenamiento
-
-1. **SQLite local** es la base principal y permite trabajar sin internet.
-2. **Firebase Firestore** comparte los cambios entre los dispositivos.
-3. **Respaldos locales** protegen la base de cada equipo.
-
-Los datos se guardan en la carpeta `userData` de Electron, no dentro de la carpeta de instalación.
-
-Firebase se utiliza para sincronización de datos entre instalaciones; no se utiliza Firebase Hosting ni existe una versión web/PWA de la aplicación.
-
-## Requisitos de desarrollo
-
-- Node.js 22.16 o superior.
-- npm.
-
-## Ejecutar la aplicación en desarrollo
+## Iniciar Electron
 
 ```bash
 npm install
 npm start
 ```
 
-Para iniciar sin permitir el cambio de perfil:
+Para iniciar el escritorio anterior sin modificarlo:
 
 ```bash
-npm run start:locked
+npm run start:legacy
 ```
 
-Para cambiar de perfil durante pruebas:
+Para probar el proyecto:
 
 ```bash
-npm run start:test-profile
+npm test
 ```
 
-La contraseña administrativa se mantiene local en cada instalación. Ni la contraseña ni su hash se sincronizan con Firebase.
+## Conectar Supabase y publicar la aplicación
 
-## Ejecutar pruebas
+**Lee [docs/puesta-en-marcha.md](docs/puesta-en-marcha.md)**. Incluye creación de proyecto, aplicación del esquema, despliegue de la función de servidor, generación de accesos separados, configuración de GitHub Pages y Electron.
 
-```bash
-npm run release:check
-```
+El repositorio **no contiene secretos privados ni datos anteriores**. No se debe habilitar acceso público directo a las tablas para simular usuarios.
 
-Este comando ejecuta la suite funcional de la aplicación de escritorio.
-
-## Generar y verificar el instalador de Windows
-
-En Windows PowerShell:
-
-```powershell
-npm ci
-npm run release:win
-```
-
-Los archivos se generan en `dist`:
+## Código
 
 ```text
-Almacen-Familiar-Setup-<version>-x64.exe
-installer-verification.json
-asar-files.txt
+web/                         Sitio compartido y 3 rutas de perfiles
+app/main/desktop.js          Entrada nueva de Electron
+app/preload/family-preload.js  Puente de caché SQLite seguro
+supabase/migrations/         Modelo y restricciones de datos
+supabase/functions/          API con control de permisos
+.github/workflows/           Pruebas, instalador y GitHub Pages
+app/main/main.js             Aplicación Electron heredada (sin borrar)
 ```
-
-El flujo `.github/workflows/windows-installer.yml` compila, instala silenciosamente, verifica y publica el instalador como artefacto de GitHub Actions.
-
-## Estructura principal
-
-```text
-.github/workflows/
-├── tests.yml
-└── windows-installer.yml
-
-app/
-├── main/
-│   ├── main.js
-│   ├── profile-store.js
-│   ├── admin-auth-store.js
-│   ├── catalog/
-│   │   ├── catalog-service.js
-│   │   ├── commerce-service.js
-│   │   ├── product-entry-service.js
-│   │   └── photo-storage-service.js
-│   ├── database/
-│   ├── diagnostics/
-│   ├── startup/
-│   └── sync/
-├── preload/preload.js
-└── renderer/
-
-build/
-docs/
-scripts/
-tests/
-```
-
-## Firebase
-
-Configuración predeterminada de sincronización:
-
-- Proyecto: `almacen-59227`.
-- Colección de equipos: `almacen_familiar_devices`.
-- Colección de fotografías: `almacen_familiar_devices_photos`.
-
-La configuración de escritorio puede reemplazarse mediante:
-
-- `ALMACEN_FIREBASE_API_KEY`
-- `ALMACEN_FIREBASE_PROJECT_ID`
-- `ALMACEN_FIREBASE_COLLECTION`
-
-**Importante:** la API key de Firebase identifica el proyecto, pero no protege los datos. La protección depende de las reglas de Firestore. No se deben guardar datos sensibles mientras las reglas permitan lectura o escritura pública.
-
-## Instalador
-
-El instalador actual no está firmado digitalmente, por lo que Windows puede mostrar una advertencia de editor desconocido. La información local no se elimina al desinstalar (`deleteAppDataOnUninstall: false`).
