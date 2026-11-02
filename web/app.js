@@ -12,7 +12,7 @@
   if (params.has("key")) {
     const newKey = params.get("key") || "";
     if (/^[0-9a-f]{64}$/i.test(newKey)) localStorage.setItem(storageKey, newKey);
-    history.replaceState(null, "", location.pathname + location.search);
+    try { history.replaceState(null, "", location.pathname + location.search); } catch { /* file:// Electron */ }
   }
   const privateKey = localStorage.getItem(storageKey) || "";
   const empty = { products: [], presentations: [], prices: [], costs: [], suppliers: [], photos: [] };
@@ -163,7 +163,7 @@
         ${state.online ? `<form id="photo-form" class="mini-form">
           <label>Agregar fotografías (también puedes usar la cámara)</label>
           <input name="color" maxlength="80" placeholder="Color o referencia (opcional)">
-          <input name="images" type="file" accept="image/*" capture="environment" multiple required>
+          <input name="images" type="file" accept="image/*" multiple required>
           <button class="btn btn-secondary" type="submit">Subir fotografías</button></form>` : ""}
       </section>
       <section class="detail-body"><div class="detail-heading"><p class="eyebrow">Ficha del producto</p><h1>${prop(p, "name")}</h1>
