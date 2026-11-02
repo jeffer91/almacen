@@ -1,16 +1,20 @@
-# Puesta en marcha · Almacén Familiar 2.0
+# Puesta en marcha · Nicole Encajes 2.1
 
 La aplicación está preparada para usar **un único Supabase** (PostgreSQL + Storage), **tres vistas de GitHub Pages** y **Electron para Jefferson**.
 
-## 1. Crear proyecto
+## 1. Proyecto ya creado y operativo
 
-Crear un proyecto Supabase en la organización elegida. De momento no hay ningún proyecto accesible desde la conexión actual, por lo que **ninguna URL debe anunciarse como operativa**.
+- **Nombre:** Nicole Encajes.
+- **ID de proyecto:** `oppaviqjlyrnkpxjsfvo`.
+- **URL:** https://oppaviqjlyrnkpxjsfvo.supabase.co
+- **Región:** São Paulo (`sa-east-1`).
+- **Estado inicial:** proyecto activo, con ocho tablas protegidas por RLS, bucket privado y API desplegada.
 
-Obtener su **project ref** (20 caracteres). No guardar service_role ni claves de administración en GitHub o GitHub Pages.
+No es necesario crear otro proyecto. No colocar service_role ni otros secretos administrativos en GitHub o GitHub Pages.
 
-## 2. Instalar la base central
+## 2. Base central ya instalada
 
-Aplicar \`supabase/migrations/20261101_family_catalog.sql\` desde el editor SQL de Supabase o con las migraciones del CLI:
+La migración inicial y los índices de proveedores ya fueron aplicados al proyecto. Para instalaciones nuevas, aplicar \`supabase/migrations/20261101_family_catalog.sql\` desde el editor SQL de Supabase o con las migraciones del CLI:
 
 \`\`\`bash
 supabase login
@@ -20,7 +24,7 @@ supabase db push
 
 Las tablas están protegidas con RLS sin permisos de lectura/escritura para usuarios públicos; únicamente la función de servidor accede con service_role. Las imágenes van a un bucket privado.
 
-## 3. Publicar la Edge Function
+## 3. Edge Function ya desplegada
 
 \`\`\`bash
 supabase functions deploy catalog-api --no-verify-jwt
@@ -34,9 +38,9 @@ URL obtenida:
 https://TU_PROJECT_REF.supabase.co/functions/v1/catalog-api
 \`\`\`
 
-## 4. Generar los tres enlaces individuales
+## 4. Accesos individuales ya generados
 
-Ejecutar en el editor SQL de Supabase **una sola vez** y conservar los valores de salida fuera del repositorio:
+Los tres accesos actuales están activos y las claves se entregan en privado al propietario. **No ejecutar de nuevo lo siguiente**, salvo que se quiera revocar y regenerar todos los accesos:
 
 \`\`\`sql
 with tokens as materialized (
@@ -64,11 +68,11 @@ Al abrir un enlace válido, el navegador recuerda la clave y retira el fragmento
 
 **Advertencia:** cualquier persona con el enlace privado completo puede actuar como ese usuario. No compartirlo con terceros. Para revocar uno, poner \`enabled=false\` en su fila de \`family_access_links\` o regenerar el token del rol.
 
-## 5. Conectar GitHub Pages
+## 5. GitHub Pages ya conectado
 
-En el repositorio GitHub, configurar la variable de Actions **ALMACEN_SUPABASE_PROJECT_REF** = referencia del proyecto. No es un secreto.
+El archivo público `web/config.js` ya apunta al endpoint real de Supabase. La variable opcional `ALMACEN_SUPABASE_PROJECT_REF` de GitHub Actions puede sobrescribirla, si se configura, y deberá apuntar al mismo proyecto.
 
-En **Settings → Pages**, seleccionar **GitHub Actions** como fuente de publicación. El flujo \`.github/workflows/web-deploy.yml\` copia el sitio web y genera \`config.js\` con el endpoint correspondiente.
+GitHub Pages ya está publicado y pasó la verificación de producción. En **Settings → Pages** se utiliza **GitHub Actions** como fuente. El flujo \`.github/workflows/web-deploy.yml\` copia el sitio web y genera \`config.js\` con el endpoint correspondiente.
 
 Verificar que el flujo de Pages termine en **Success**, después abrir los tres enlaces por separado. Si Pages no está activado, el flujo puede fallar por configuración y las URLs no servirán.
 
@@ -109,10 +113,10 @@ npm run start:legacy
 
 ## Límites actuales
 
-- Sin proyecto Supabase, no hay base ni subida de fotografías disponible; la web solo muestra el estado de configuración.
+- El proyecto Supabase ya está activo; cualquier problema de carga deberá revisarse con el diagnóstico de GitHub Actions y los logs de Supabase.
 - El caché de Electron permite **consulta de datos guardados** sin conexión. Las modificaciones requieren estar conectado; la persistencia local de imágenes y la cola de cambios offline están pendientes.
 - Los enlaces secretos ofrecen comodidad, no el mismo nivel de protección que autenticación individual robusta.
-- No se han ejecutado pruebas de extremo a extremo contra un proyecto Supabase real.
+- Se verificaron las tres páginas públicas, la respuesta 401 de la API sin credenciales y las operaciones SQL de productos, presentaciones, costos e historial (transacción revertida). Falta una prueba manual autenticada de todos los flujos de usuario y subida real de una fotografía.
 
 ## Comprobaciones
 
