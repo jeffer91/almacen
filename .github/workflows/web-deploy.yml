@@ -1,0 +1,46 @@
+name: Publicar Almacén Familiar en GitHub Pages
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'web/**'
+      - '.github/workflows/web-deploy.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: github-pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Preparar el sitio
+        env:
+          SUPABASE_REF: ${{ vars.ALMACEN_SUPABASE_PROJECT_REF }}
+        run: |
+          mkdir -p site
+          cp -R web/. site/
+          if [ -n "$SUPABASE_REF" ]; then
+            if ! [[ "$SUPABASE_REF" =~ ^[a-z0-9]{20}$ ]]; then
+              echo "ALMACEN_SUPABASE_PROJECT_REF inválida"
+              exit 1
+            fi
+            printf 'window.ALMACEN_API_URL = "https://%s.supabase.co/functions/v1/catalog-api";\n' "$SUPABASE_REF" > site/config.js
+          fi
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+      - id: deployment
+        uses: actions/deploy-pages@v4
