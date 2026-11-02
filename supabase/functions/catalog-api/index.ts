@@ -104,6 +104,23 @@ Deno.serve(async (request: Request) => {
   try {
     if (action === "bootstrap") return await bootstrap(role);
 
+    if (action === "importExcel") {
+      if (role !== "jefferson") return fail("Solo Jefferson puede importar Excel", 403);
+      if (!Array.isArray(body.rows) || body.rows.length < 1 || body.rows.length > 500)
+        return fail("El Excel debe contener entre 1 y 500 presentaciones");
+      const rows = body.rows.map((r: any) => ({
+        producto: txt(r.producto, 180), presentacion: txt(r.presentacion, 80),
+        cantidad: r.cantidad, unidad: txt(r.unidad, 40),
+        marca: txt(r.marca, 100), categoria: txt(r.categoria, 100),
+        proveedor: txt(r.proveedor, 160), costo: r.costo,
+        precio_edgar: r.precio_edgar, precio_gloria: r.precio_gloria,
+        precio_jefferson: r.precio_jefferson
+      }));
+      const { data, error } = await db.rpc("family_import_catalog", { p_rows: rows });
+      if (error) throw error;
+      return response({ ok: true, summary: data });
+    }
+
     if (action === "addProduct") {
       const name = txt(body.name);
       if (!name) return fail("Indica el nombre del producto");
