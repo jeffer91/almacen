@@ -14,7 +14,7 @@
     if (/^[0-9a-f]{64}$/i.test(newKey)) localStorage.setItem(storageKey, newKey);
     try { history.replaceState(null, "", location.pathname + location.search); } catch { /* file:// Electron */ }
   }
-  const privateKey = localStorage.getItem(storageKey) || "";
+  let privateKey = localStorage.getItem(storageKey) || "";
   const empty = { products: [], presentations: [], prices: [], costs: [], suppliers: [], photos: [] };
   const state = {
     data: empty, ready: false, online: false, busy: false, error: "", message: "",
@@ -106,7 +106,11 @@
     const configuration = !apiUrl ? `<h2>Falta conectar Supabase</h2>
       <p>La aplicación ya está preparada. Jefferson debe configurar la URL de la función en <code>web/config.js</code> y activar la base de datos.</p>` :
       !privateKey ? `<h2>Enlace de acceso pendiente</h2>
-      <p>Pide a Jefferson tu enlace privado completo. Al abrirlo una vez, el acceso queda guardado en este dispositivo.</p>` :
+      <p>Pega tu enlace privado completo una sola vez. Después, este dispositivo lo recordará automáticamente.</p>
+      <form id="activation-form" class="activation-form">
+        <input name="link" type="text" autocomplete="off" spellcheck="false" required placeholder="Pega aquí tu enlace privado">
+        <button class="btn btn-primary" type="submit">Activar este dispositivo</button>
+      </form>` :
       `<h2>No se pudo conectar</h2><p>${esc(state.error)}</p>
       <p>Comprueba internet y que la función de Supabase esté activa.</p>`;
     return `<section class="empty-state"><span class="empty-icon">◈</span>${configuration}
@@ -274,6 +278,11 @@
     if (input) { input.focus(); try { input.setSelectionRange(cursor, cursor); } catch {} }
   });
   root.addEventListener("change", (event) => {
+    if (event.target.name === "shop" && event.target.closest("#edit-form")) {
+      const priceInput = event.target.closest("form").querySelector('input[name="price"]');
+      if (priceInput) priceInput.value = priceFor(state.presentation, event.target.value).price ?? "";
+      return;
+    }
     if (event.target.id === "presentation-select") {
       state.presentation = event.target.value;
       state.showHistory = false;
@@ -308,6 +317,22 @@
     const form = event.target;
     if (state.busy) return;
     const data = Object.fromEntries(new FormData(form).entries());
+    if (form.id === "activation-form") {
+      let secret = String(data.link || "").trim();
+      if (/^https?:\/\//i.test(secret)) {
+        try {
+          const link = new URL(secret);
+          if (!link.pathname.replace(/\/$/, "").endsWith("/" + role))
+            throw new Error("El enlace corresponde a otro almacén");
+          secret = new URLSearchParams(link.hash.slice(1)).get("key") || "";
+        } catch (error) { return alert(String(error.message || error)); }
+      }
+      if (!/^[a-f0-9]{64}$/i.test(secret)) return alert("El enlace de acceso no es válido");
+      privateKey = secret;
+      localStorage.setItem(storageKey, privateKey);
+      state.error = "";
+      return load();
+    }
     if (form.id === "edit-form") {
       const type = state.showForm;
       const presentation_id = state.presentation;
