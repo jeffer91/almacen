@@ -56,3 +56,16 @@
  .catalog-table .money{font-size:17px}
  .import-preview{padding:14px}
 }
+
+
+/* Lectura cómoda para Edgar y Gloria; Jeff conserva una tabla compacta pero legible. */
+body[data-profile="edgar"] .catalog-table,
+body[data-profile="gloria"] .catalog-table{font-size:19px}
+body[data-profile="edgar"] .catalog-table th,
+body[data-profile="gloria"] .catalog-table th{font-size:15px}
+body[data-profile="edgar"] .catalog-table .money,
+body[data-profile="gloria"] .catalog-table .money{font-size:20px}
+body[data-profile="edgar"] .table-open,
+body[data-profile="gloria"] .table-open{font-size:19px}
+body[data-profile="edgar"] .mini-photo,
+body[data-profile="gloria"] .mini-photo{width:54px;height:54px;flex-basis:54px}
