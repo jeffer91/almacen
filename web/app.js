@@ -24,7 +24,9 @@
   const state = {
     data: empty, ready: false, online: false, busy: false, error: "", message: "",
     search: "", product: "", presentation: "", gallery: "", showHistory: false,
-    showSuppliers: false, showForm: "", showArchived: false, recent: []
+    showSuppliers: false, showForm: "", showArchived: false, recent: [],
+    filterCategory: "", filterPresentation: "", filterPrice: "todos", order: "nombre",
+    page: 0, excelPreview: null, excelError: ""
   };
   const $ = (id) => document.getElementById(id);
   const esc = (value) => String(value ?? "").replace(/[&<>"']/g, (char) =>
@@ -124,27 +126,127 @@
     return `<section class="empty-state"><span class="empty-icon">◈</span>${configuration}
       <button class="btn btn-primary" data-act="refresh">Reintentar</button></section>`;
   }
+  function normalize(v) {
+    return String(v ?? "").toLocaleLowerCase("es").normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "").trim();
+  }
+  function tableRows() {
+    return state.data.products.filter(p => state.showArchived || p.active !== false)
+      .flatMap(p => {
+        const opts=presentations(p.id);
+        return (opts.length ? opts : [null]).map(v => ({
+          product: p, variant: v, price: v ? priceFor(v.id) : {price:null,inherited:false},
+          supplierName: v ? supplier(v.supplier_id)?.name || "" : ""
+        }));
+      });
+  }
   function catalog() {
-    const q = state.search.trim().toLocaleLowerCase("es");
-    const list = state.data.products
-      .filter((p) => state.showArchived || p.active !== false)
-      .filter((p) => !q || [p.name, p.brand, p.category, ...presentations(p.id).map((v) => v.label)].join(" ").toLocaleLowerCase("es").includes(q))
-      .sort((a, b) => String(a.name).localeCompare(String(b.name), "es"));
-    return `<div class="page-head"><div><p class="eyebrow">Catálogo compartido</p>
-      <h1>Encuentra tus productos</h1><p class="muted">Consulta el precio de tu almacén y las presentaciones disponibles.</p></div>
-      <button class="btn btn-primary" data-act="new">＋ Nuevo producto</button></div>
-      <div class="search-wrap"><span aria-hidden="true">⌕</span><input id="search" type="search" placeholder="Buscar producto, marca o presentación…" value="${esc(state.search)}" autocomplete="off" aria-label="Buscar producto"></div>
-      <div class="list-head"><strong>${list.length} ${list.length === 1 ? "producto" : "productos"}</strong><span class="muted">Toca un producto para ver sus detalles</span></div>
-      <div class="product-grid">${list.map((p) => {
-        const v = presentations(p.id)[0], price = v && priceFor(v.id);
-        return `<button class="product-card" type="button" data-act="open" data-id="${p.id}">
-          ${photoEl(photoMain(p.id), "product-image")}
-          <div class="product-description"><strong>${prop(p, "name")}</strong>
-            <span>${esc(v?.label || "Sin presentaciones")}${v ? ` · ${esc(v.quantity)} ${esc(v.unit)}` : ""}</span>
-            <span class="card-price">${v ? dollar(price?.price) : "Precio pendiente"}</span>
-            ${price?.inherited && price?.price !== null ? `<span class="hint">Precio compartido</span>` : ""}
-          </div></button>`;
-      }).join("")}</div>${list.length === 0 ? `<div class="empty-state small"><h3>No hay productos para mostrar</h3><p>Prueba otra búsqueda o crea un producto.</p></div>` : ""}`;
+    const all=tableRows();
+    const categories=[...new Set(state.data.products.map(x=>x.category).filter(Boolean))].sort((a,b)=>a.localeCompare(b,"es"));
+    const presentationKinds=[...new Set(state.data.presentations.map(x=>x.label).filter(Boolean))].sort((a,b)=>a.localeCompare(b,"es"));
+    const filterOptions=(values,selected)=>values.map(v=>'<option value="'+esc(v)+'" '+(v===selected?"selected":"")+'>'+esc(v)+'</option>').join("");
+    const terms=normalize(state.search).split(/\s+/).filter(Boolean);
+    let list=all.filter(({product:p,variant:v,price,supplierName})=>{
+      const text=normalize([p.name,p.brand,p.category,v?.label,v?.unit,v?.quantity,supplierName,
+        ...photos(p.id).map(x=>x.color_label)].join(" "));
+      return terms.every(term=>text.includes(term)) &&
+        (!state.filterCategory || p.category===state.filterCategory) &&
+        (!state.filterPresentation || v?.label===state.filterPresentation) &&
+        (state.filterPrice==="todos" ||
+          (state.filterPrice==="pendiente" && price.price===null) ||
+          (state.filterPrice==="conprecio" && price.price!==null) ||
+          (state.filterPrice==="heredado" && price.inherited && price.price!==null));
+    });
+    list.sort((a,b)=>{
+      if(state.order==="precio")return (Number(a.price.price??-1)-Number(b.price.price??-1)) ||
+        a.product.name.localeCompare(b.product.name,"es");
+      if(state.order==="costo")return (Number(a.variant?.current_cost??-1)-Number(b.variant?.current_cost??-1)) ||
+        a.product.name.localeCompare(b.product.name,"es");
+      if(state.order==="reciente")return String(b.product.created_at).localeCompare(String(a.product.created_at));
+      return a.product.name.localeCompare(b.product.name,"es") ||
+        String(a.variant?.label||"").localeCompare(String(b.variant?.label||""),"es");
+    });
+    const total=list.length,perPage=60,pages=Math.max(1,Math.ceil(total/perPage));
+    state.page=Math.min(state.page,pages-1);
+    const visible=list.slice(state.page*perPage,(state.page+1)*perPage);
+    const isAdmin=role==="jefferson";
+    const cellPrice=(item,shop)=>{
+      if(!item.variant)return '<span class="pending">Pendiente</span>';
+      const value=priceFor(item.variant.id,shop);
+      return '<span class="'+(value.price===null?"pending":"money")+'">'+
+        (value.price===null?"Pendiente":dollar(value.price))+'</span>'+
+        (value.inherited&&value.price!==null?'<small class="inherit-label">Heredado</small>':"");
+    };
+    const rowsHtml=visible.map(({product:p,variant:v,price,supplierName})=>
+      '<tr>'+
+      '<td class="product-name-cell"><button class="table-open" data-act="open" data-id="'+p.id+'" data-presentation="'+(v?.id||"")+'">'+
+        '<span class="name-with-img">'+photoEl(photoMain(p.id),"mini-photo")+
+        '<strong>'+prop(p,"name")+'</strong></span></button></td>'+
+      '<td>'+esc(v?.label||"Pendiente")+'</td>'+
+      '<td class="quantity-cell">'+(v?esc(v.quantity)+" "+esc(v.unit):"—")+'</td>'+
+      (isAdmin?'<td>'+esc(supplierName||"—")+'</td>':"")+
+      '<td class="money">'+dollar(v?.current_cost)+'</td>'+
+      (isAdmin?['edgar','gloria','jefferson'].map(shop=>'<td>'+cellPrice({variant:v},shop)+'</td>').join("") :
+        '<td>'+cellPrice({variant:v},role)+'</td>')+
+      '<td><button class="btn btn-secondary view-row" data-act="open" data-id="'+p.id+'" data-presentation="'+(v?.id||"")+'">Ver</button></td></tr>').join("");
+    const colSpan=isAdmin?9:6;
+    return '<div class="page-head"><div><p class="eyebrow">Catálogo compartido</p><h1>Productos y precios</h1>'+
+      '<p class="muted">Busca por nombre, presentación, marca, proveedor o color.</p></div>'+
+      '<div class="toolbar-actions"><button class="btn btn-primary" data-act="new">＋ Nuevo producto</button>'+
+      (isAdmin?'<button class="btn btn-secondary" data-act="excel-template">↓ Descargar plantilla Excel</button>'+
+        '<button class="btn btn-secondary" data-act="excel-upload">↑ Cargar Excel</button>'+
+        '<input class="sr-only" id="excel-file" type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet">':"")+
+      '</div></div>'+
+      '<div class="search-wrap"><span aria-hidden="true">⌕</span><input id="search" type="search" placeholder="Nombre, color, presentación, marca…" value="'+esc(state.search)+'" autocomplete="off" aria-label="Buscar producto"></div>'+
+      '<div class="filter-bar"><label>Categoría<select data-filter="filterCategory"><option value="">Todas</option>'+filterOptions(categories,state.filterCategory)+'</select></label>'+
+      '<label>Presentación<select data-filter="filterPresentation"><option value="">Todas</option>'+filterOptions(presentationKinds,state.filterPresentation)+'</select></label>'+
+      '<label>Precio<select data-filter="filterPrice"><option value="todos" '+(state.filterPrice==="todos"?"selected":"")+'>Todos</option>'+
+      '<option value="conprecio" '+(state.filterPrice==="conprecio"?"selected":"")+'>Con precio</option>'+
+      '<option value="pendiente" '+(state.filterPrice==="pendiente"?"selected":"")+'>Pendientes</option>'+
+      '<option value="heredado" '+(state.filterPrice==="heredado"?"selected":"")+'>Heredados</option></select></label>'+
+      '<label>Ordenar<select data-filter="order"><option value="nombre" '+(state.order==="nombre"?"selected":"")+'>Nombre A-Z</option>'+
+      '<option value="reciente" '+(state.order==="reciente"?"selected":"")+'>Más recientes</option>'+
+      '<option value="precio" '+(state.order==="precio"?"selected":"")+'>Precio menor</option>'+
+      '<option value="costo" '+(state.order==="costo"?"selected":"")+'>Costo menor</option></select></label>'+
+      '<button class="btn btn-quiet clear-filters" data-act="clear-filters">Limpiar</button></div>'+
+      (state.excelPreview?excelPreview():state.excelError?'<div class="alert warning">'+esc(state.excelError)+'</div>':"")+
+      '<div class="table-heading"><strong>'+total+' '+(total===1?"presentación":"presentaciones")+'</strong>'+
+        '<span class="muted">'+(isAdmin?"Precios de los tres almacenes":"Precio de "+nickname)+' · Letras grandes · Tabla desplazable</span></div>'+
+      '<div class="table-scroll" role="region" aria-label="Catálogo de productos" tabindex="0"><table class="catalog-table">'+
+      '<thead><tr><th>Producto</th><th>Presentación</th><th>Cantidad</th>'+
+      (isAdmin?'<th>Proveedor</th>':"")+
+      '<th>Costo</th>'+
+      (isAdmin?'<th>Edgar</th><th>Gloria</th><th>Jefferson</th>':'<th>Mi precio</th>')+
+      '<th>Ficha</th></tr></thead><tbody>'+
+      (rowsHtml||'<tr><td class="empty-table" colspan="'+colSpan+'">No hay resultados. Prueba otra búsqueda o agrega un producto.</td></tr>')+
+      '</tbody></table></div>'+
+      (pages>1?'<div class="pagination"><button class="btn btn-quiet" data-act="prev" '+(state.page===0?"disabled":"")+'>← Anterior</button>'+
+        '<span>Página '+(state.page+1)+' de '+pages+'</span>'+
+        '<button class="btn btn-quiet" data-act="next" '+(state.page+1>=pages?"disabled":"")+'>Siguiente →</button></div>':"");
+  }
+  function excelPreview(){
+    const preview=state.excelPreview;
+    if(!preview)return "";
+    const errors=preview.errors||[];
+    const sample=preview.rows.slice(0,15);
+    const duplicateCount=preview.rows.filter(r=>state.data.products.some(p=>
+      normalize(p.name)===normalize(r.producto) && normalize(p.brand)===normalize(r.marca))).length;
+    return '<section class="import-preview"><h2>Vista previa del Excel</h2>'+
+      '<p><strong>'+preview.rows.length+' presentaciones</strong> · '+duplicateCount+' filas de productos ya conocidos (se revisarán y actualizarán) · '+
+      errors.length+' errores</p>'+
+      (errors.length?'<div class="alert warning"><strong>Corrige el Excel antes de continuar:</strong><ul>'+
+        errors.slice(0,20).map(x=>'<li>'+esc(x)+'</li>').join("")+'</ul></div>':"")+
+      '<div class="table-scroll"><table class="catalog-table"><thead><tr><th>Fila</th><th>Producto</th>'+
+      '<th>Presentación</th><th>Cantidad</th><th>Costo</th><th>Edgar</th><th>Gloria</th><th>Jefferson</th></tr></thead><tbody>'+
+      sample.map(r=>'<tr><td>'+r._fila+'</td><td>'+esc(r.producto)+'</td><td>'+esc(r.presentacion)+'</td>'+
+        '<td>'+esc(r.cantidad)+' '+esc(r.unidad)+'</td><td>'+dollar(r.costo)+'</td>'+
+        '<td>'+dollar(r.precio_edgar)+'</td><td>'+dollar(r.precio_gloria)+'</td>'+
+        '<td>'+dollar(r.precio_jefferson)+'</td></tr>').join("")+
+      '</tbody></table></div>'+
+      (preview.rows.length>15?'<p class="muted">Se muestran las primeras 15 filas de '+preview.rows.length+'.</p>':"")+
+      '<div class="button-row"><button class="btn btn-quiet" data-act="excel-cancel">Cancelar importación</button>'+
+      '<button class="btn btn-primary" data-act="excel-confirm" '+(errors.length||!preview.rows.length?"disabled":"")+'>Confirmar carga de '+preview.rows.length+' filas</button></div>'+
+      '<p class="muted">Las celdas de precio vacías no borran precios previos. Si un producto ya existe, se conservarán sus fotografías.</p></section>';
   }
   function history(v) {
     const { entries, lowest: low, highest: high } =
@@ -285,7 +387,25 @@
     const input = $("search");
     if (input) { input.focus(); try { input.setSelectionRange(cursor, cursor); } catch {} }
   });
-  root.addEventListener("change", (event) => {
+  root.addEventListener("change", async (event) => {
+    if (event.target.dataset.filter) {
+      state[event.target.dataset.filter] = event.target.value;
+      state.page = 0;
+      return render();
+    }
+    if (event.target.id === "excel-file" && role === "jefferson") {
+      const file=event.target.files?.[0];
+      if(!file)return;
+      state.excelError="";
+      try {
+        const preview=await window.NICOLE_EXCEL.parse(file);
+        state.excelPreview=preview;
+      } catch(error){
+        state.excelPreview=null;
+        state.excelError="No se pudo leer el Excel: "+String(error.message||error);
+      }
+      return render();
+    }
     if (event.target.name === "shop" && event.target.closest("#edit-form")) {
       const priceInput = event.target.closest("form").querySelector('input[name="price"]');
       if (priceInput) priceInput.value = priceFor(state.presentation, event.target.value).price ?? "";
@@ -303,8 +423,34 @@
     if (target.dataset.act === "close" && event.target.closest(".modal-card") && !event.target.closest("button")) return;
     const action = target.dataset.act;
     const p = pById(state.product);
+    if (action === "excel-template" && role === "jefferson") {
+      return window.NICOLE_EXCEL.downloadTemplate();
+    }
+    if (action === "excel-upload" && role === "jefferson") {
+      return document.getElementById("excel-file")?.click();
+    }
+    if (action === "excel-cancel") { state.excelPreview = null; state.excelError = ""; return render(); }
+    if (action === "excel-confirm" && role === "jefferson" && state.excelPreview &&
+      !state.excelPreview.errors.length && state.online) {
+      const rows=state.excelPreview.rows.map(({_fila,...rest})=>rest);
+      if (!confirm("¿Importar "+rows.length+" presentaciones? Esta operación puede actualizar productos y precios existentes."))return;
+      const result=await mutate("importExcel",{rows},"Plantilla Excel importada");
+      if(result){
+        state.excelPreview=null;
+        const x=result.summary||{};
+        state.message="Excel importado: "+x.rows+" filas, "+x.products+" productos nuevos, "+
+          x.presentations+" presentaciones nuevas y "+x.prices+" precios registrados.";
+      }
+      return render();
+    }
+    if (action === "clear-filters") {
+      state.search="";state.filterCategory="";state.filterPresentation="";
+      state.filterPrice="todos";state.order="nombre";state.page=0;return render();
+    }
+    if (action === "prev") { state.page=Math.max(0,state.page-1);return render(); }
+    if (action === "next") { state.page++;return render(); }
     if (action === "refresh") return load();
-    if (action === "open") { state.product = target.dataset.id; state.presentation = ""; state.gallery = ""; state.showHistory = false; state.message = ""; return render(); }
+    if (action === "open") { state.product = target.dataset.id; state.presentation = target.dataset.presentation || ""; state.gallery = ""; state.showHistory = false; state.message = ""; return render(); }
     if (action === "back") { state.product = ""; state.presentation = ""; state.message = ""; return render(); }
     if (action === "gallery") { state.gallery = target.dataset.id; return render(); }
     if (action === "history") { state.showHistory = !state.showHistory; return render(); }
