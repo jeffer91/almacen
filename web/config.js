@@ -1,2 +1,2 @@
-/* Configuración PÚBLICA del endpoint. No colocar claves privadas aquí. */
-window.ALMACEN_API_URL = "";
+/* Nicole Encajes: URL pública, sin credenciales privadas. */
+window.ALMACEN_API_URL = "https://oppaviqjlyrnkpxjsfvo.supabase.co/functions/v1/catalog-api";
