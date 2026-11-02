@@ -44,7 +44,7 @@ if (process.env.ALMACEN_LEGACY === "1") {
   function openDesktop() {
     mainWindow = new BrowserWindow({
       width: 1240, height: 840, minWidth: 780, minHeight: 580,
-      backgroundColor: "#f6f8f8", autoHideMenuBar: true,
+      backgroundColor: "#f8f8fc", autoHideMenuBar: true,
       webPreferences: {
         preload: path.join(__dirname, "../preload/family-preload.js"),
         contextIsolation: true, nodeIntegration: false, sandbox: true,
@@ -58,6 +58,7 @@ if (process.env.ALMACEN_LEGACY === "1") {
     mainWindow.webContents.on("will-navigate", (event, url) => {
       if (!url.startsWith("file:")) event.preventDefault();
     });
+    mainWindow.setTitle("Nicole Encajes · Jefferson");
     mainWindow.loadFile(path.join(__dirname, "../../web/jefferson/index.html"));
   }
   app.whenReady().then(() => {
