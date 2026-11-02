@@ -1,0 +1,2 @@
+[functions.catalog-api]
+verify_jwt = false
