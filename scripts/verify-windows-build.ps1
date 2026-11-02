@@ -43,7 +43,7 @@ $diagnosticPath = Join-Path $resolvedDist "verify-output.txt"
 try {
   Assert-PathExists -Path $resolvedDist -Message "No existe la carpeta de compilación: $resolvedDist"
 
-  $installer = Get-ChildItem -LiteralPath $resolvedDist -Filter "Almacen-Familiar-Setup-*.exe" -File |
+  $installer = Get-ChildItem -LiteralPath $resolvedDist -Filter "Nicole-Encajes-Setup-*.exe" -File |
     Sort-Object LastWriteTimeUtc -Descending |
     Select-Object -First 1
 
@@ -82,7 +82,10 @@ try {
 
   $asarListing = Get-Content -LiteralPath $asarListingPath -Raw
   $requiredEntries = @(
-    "\app\main\main.js",
+    "\app\main\desktop.js",
+    "\app\preload\family-preload.js",
+    "\web\app.js",
+    "\web\jefferson\index.html",
     "\app\preload\preload.js",
     "\app\renderer\index.html",
     "\package.json"
@@ -125,7 +128,7 @@ try {
     }
 
     $report = [ordered]@{
-      productName = "Almacén Familiar"
+      productName = "Nicole Encajes"
       version = [string]$package.version
       architecture = "x64"
       installer = $installer.Name
