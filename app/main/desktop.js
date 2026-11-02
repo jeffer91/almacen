@@ -20,6 +20,11 @@ if (process.env.ALMACEN_LEGACY === "1") {
   function senderValid(event) {
     return Boolean(mainWindow && !mainWindow.isDestroyed() && event.sender.id === mainWindow.webContents.id);
   }
+  ipcMain.handle("family:config:get", (event) => {
+    if (!senderValid(event)) return "";
+    const url = String(process.env.ALMACEN_API_URL || "").trim();
+    return /^https:\/\/[a-z0-9-]+\.supabase\.co\/functions\/v1\/catalog-api$/.test(url) ? url : "";
+  });
   ipcMain.handle("family:cache:get", (event) => {
     if (!senderValid(event)) return null;
     const result = ensureDatabase().prepare("SELECT data FROM catalog_snapshot WHERE id = 1").get();
