@@ -25,7 +25,7 @@ test("plantilla Excel .xlsx mantiene los once encabezados del importador",async(
   const sheet=files["xl/worksheets/sheet1.xml"];
   for(const label of HEADERS) assert.ok(sheet.includes(label),label);
   assert.match(sheet,/<dataValidations count="2">/);
-  assert.ok(files["xl/worksheets/sheet2.xml"].includes("INSTRUCCIONES") === false);
+  assert.ok(files["xl/worksheets/sheet2.xml"].includes("INSTRUCCIONES"));
   assert.ok(files["xl/worksheets/sheet2.xml"].includes("Completa la hoja PRODUCTOS"));
 });
 
