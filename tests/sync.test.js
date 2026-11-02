@@ -73,7 +73,9 @@ test("publica y consulta instantáneas con un transporte simulado", async () => 
     const result = await sync.syncNow(profile(), "1.0.0");
     assert.equal(result.ok, true);
     assert.equal(result.status.status, "ready");
-    assert.equal(calls.some((call) => call.method === "PATCH"), true);
+    // Un almacén vacío no tiene cambios pendientes: la sincronización optimizada
+    // solo consulta la nube y evita publicar instantáneas innecesarias.
+    assert.equal(calls.some((call) => call.method === "PATCH"), false);
     assert.equal(calls.some((call) => call.method === "GET"), true);
   });
 });
