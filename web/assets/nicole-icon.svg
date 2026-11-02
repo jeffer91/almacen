@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="Trébol Nicole Encajes">
+<g fill="#b7d8e6" stroke="#5533bd" stroke-width="4.8" stroke-linejoin="round">
+<path d="M63 63C50 47 38 30 44 16 49 4 61 6 67 13 76 5 91 7 96 18 103 35 82 52 63 63Z"/>
+<path d="M63 63C46 52 28 40 15 47 3 54 6 67 13 73 6 83 10 95 22 99 39 105 54 82 63 63Z"/>
+<path d="M63 63C76 47 93 36 106 42 120 47 122 62 114 72 124 84 119 98 107 101 90 107 76 82 63 63Z"/>
+<path d="M63 63C80 78 91 95 84 107 78 120 64 117 57 111 46 119 33 113 31 101 27 86 45 73 63 63Z"/>
+<path d="M77 77C95 88 109 102 111 118L122 113C115 98 98 84 77 77Z"/>
+</g>
+<g stroke="#5533bd" stroke-width="2.1" fill="none" stroke-linecap="round" opacity=".84">
+<path d="M63 61Q57 33 72 17"/><path d="M61 63Q36 53 19 59"/><path d="M65 62Q88 71 109 61"/><path d="M62 65Q53 88 59 110"/>
+</g></svg>
