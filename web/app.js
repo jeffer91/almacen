@@ -9,12 +9,17 @@
   const storageKey = "almacen-v2-key-" + role;
   const snapshotKey = "almacen-v2-cache-" + role;
   const params = new URLSearchParams(location.hash.slice(1));
+  let privateKey = "";
+  try { privateKey = localStorage.getItem(storageKey) || ""; } catch { /* algunas rutas file:// no admiten storage */ }
   if (params.has("key")) {
     const newKey = params.get("key") || "";
-    if (/^[0-9a-f]{64}$/i.test(newKey)) localStorage.setItem(storageKey, newKey);
+    if (/^[0-9a-f]{64}$/i.test(newKey)) {
+      privateKey = newKey;
+      try { localStorage.setItem(storageKey, newKey); } catch {}
+      window.almacenDesktop?.saveAccessKey?.(newKey).catch(() => {});
+    }
     try { history.replaceState(null, "", location.pathname + location.search); } catch { /* file:// Electron */ }
   }
-  let privateKey = localStorage.getItem(storageKey) || "";
   const empty = { products: [], presentations: [], prices: [], costs: [], suppliers: [], photos: [] };
   const state = {
     data: empty, ready: false, online: false, busy: false, error: "", message: "",
@@ -43,6 +48,9 @@
       : `<div class="${className} no-photo" aria-label="Sin fotografía"><span>▧</span><small>Sin foto</small></div>`;
   }
   async function request(action, fields = {}) {
+    if (!privateKey && window.almacenDesktop?.getAccessKey) {
+      try { privateKey = (await window.almacenDesktop.getAccessKey()) || ""; } catch {}
+    }
     if (!apiUrl && window.almacenDesktop?.getApiUrl) {
       apiUrl = String(await window.almacenDesktop.getApiUrl() || "").trim().replace(/\/$/, "");
     }
@@ -329,7 +337,8 @@
       }
       if (!/^[a-f0-9]{64}$/i.test(secret)) return alert("El enlace de acceso no es válido");
       privateKey = secret;
-      localStorage.setItem(storageKey, privateKey);
+      try { localStorage.setItem(storageKey, privateKey); } catch {}
+      try { await window.almacenDesktop?.saveAccessKey?.(privateKey); } catch {}
       state.error = "";
       return load();
     }
