@@ -207,7 +207,7 @@
         if(row[field]===null||row[field]===""){row[field]=null;continue}
         const amount=Number(row[field]);
         if(!Number.isFinite(amount)||amount<0||amount>999999999||
-          (field!=="costo"&&Math.round(amount*100)!==amount*100))
+          (field!=="costo"&&Math.abs(Math.round(amount*100)-amount*100)>1e-7))
           errors.push("Fila "+line+": "+field.replaceAll("_"," ")+" inválido");
         else row[field]=amount;
       }
