@@ -1,5 +1,5 @@
 appId: com.jeffersonvillarreal.almacenfamiliar
-productName: Almacén Familiar
+productName: Nicole Encajes
 copyright: Copyright © 2026 Jefferson Villarreal
 
 asar: true
@@ -19,7 +19,7 @@ win:
     - target: nsis
       arch:
         - x64
-  artifactName: Almacen-Familiar-Setup-${version}-${arch}.${ext}
+  artifactName: Nicole-Encajes-Setup-${version}-${arch}.${ext}
 
 nsis:
   oneClick: false
@@ -28,8 +28,8 @@ nsis:
   allowToChangeInstallationDirectory: true
   createDesktopShortcut: always
   createStartMenuShortcut: true
-  shortcutName: Almacén Familiar
-  uninstallDisplayName: Almacén Familiar
+  shortcutName: Nicole Encajes
+  uninstallDisplayName: Nicole Encajes
   deleteAppDataOnUninstall: false
   runAfterFinish: true
 
