@@ -4,7 +4,8 @@
 if (process.env.ALMACEN_LEGACY === "1") {
   require("./main.js");
 } else {
-  const { app, BrowserWindow, ipcMain, shell } = require("electron");
+  const { app, BrowserWindow, ipcMain, shell, safeStorage } = require("electron");
+  const fs = require("node:fs");
   const path = require("node:path");
   const { DatabaseSync } = require("node:sqlite");
   let mainWindow;
@@ -20,6 +21,26 @@ if (process.env.ALMACEN_LEGACY === "1") {
   function senderValid(event) {
     return Boolean(mainWindow && !mainWindow.isDestroyed() && event.sender.id === mainWindow.webContents.id);
   }
+  // La clave privada de Jefferson se cifra con el almacén seguro de Windows.
+  ipcMain.handle("family:access:get", (event) => {
+    if (!senderValid(event) || !safeStorage.isEncryptionAvailable()) return "";
+    try {
+      const bytes = fs.readFileSync(path.join(app.getPath("userData"), "nicole-access.bin"));
+      const secret = safeStorage.decryptString(bytes);
+      return /^[a-f0-9]{64}$/i.test(secret) ? secret : "";
+    } catch { return ""; }
+  });
+  ipcMain.handle("family:access:put", (event, secret) => {
+    if (!senderValid(event) || !safeStorage.isEncryptionAvailable()) return false;
+    if (typeof secret !== "string" || !/^[a-f0-9]{64}$/i.test(secret)) return false;
+    const file = path.join(app.getPath("userData"), "nicole-access.bin");
+    const temp = file + ".tmp";
+    try {
+      fs.writeFileSync(temp, safeStorage.encryptString(secret), { mode: 0o600 });
+      fs.renameSync(temp, file);
+      return true;
+    } catch { try { fs.rmSync(temp, { force: true }); } catch {} return false; }
+  });
   ipcMain.handle("family:config:get", (event) => {
     if (!senderValid(event)) return "";
     const url = String(process.env.ALMACEN_API_URL || "").trim();
