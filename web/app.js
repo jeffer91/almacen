@@ -94,8 +94,8 @@
   function roleTitle() { return "Almacén de " + nickname; }
   function head() {
     return `<header class="topbar">
-      <div class="brand"><div class="brandmark">AF</div>
-        <div><strong>Almacén Familiar</strong><span>${esc(roleTitle())}</span></div></div>
+      <div class="brand"><div class="brandmark"><img src="../assets/nicole-icon.svg" alt="" width="45" height="45"></div>
+        <div><strong>Nicole Encajes</strong><span>${esc(roleTitle())}</span></div></div>
       <div class="top-actions">
         <span class="status ${state.online ? "connected" : "disconnected"}">${state.online ? "● Conectado" : "○ Sin conexión"}</span>
         <button class="btn btn-quiet" data-act="refresh" title="Actualizar catálogo">↻ <span>Actualizar</span></button>
@@ -250,7 +250,7 @@
       ${state.message ? `<div class="alert positive">${esc(state.message)}</div>` : ""}
       ${state.busy ? '<div class="loading-line" aria-label="Cargando"></div>' : ""}
       ${main}</main>${modal()}
-      <footer class="footer">Almacén Familiar · ${nickname} · Costos compartidos y precios por almacén</footer>`;
+      <footer class="footer">Nicole Encajes · ${nickname} · Costos compartidos y precios por almacén</footer>`;
   }
   async function mutate(action, payload, successText) {
     state.busy = true;
