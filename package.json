@@ -1,8 +1,8 @@
 {
   "name": "almacen-familiar",
-  "version": "1.1.0",
-  "description": "Aplicación local-first para Windows para gestionar productos, fotografías, proveedores, costos y precios familiares.",
-  "main": "app/main/main.js",
+  "version": "2.0.0",
+  "description": "Catálogo familiar web y Electron con Supabase, fotografías, presentaciones y precios por almacén.",
+  "main": "app/main/desktop.js",
   "author": "Jefferson Villarreal",
   "license": "UNLICENSED",
   "private": true,
@@ -10,16 +10,17 @@
     "node": ">=22.16.0"
   },
   "scripts": {
-    "start": "cross-env ALMACEN_ALLOW_PROFILE_CHANGE=1 electron .",
-    "start:locked": "electron .",
-    "start:test-profile": "cross-env ALMACEN_ALLOW_PROFILE_CHANGE=1 electron .",
+    "start": "electron .",
+    "start:locked": "cross-env ALMACEN_LEGACY=1 electron .",
+    "start:test-profile": "cross-env ALMACEN_LEGACY=1 ALMACEN_ALLOW_PROFILE_CHANGE=1 electron .",
     "dev": "cross-env NODE_ENV=development electron .",
     "test": "node --test",
     "release:check": "npm test",
     "pack": "electron-builder --dir",
     "build:win": "electron-builder --win nsis --x64",
     "verify:win": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/verify-windows-build.ps1",
-    "release:win": "npm run release:check && npm run build:win && npm run verify:win"
+    "release:win": "npm run release:check && npm run build:win && npm run verify:win",
+    "start:legacy": "cross-env ALMACEN_LEGACY=1 ALMACEN_ALLOW_PROFILE_CHANGE=1 electron ."
   },
   "devDependencies": {
     "cross-env": "7.0.3",
