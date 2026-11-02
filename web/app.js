@@ -4,7 +4,7 @@
   const role = document.body.dataset.profile || "jefferson";
   const people = { edgar: "Edgar", gloria: "Gloria", jefferson: "Jefferson" };
   const nickname = people[role] || "Almacén";
-  const apiUrl = String(window.ALMACEN_API_URL || "").trim().replace(/\/$/, "");
+  let apiUrl = String(window.ALMACEN_API_URL || "").trim().replace(/\/$/, "");
   const root = document.getElementById("app");
   const storageKey = "almacen-v2-key-" + role;
   const snapshotKey = "almacen-v2-cache-" + role;
@@ -34,12 +34,7 @@
   const supplier = (id) => state.data.suppliers.find((s) => s.id === id);
   const canEdit = (product) => state.online && (role === "jefferson" || product?.created_by === role);
   function priceFor(presentationId, shop = role) {
-    const own = state.data.prices.find((p) => p.presentation_id === presentationId && p.shop === shop);
-    if (own) return { price: own.price, inherited: false, from: shop };
-    const other = state.data.prices.filter((p) => p.presentation_id === presentationId)
-      .sort((a, b) => String(b.updated_at).localeCompare(String(a.updated_at)))[0];
-    return other ? { price: other.price, inherited: true, from: other.shop } :
-      { price: null, inherited: true, from: null };
+    return window.ALMACEN_RULES.resolvePrice(state.data.prices, presentationId, shop);
   }
   const photoMain = (id) => photos(id).find((p) => p.is_primary) || photos(id)[0];
   function photoEl(photo, className = "photo") {
@@ -48,6 +43,9 @@
       : `<div class="${className} no-photo" aria-label="Sin fotografía"><span>▧</span><small>Sin foto</small></div>`;
   }
   async function request(action, fields = {}) {
+    if (!apiUrl && window.almacenDesktop?.getApiUrl) {
+      apiUrl = String(await window.almacenDesktop.getApiUrl() || "").trim().replace(/\/$/, "");
+    }
     if (!apiUrl) throw new Error("Supabase aún no está configurado");
     if (!privateKey) throw new Error("Este enlace aún no está activado");
     const res = await fetch(apiUrl, {
@@ -137,11 +135,9 @@
       }).join("")}</div>${list.length === 0 ? `<div class="empty-state small"><h3>No hay productos para mostrar</h3><p>Prueba otra búsqueda o crea un producto.</p></div>` : ""}`;
   }
   function history(v) {
-    const entries = state.data.costs.filter((c) => c.presentation_id === v.id)
-      .sort((a, b) => String(b.recorded_at).localeCompare(String(a.recorded_at)));
+    const { entries, lowest: low, highest: high } =
+      window.ALMACEN_RULES.summarizeCosts(state.data.costs, v.id);
     if (!entries.length) return '<p class="muted">Todavía no hay costos registrados.</p>';
-    const low = entries.reduce((a, b) => Number(a.cost) <= Number(b.cost) ? a : b);
-    const high = entries.reduce((a, b) => Number(a.cost) >= Number(b.cost) ? a : b);
     const row = (title, entry) => `<div class="history-stat"><span>${title}</span><strong>${dollar(entry.cost)}</strong><small>${date(entry.recorded_at)}</small></div>`;
     return `<div class="history-highlights">${row("Último", entries[0])}${row("Más bajo", low)}${row("Más alto", high)}</div>
       <div class="history-table">${entries.map((c) => `<div><span>${date(c.recorded_at)}</span><strong>${dollar(c.cost)}</strong><span>${esc(supplier(c.supplier_id)?.name || "Sin proveedor")}</span></div>`).join("")}</div>`;
