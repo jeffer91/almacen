@@ -7,6 +7,7 @@ compression: maximum
 
 files:
   - app/**/*
+  - web/**/*
   - package.json
 
 directories:
