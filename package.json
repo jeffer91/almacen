@@ -1,7 +1,7 @@
 {
-  "name": "almacen-familiar",
-  "version": "2.0.0",
-  "description": "Catálogo familiar web y Electron con Supabase, fotografías, presentaciones y precios por almacén.",
+  "name": "nicole-encajes",
+  "version": "2.1.0",
+  "description": "Catálogo familiar Nicole Encajes para Edgar, Gloria y Jefferson, con Supabase y Electron.",
   "main": "app/main/desktop.js",
   "author": "Jefferson Villarreal",
   "license": "UNLICENSED",
