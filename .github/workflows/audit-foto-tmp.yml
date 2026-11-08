@@ -1,0 +1,47 @@
+name: Auditoria temporal - subida real de foto
+on:
+  push:
+    branches: [audit-foto-tmp]
+permissions:
+  contents: read
+jobs:
+  foto:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Subir, leer y descargar una foto real
+        shell: bash
+        run: |
+          set -euo pipefail
+          url="https://oppaviqjlyrnkpxjsfvo.supabase.co/functions/v1/catalog-api"
+          pid="6d1d1a75-b911-4172-8f55-ba21081e7c6e"
+          python3 -c "import struct,zlib;print('ok')"
+          convert -size 64x48 xc:'#c87aa0' /tmp/t.jpg 2>/dev/null || python3 - <<'PY'
+          # JPEG mínimo válido de 1x1
+          import base64;open('/tmp/t.jpg','wb').write(base64.b64decode('/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAP//////////////////////////////////////////////////////////////////////////////////////wAALCAABAAEBAREA/8QAFAABAAAAAAAAAAAAAAAAAAAAA//EABQQAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQEAAD8AN//Z'))
+          PY
+          b64=$(base64 -w0 /tmp/t.jpg)
+          echo "== Sin indicar quién: debe rechazar"
+          curl -sS -X POST -H 'content-type: application/json' --data "{\"action\":\"uploadPhoto\",\"product_id\":\"$pid\",\"mime\":\"image/jpeg\",\"data\":\"$b64\"}" "$url" | tee /tmp/r0; echo
+          grep -q 'Indica qui' /tmp/r0
+          echo "== Subida como Edgar"
+          code=$(curl -sS -o /tmp/r1 -w '%{http_code}' -X POST -H 'content-type: application/json' --data "{\"action\":\"uploadPhoto\",\"product_id\":\"$pid\",\"by\":\"edgar\",\"color_label\":\"rosado\",\"mime\":\"image/jpeg\",\"data\":\"$b64\"}" "$url")
+          cat /tmp/r1; echo; test "$code" = "200"
+          echo "== La foto aparece en la lista pública"
+          curl -sS -X POST -H 'content-type: application/json' --data '{"action":"catalog"}' "$url" > /tmp/cat.json
+          python3 - <<'PY'
+          import json,urllib.request
+          d=json.load(open('/tmp/cat.json'))
+          ph=[p for p in d['photos'] if p['product_id']=='6d1d1a75-b911-4172-8f55-ba21081e7c6e']
+          assert len(ph)==1, ph
+          p=ph[0]; print({k:p[k] for k in ('created_by','color_label','is_primary')})
+          assert p['created_by']=='edgar' and p['color_label']=='rosado' and p['is_primary']
+          assert 'storage_path' not in p and p['signed_url']
+          r=urllib.request.urlopen(p['signed_url']); body=r.read()
+          print('descarga:',r.status,r.headers.get('content-type'),len(body),'bytes')
+          assert r.status==200 and body[:2]==b'\xff\xd8'
+          PY
+          echo "== Eliminar sin clave: debe rechazar"
+          code=$(curl -sS -o /dev/null -w '%{http_code}' -X POST -H 'content-type: application/json' --data '{"action":"deletePhoto","photo_id":"00000000-0000-0000-0000-000000000000"}' "$url")
+          test "$code" = "401"
+          echo "OK: la foto se subió, quedó guardada en el almacenamiento y se puede ver."
