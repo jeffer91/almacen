@@ -57,9 +57,10 @@
       apiUrl = String(await window.almacenDesktop.getApiUrl() || "").trim().replace(/\/$/, "");
     }
     if (!apiUrl) throw new Error("Supabase aún no está configurado");
-    if (!privateKey) throw new Error("Este enlace aún no está activado");
+    const headers = { "content-type": "application/json", "x-almacen-role": role };
+    if (privateKey) headers["x-almacen-key"] = privateKey;
     const res = await fetch(apiUrl, {
-      method: "POST", headers: { "content-type": "application/json", "x-almacen-key": privateKey },
+      method: "POST", headers,
       body: JSON.stringify({ action, ...fields }), cache: "no-store"
     });
     const data = await res.json().catch(() => ({}));

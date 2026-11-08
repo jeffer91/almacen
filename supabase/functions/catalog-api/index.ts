@@ -1,5 +1,5 @@
 // Supabase Edge Function catalog-api. Deploy with --no-verify-jwt.
-// Los enlaces privados actúan como credenciales de acceso, nunca se escriben en GitHub.
+// Acceso abierto: cada página indica su perfil (edgar, gloria o jefferson). Los enlaces privados antiguos siguen funcionando.
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
 const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
@@ -9,7 +9,7 @@ const db = createClient(supabaseUrl, serviceKey, {
 });
 const headers = {
   "access-control-allow-origin": "*",
-  "access-control-allow-headers": "content-type,x-almacen-key",
+  "access-control-allow-headers": "content-type,x-almacen-key,x-almacen-role",
   "access-control-allow-methods": "POST,OPTIONS",
   "content-type": "application/json;charset=utf-8",
   "cache-control": "no-store"
@@ -38,11 +38,13 @@ async function hash(secret: string): Promise<string> {
 }
 async function getRole(request: Request): Promise<Shop | null> {
   const secret = request.headers.get("x-almacen-key") || "";
-  if (!/^[a-f0-9]{64}$/i.test(secret)) return null;
-  const { data, error } = await db.from("family_access_links").select("role")
-    .eq("token_hash", await hash(secret.toLowerCase())).eq("enabled", true).maybeSingle();
-  if (error || !data || !shops.includes(data.role)) return null;
-  return data.role as Shop;
+  if (/^[a-f0-9]{64}$/i.test(secret)) {
+    const { data, error } = await db.from("family_access_links").select("role")
+      .eq("token_hash", await hash(secret.toLowerCase())).eq("enabled", true).maybeSingle();
+    if (!error && data && shops.includes(data.role)) return data.role as Shop;
+  }
+  const profile = (request.headers.get("x-almacen-role") || "").trim().toLowerCase();
+  return shops.includes(profile as Shop) ? profile as Shop : null;
 }
 async function audit(role: Shop, action: string, id: string, details: Record<string,unknown> = {}) {
   const { error } = await db.from("family_audit").insert({ actor: role, action, target_id: id, details });
@@ -97,7 +99,7 @@ Deno.serve(async (request: Request) => {
   if (request.method !== "POST") return fail("Método no permitido", 405);
   if (!supabaseUrl || !serviceKey) return fail("Falta configurar Supabase", 503);
   const role = await getRole(request);
-  if (!role) return fail("Enlace de acceso inválido o desactivado", 401);
+  if (!role) return fail("Perfil de almacén inválido", 401);
   let body: any;
   try { body = await request.json(); } catch { return fail("Solicitud JSON inválida"); }
   const action = txt(body?.action, 50);

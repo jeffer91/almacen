@@ -10,7 +10,7 @@ Catálogo compartido para **Edgar**, **Gloria** y **Jefferson**. Un solo proyect
 | Gloria | https://jeffer91.github.io/almacen/gloria/ |
 | Jefferson | https://jeffer91.github.io/almacen/jefferson/ |
 
-**Se necesita el enlace privado completo de cada usuario para activar el acceso.** El enlace privado incluye `#key=...`. Es una credencial y **nunca debe guardarse en este repositorio público**, enviarse por grupos, ni publicarse.
+**Acceso abierto:** cada persona entra con su link simple (`https://jeffer91.github.io/almacen/edgar/`, `/gloria/`, `/jefferson/`), sin código privado. Cualquiera que tenga el link puede ver y editar el almacén.
 
 Al abrirlo por primera vez, la aplicación guarda el acceso en el dispositivo y permite ingresar las siguientes veces sin contraseña. Si llega a terceros, revocar/regenerar el enlace en Supabase.
 
