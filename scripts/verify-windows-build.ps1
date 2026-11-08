@@ -86,8 +86,6 @@ try {
     "\app\preload\family-preload.js",
     "\web\app.js",
     "\web\jefferson\index.html",
-    "\app\preload\preload.js",
-    "\app\renderer\index.html",
     "\package.json"
   )
 

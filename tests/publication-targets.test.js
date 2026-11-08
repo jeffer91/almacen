@@ -21,7 +21,8 @@ test("Electron conserva el instalador y usa la nueva web", () => {
   const pkg = JSON.parse(read("package.json"));
   assert.equal(pkg.main, "app/main/desktop.js");
   assert.equal(pkg.scripts.start, "electron .");
-  assert.ok(pkg.scripts["start:legacy"].includes("ALMACEN_LEGACY=1"));
+  assert.equal(pkg.scripts["start:legacy"], undefined);
+  assert.ok(!fs.existsSync(path.join(root, "app/main/main.js")));
   assert.ok(builder.includes("  - app/**/*"));
   assert.ok(builder.includes("  - web/**/*"));
   assert.ok(builder.includes("target: nsis"));

@@ -290,6 +290,25 @@ Deno.serve(async (request: Request) => {
       await audit(role, action, photo_id);
       return response({ ok: true });
     }
+    if (action === "deletePhoto") {
+      if (role !== "jefferson") return fail("Solo Jefferson puede eliminar fotografías", 403);
+      const photo_id = requiredId(body.photo_id);
+      const { data: photo, error: photoError } = await db.from("family_photos")
+        .select("id,product_id,storage_path,is_primary").eq("id", photo_id).maybeSingle();
+      if (photoError) throw photoError;
+      if (!photo) return fail("Fotografía no encontrada", 404);
+      const { error: storageError } = await db.storage.from("family-photos").remove([photo.storage_path]);
+      if (storageError) throw storageError;
+      const { error } = await db.from("family_photos").delete().eq("id", photo_id);
+      if (error) throw error;
+      if (photo.is_primary) {
+        const { data: next } = await db.from("family_photos").select("id").eq("product_id", photo.product_id)
+          .order("created_at", { ascending: true }).limit(1).maybeSingle();
+        if (next) await db.from("family_photos").update({ is_primary: true }).eq("id", next.id);
+      }
+      await audit(role, action, photo_id, { product_id: photo.product_id });
+      return response({ ok: true });
+    }
     if (action === "archiveProduct") {
       if (role !== "jefferson") return fail("Solo Jefferson puede retirar productos", 403);
       const id = requiredId(body.id);

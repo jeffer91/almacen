@@ -1,9 +1,6 @@
 "use strict";
-// Almacén Familiar: nueva interfaz Electron, misma aplicación visual que GitHub Pages.
-// La aplicación heredada permanece disponible con ALMACEN_LEGACY=1.
-if (process.env.ALMACEN_LEGACY === "1") {
-  require("./main.js");
-} else {
+// Nicole Encajes · app de administración (Jefferson): carga web/jefferson con su clave cifrada.
+{
   const { app, BrowserWindow, ipcMain, shell, safeStorage } = require("electron");
   const fs = require("node:fs");
   const path = require("node:path");

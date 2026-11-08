@@ -26,7 +26,7 @@
     search: "", product: "", presentation: "", gallery: "", showHistory: false,
     showSuppliers: false, showForm: "", showArchived: false, recent: [],
     filterCategory: "", filterPresentation: "", filterPrice: "todos", order: "nombre",
-    page: 0, excelPreview: null, excelError: ""
+    page: 0, excelPreview: null, excelError: "", view: ""
   };
   const $ = (id) => document.getElementById(id);
   const esc = (value) => String(value ?? "").replace(/[&<>"']/g, (char) =>
@@ -101,13 +101,14 @@
       state.busy = false; render();
     }
   }
-  function roleTitle() { return "Almacén de " + nickname; }
+  function roleTitle() { return role === "jefferson" ? "Administración" : "Almacén de " + nickname; }
   function head() {
     return `<header class="topbar">
       <div class="brand"><div class="brandmark"><img src="../assets/nicole-icon.svg" alt="" width="45" height="45"></div>
         <div><strong>Nicole Encajes</strong><span>${esc(roleTitle())}</span></div></div>
       <div class="top-actions">
         <span class="status ${state.online ? "connected" : "disconnected"}">${state.online ? "● Conectado" : "○ Sin conexión"}</span>
+        ${role === "jefferson" && state.ready ? `<button class="btn ${state.view === "photos" && !state.product ? "btn-primary" : "btn-quiet"}" data-act="photos-view">📷 <span>Fotos</span></button>` : ""}
         <button class="btn btn-quiet" data-act="refresh" title="Actualizar catálogo">↻ <span>Actualizar</span></button>
       </div>
     </header>`;
@@ -269,7 +270,10 @@
       <div class="product-layout"><section class="detail-card">
         <div class="gallery-main">${photoEl(selectedPhoto, "detail-image")}</div>
         <div class="thumbnails">${images.map((im) =>
-          `<button class="thumb ${selectedPhoto?.id === im.id ? "active" : ""}" data-act="gallery" data-id="${im.id}" title="${esc(im.color_label || "Fotografía")}">${photoEl(im, "thumb-photo")}<span>${esc(im.color_label || "Foto")}</span></button>`).join("")}</div>
+          `<button class="thumb ${selectedPhoto?.id === im.id ? "active" : ""}" data-act="gallery" data-id="${im.id}" title="${esc(im.color_label || "Fotografía")}">${photoEl(im, "thumb-photo")}<span>${im.is_primary ? "★ " : ""}${esc(im.color_label || "Foto")}</span></button>`).join("")}</div>
+        ${selectedPhoto ? `<div class="photo-meta"><p class="muted">${selectedPhoto.is_primary ? "★ Foto principal · " : ""}${selectedPhoto.color_label ? "Color: <strong>" + esc(selectedPhoto.color_label) + "</strong> · " : ""}Tomada por ${esc(people[selectedPhoto.created_by] || selectedPhoto.created_by || "—")} · ${date(selectedPhoto.created_at)}</p>
+          ${role === "jefferson" && state.online ? `<div class="button-row">${selectedPhoto.is_primary ? "" : `<button class="btn btn-quiet" data-act="photo-primary" data-id="${selectedPhoto.id}">★ Hacer principal</button>`}
+          <button class="btn btn-quiet danger-text" data-act="photo-delete" data-id="${selectedPhoto.id}">Eliminar foto</button></div>` : ""}</div>` : ""}
         ${state.online ? `<form id="photo-form" class="mini-form">
           <label>Agregar fotografías (también puedes usar la cámara)</label>
           <input name="color" maxlength="80" placeholder="Color o referencia (opcional)">
@@ -286,15 +290,16 @@
           <button class="btn btn-quiet" data-act="edit-product">Editar producto</button>
           ${v ? `<button class="btn btn-quiet" data-act="edit-presentation">Editar presentación</button>` : ""}</div>` : ""}
         </div>
-        ${v ? `<div class="price-panel"><span class="eyebrow">Precio de venta · ${nickname}</span>
+        ${v ? `<div class="price-panel"><span class="eyebrow">${role === "jefferson" ? "Precio que ve la familia" : "Precio de venta · " + nickname}</span>
           <div class="sale-price">${dollar(selling.price)}</div>
           <p class="muted">${selling.price === null ? "Todavía no se ha registrado un precio." :
+            role === "jefferson" ? (selling.inherited ? `Tomado del precio de ${people[selling.from]}; guarda uno propio para fijarlo.` : "Así aparece en la lista de Edgar y Gloria.") :
             selling.inherited ? `Precio heredado de ${people[selling.from]}` : "Precio propio de tu almacén"}</p>
-          ${state.online ? `<div class="button-row"><button class="btn btn-primary" data-act="price">Actualizar mi precio</button>
+          ${state.online ? `<div class="button-row"><button class="btn btn-primary" data-act="price">${role === "jefferson" ? "Cambiar precio" : "Actualizar mi precio"}</button>
           ${!selling.inherited ? '<button class="btn btn-quiet" data-act="reset-price">Usar precio compartido</button>' : ""}</div>` : ""}
           ${role === "jefferson" && state.online ? '<button class="btn btn-quiet" data-act="other-prices">Administrar los tres precios</button>' : ""}
         </div>
-        <div class="info-panel"><div class="section-title"><h2>Costo de compra</h2><span class="pill">Común para los tres</span></div>
+        <div class="info-panel"><div class="section-title"><h2>Costo de compra</h2><span class="pill">${role === "jefferson" ? "Solo lo ves tú" : "Común para los tres"}</span></div>
           <div class="cost-value">${dollar(v.current_cost)}</div>
           <p class="muted">Última actualización: ${date(v.cost_recorded_at)}</p>
           ${role !== "gloria" && v.supplier_id ? `<p>Proveedor: <strong>${esc(supplier(v.supplier_id)?.name || "No encontrado")}</strong></p>` : ""}
@@ -353,14 +358,31 @@
       <div class="modal-heading"><h2>${title}</h2><button class="icon-button" data-act="close" aria-label="Cerrar">×</button></div>
       <form id="edit-form">${body}<div class="modal-actions">${common}</div></form></div></div>`;
   }
+  function photosView() {
+    const all = state.data.photos.slice().sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)));
+    const activeProducts = state.data.products.filter((p) => p.active !== false);
+    const missing = activeProducts.filter((p) => !photos(p.id).length).sort((a, b) => a.name.localeCompare(b.name, "es"));
+    const fromFamily = all.filter((ph) => ph.created_by !== "jefferson").length;
+    return `<div class="page-head"><div><p class="eyebrow">Administración</p><h1>Fotografías</h1>
+      <p class="muted">${all.length} fotos en total · ${fromFamily} tomadas por la familia · ${missing.length} productos sin foto.</p></div>
+      <button class="btn btn-quiet" data-act="photos-view">← Volver al catálogo</button></div>
+      <section class="info-panel"><div class="section-title"><h2>Fotos recientes</h2></div>
+      ${all.length ? `<div class="photo-grid">${all.slice(0, 60).map((ph) => {
+        const prod = pById(ph.product_id);
+        return `<button class="photo-tile" data-act="open" data-id="${ph.product_id}" data-photo="${ph.id}">${photoEl(ph, "thumb-photo")}
+          <strong>${esc(prod?.name || "Producto")}</strong><small>${esc(people[ph.created_by] || ph.created_by)} · ${date(ph.created_at)}${ph.color_label ? " · " + esc(ph.color_label) : ""}</small></button>`;
+      }).join("")}</div>` : '<p class="muted">Todavía no hay fotografías.</p>'}</section>
+      <section class="info-panel"><div class="section-title"><h2>Productos sin foto (${missing.length})</h2></div>
+      ${missing.length ? `<ul class="missing-list">${missing.map((p) => `<li><button class="table-open" data-act="open" data-id="${p.id}">${prop(p, "name")}</button></li>`).join("")}</ul>` : '<p class="muted">Todos los productos tienen foto.</p>'}</section>`;
+  }
   function render() {
-    const main = !state.ready ? blank() : state.product ? product() : catalog();
+    const main = !state.ready ? blank() : state.product ? product() : state.view === "photos" && role === "jefferson" ? photosView() : catalog();
     root.innerHTML = `${head()}<main class="container">
       ${!state.online && state.ready ? `<div class="alert warning"><strong>Consulta sin conexión.</strong> Se muestran los últimos datos guardados. Para modificar, reconecta internet. ${esc(state.error)}</div>` : ""}
       ${state.message ? `<div class="alert positive">${esc(state.message)}</div>` : ""}
       ${state.busy ? '<div class="loading-line" aria-label="Cargando"></div>' : ""}
       ${main}</main>${modal()}
-      <footer class="footer">Nicole Encajes · ${nickname} · Costos compartidos y precios por almacén</footer>`;
+      <footer class="footer">Nicole Encajes · ${role === "jefferson" ? "Administración" : nickname}</footer>`;
   }
   async function mutate(action, payload, successText) {
     state.busy = true;
@@ -420,7 +442,8 @@
   root.addEventListener("click", async (event) => {
     const target = event.target.closest("[data-act]");
     if (!target) return;
-    if (target.dataset.act === "close" && event.target.closest(".modal-card") && !event.target.closest("button")) return;
+    // El fondo oscuro solo cierra si se toca directamente; los clics dentro de la ventana (p. ej. "Guardar") no la cierran.
+    if (target.classList.contains("modal-shade") && event.target !== target) return;
     const action = target.dataset.act;
     const p = pById(state.product);
     if (action === "excel-template" && role === "jefferson") {
@@ -450,9 +473,18 @@
     if (action === "prev") { state.page=Math.max(0,state.page-1);return render(); }
     if (action === "next") { state.page++;return render(); }
     if (action === "refresh") return load();
-    if (action === "open") { state.product = target.dataset.id; state.presentation = target.dataset.presentation || ""; state.gallery = ""; state.showHistory = false; state.message = ""; return render(); }
+    if (action === "open") { state.product = target.dataset.id; state.presentation = target.dataset.presentation || ""; state.gallery = target.dataset.photo || ""; state.showHistory = false; state.message = ""; return render(); }
     if (action === "back") { state.product = ""; state.presentation = ""; state.message = ""; return render(); }
     if (action === "gallery") { state.gallery = target.dataset.id; return render(); }
+    if (action === "photos-view" && role === "jefferson") { state.view = state.view === "photos" && !state.product ? "" : "photos"; state.product = ""; state.message = ""; return render(); }
+    if (action === "photo-primary" && role === "jefferson") {
+      return mutate("setPrimaryPhoto", { product_id: state.product, photo_id: target.dataset.id }, "Foto principal actualizada");
+    }
+    if (action === "photo-delete" && role === "jefferson") {
+      if (!confirm("¿Eliminar esta fotografía? No se puede deshacer.")) return;
+      state.gallery = "";
+      return mutate("deletePhoto", { photo_id: target.dataset.id }, "Fotografía eliminada");
+    }
     if (action === "history") { state.showHistory = !state.showHistory; return render(); }
     if (action === "close") { state.showForm = ""; return render(); }
     if (["new", "edit-product", "add-presentation", "edit-presentation", "price", "other-prices", "cost", "suppliers"].includes(action)) {
