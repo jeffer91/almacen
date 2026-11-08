@@ -1,0 +1,95 @@
+/* Nicole Encajes · lista de precios familiar. Letra grande y botones cómodos para el celular. */
+:root{color-scheme:light;--bg:#f8f8fc;--card:#fff;--ink:#24212f;--muted:#5f5b72;--primary:#5533bd;--primary2:#39218a;--light:#efebff;--edge:#e0dfea;--ok:#1f6b3f;--warn:#8a5a12}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;min-height:100vh;background:var(--bg);color:var(--ink);font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;font-size:18px;line-height:1.4}
+button,input{font:inherit;color:inherit}
+button{cursor:pointer}
+button:disabled{opacity:.5;cursor:not-allowed}
+:focus-visible{outline:3px solid #9b86e6;outline-offset:2px}
+
+.v-top{position:sticky;top:0;z-index:5;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 16px;background:#fff;border-bottom:1px solid var(--edge)}
+.v-brand{display:flex;align-items:center;gap:10px;min-width:0}
+.v-brand img{border-radius:10px;flex:none}
+.v-brand strong{display:block;font-size:19px}
+.v-brand span{display:block;color:var(--muted);font-size:14px}
+.v-actions{display:flex;gap:6px;flex:none}
+.v-mini{border:1px solid var(--edge);background:#fff;border-radius:8px;padding:6px 10px;font-size:14px;font-weight:700;color:var(--primary);min-height:36px}
+
+.v-main{width:min(860px,100%);margin:0 auto;padding:16px 16px 60px}
+.v-search{display:flex;align-items:center;gap:10px;background:#fff;border:2px solid var(--edge);border-radius:14px;padding:0 14px;height:60px}
+.v-search:focus-within{border-color:var(--primary)}
+.v-search>span{font-size:28px;color:var(--primary);line-height:1}
+.v-search input{flex:1;min-width:0;border:0;outline:0;background:transparent;font-size:20px}
+.v-search input::-webkit-search-cancel-button{display:none}
+.v-clear{border:0;background:var(--light);color:var(--primary);border-radius:50%;width:34px;height:34px;font-size:16px}
+
+.v-chips{display:flex;gap:8px;overflow-x:auto;padding:12px 0 2px;scrollbar-width:none}
+.v-chips::-webkit-scrollbar{display:none}
+.v-chip{flex:none;border:1px solid var(--edge);background:#fff;border-radius:40px;padding:8px 14px;font-size:16px}
+.v-chip.on{background:var(--primary);border-color:var(--primary);color:#fff}
+
+.v-count{color:var(--muted);font-size:15px;margin:14px 2px 10px}
+.v-list{display:grid;gap:12px}
+.v-card{display:flex;gap:14px;background:var(--card);border:1px solid var(--edge);border-radius:14px;padding:12px}
+.v-pic{position:relative;flex:none;width:96px;height:96px;border-radius:10px;overflow:hidden;border:0;padding:0;background:var(--light)}
+.v-pic img{width:100%;height:100%;object-fit:cover;display:block}
+.v-pic span{position:absolute;right:4px;bottom:4px;background:rgba(0,0,0,.6);color:#fff;font-size:12px;border-radius:10px;padding:1px 7px}
+.v-nopic{display:grid;place-items:center;color:#b3acd6;font-size:30px}
+.v-info{flex:1;min-width:0}
+.v-info h3{margin:0;font-size:19px;line-height:1.25}
+.v-info>p{margin:3px 0 0;color:var(--muted);font-size:15px}
+.v-prices{list-style:none;margin:8px 0 0;padding:0}
+.v-prices li{display:flex;justify-content:space-between;align-items:baseline;gap:10px;padding:6px 0;border-top:1px dashed var(--edge)}
+.v-prices li:first-child{border-top:0}
+.v-prices span{color:var(--ink)}
+.v-prices b{font-size:21px;color:var(--ok);white-space:nowrap}
+.v-prices b.v-pend{font-size:15px;color:var(--warn);font-weight:600}
+
+.v-btn{border:0;background:var(--primary);color:#fff;border-radius:10px;padding:10px 16px;font-weight:700;font-size:17px;min-height:46px}
+.v-btn:hover{background:var(--primary2)}
+.v-more{display:block;width:100%;margin-top:14px}
+.v-link{border:0;background:none;color:var(--primary);font-weight:600;padding:6px 4px;font-size:15px;text-decoration:underline;text-underline-offset:3px}
+.v-addphoto{margin-top:4px;padding-left:0}
+
+.v-pending{background:#fff;border:2px solid #d8cff7;border-radius:14px;padding:12px 14px;margin-top:14px}
+.v-pending-head{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:4px}
+.v-pending-head strong{display:block;font-size:18px}
+.v-pending-head span{display:block;color:var(--muted);font-size:15px}
+.v-pending-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 0;border-top:1px solid var(--edge)}
+.v-pending-row strong{display:block;font-size:17px}
+.v-pending-row span{display:block;color:var(--muted);font-size:14px}
+.v-pending-btns{display:flex;align-items:center;gap:4px;flex:none}
+.v-show-pending{display:block;margin-top:12px;padding-left:0}
+
+.v-empty{text-align:center;color:var(--muted);padding:40px 12px}
+.v-empty h2{color:var(--ink);margin:0 0 8px;font-size:21px}
+.v-offline{background:#fff4e2;color:var(--warn);border-radius:10px;padding:10px 12px;font-size:15px;margin:0 0 12px}
+
+.v-overlay{position:fixed;inset:0;z-index:20;background:rgba(20,16,40,.55);display:flex;align-items:flex-end;justify-content:center}
+.v-sheet{background:#fff;width:min(560px,100%);max-height:92vh;overflow:auto;border-radius:18px 18px 0 0;padding:14px 16px 22px}
+.v-sheet-head{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:10px}
+.v-sheet-head strong{font-size:18px}
+.v-preview{display:block;width:100%;max-height:45vh;object-fit:contain;border-radius:10px;background:#f1f0f6}
+.v-field{display:block;margin-top:14px;font-weight:600;font-size:16px}
+.v-field input{display:block;width:100%;margin-top:6px;border:2px solid var(--edge);border-radius:10px;padding:11px 12px;font-size:18px}
+.v-whopick{border:0;margin:14px 0 0;padding:0}
+.v-whopick legend{font-weight:600;font-size:16px;margin-bottom:6px}
+.v-whopick label{display:inline-flex;align-items:center;gap:8px;margin-right:18px;font-size:18px;padding:6px 0}
+.v-whopick input{width:22px;height:22px}
+.v-who{margin:12px 0 0;color:var(--muted);font-size:15px}
+.v-save{width:100%;margin-top:16px;min-height:52px}
+.v-gallery figure{margin:0 0 14px}
+.v-gallery img{width:100%;border-radius:10px;display:block}
+.v-gallery figcaption{margin-top:4px;color:var(--muted);font-size:15px}
+
+.v-toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);z-index:30;background:#24212f;color:#fff;border-radius:12px;padding:12px 18px;font-size:16px;max-width:calc(100% - 32px);text-align:center}
+
+@media (max-width:420px){
+  .v-pic{width:78px;height:78px}
+  .v-brand span{display:none}
+}
+@media (min-width:700px){
+  .v-overlay{align-items:center}
+  .v-sheet{border-radius:18px}
+}

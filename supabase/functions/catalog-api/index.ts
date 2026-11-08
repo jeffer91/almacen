@@ -1,5 +1,6 @@
 // Supabase Edge Function catalog-api. Deploy with --no-verify-jwt.
-// Acceso abierto: cada página indica su perfil (edgar, gloria o jefferson). Los enlaces privados antiguos siguen funcionando.
+// Lectura pública (lista de precios) y fotos públicas para la familia.
+// Todo lo demás (productos, precios, costos, proveedores) exige la clave privada de la app Electron de Jefferson.
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
 const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
@@ -9,7 +10,7 @@ const db = createClient(supabaseUrl, serviceKey, {
 });
 const headers = {
   "access-control-allow-origin": "*",
-  "access-control-allow-headers": "content-type,x-almacen-key,x-almacen-role",
+  "access-control-allow-headers": "content-type,x-almacen-key",
   "access-control-allow-methods": "POST,OPTIONS",
   "content-type": "application/json;charset=utf-8",
   "cache-control": "no-store"
@@ -38,13 +39,11 @@ async function hash(secret: string): Promise<string> {
 }
 async function getRole(request: Request): Promise<Shop | null> {
   const secret = request.headers.get("x-almacen-key") || "";
-  if (/^[a-f0-9]{64}$/i.test(secret)) {
-    const { data, error } = await db.from("family_access_links").select("role")
-      .eq("token_hash", await hash(secret.toLowerCase())).eq("enabled", true).maybeSingle();
-    if (!error && data && shops.includes(data.role)) return data.role as Shop;
-  }
-  const profile = (request.headers.get("x-almacen-role") || "").trim().toLowerCase();
-  return shops.includes(profile as Shop) ? profile as Shop : null;
+  if (!/^[a-f0-9]{64}$/i.test(secret)) return null;
+  const { data, error } = await db.from("family_access_links").select("role")
+    .eq("token_hash", await hash(secret.toLowerCase())).eq("enabled", true).maybeSingle();
+  if (error || !data || !shops.includes(data.role)) return null;
+  return data.role as Shop;
 }
 async function audit(role: Shop, action: string, id: string, details: Record<string,unknown> = {}) {
   const { error } = await db.from("family_audit").insert({ actor: role, action, target_id: id, details });
@@ -75,35 +74,95 @@ async function listAll(table: string, columns: string) {
   }
   return rows;
 }
+async function signPhotos(photos: Record<string,unknown>[]) {
+  const paths = photos.map((p) => String(p.storage_path));
+  for (let i = 0; i < paths.length; i += 100) {
+    const { data, error } = await db.storage.from("family-photos").createSignedUrls(paths.slice(i, i + 100), 3600);
+    if (error) console.warn("Firmar fotos:", error.message);
+    for (let j = 0; j < (data || []).length; j++) photos[i + j].signed_url = data?.[j]?.signedUrl || null;
+  }
+  return photos;
+}
 async function bootstrap(role: Shop) {
   const [products, presentations, suppliers, prices, costs, photos] = await Promise.all([
     listAll("family_products", "*"), listAll("family_presentations", "*"),
     listAll("family_suppliers", "*"), listAll("family_prices", "*"),
     listAll("family_cost_history", "*"), listAll("family_photos", "*")
   ]);
-  const paths = photos.map((p) => String(p.storage_path));
-  if (paths.length) {
-    for (let i = 0; i < paths.length; i += 100) {
-      const { data, error } = await db.storage.from("family-photos").createSignedUrls(paths.slice(i, i + 100), 3600);
-      if (error) console.warn("Firmar fotos:", error.message);
-      for (let j = 0; j < (data || []).length; j++) {
-        const photo = photos[i + j];
-        photo.signed_url = data?.[j]?.signedUrl || null;
-      }
-    }
-  }
+  await signPhotos(photos);
   return response({ ok: true, role, products, presentations, suppliers, prices, costs, photos, server_time: new Date().toISOString() });
+}
+// Lista pública: sin costos, sin proveedores y solo productos activos.
+async function publicCatalog() {
+  const [products, presentations, prices, photos] = await Promise.all([
+    listAll("family_products", "id,name,category,brand,active,updated_at"),
+    listAll("family_presentations", "id,product_id,label,quantity,unit,updated_at"),
+    listAll("family_prices", "presentation_id,shop,price,updated_at"),
+    listAll("family_photos", "id,product_id,storage_path,color_label,is_primary,created_by,created_at")
+  ]);
+  const active = products.filter((p) => p.active !== false);
+  const ids = new Set(active.map((p) => p.id));
+  const visiblePhotos = photos.filter((p) => ids.has(p.product_id));
+  await signPhotos(visiblePhotos);
+  for (const p of visiblePhotos) delete p.storage_path;
+  return response({ ok: true, role: "familia", products: active,
+    presentations: presentations.filter((p) => ids.has(p.product_id)), prices,
+    photos: visiblePhotos, server_time: new Date().toISOString() });
+}
+async function uploadPhoto(role: Shop, body: any, limitPerProduct = 0) {
+  const product_id = requiredId(body.product_id);
+  const { data: product, error: productError } = await db.from("family_products")
+    .select("id,active").eq("id", product_id).maybeSingle();
+  if (productError) throw productError;
+  if (!product || product.active === false) return fail("Producto no encontrado", 404);
+  const base64 = txt(body.data, 3000000);
+  const mime = txt(body.mime, 30);
+  if (!["image/jpeg","image/png","image/webp"].includes(mime)) return fail("Formato de imagen no permitido");
+  if (!base64 || base64.length > 2700000) return fail("La fotografía es demasiado grande");
+  const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
+  if (bytes.byteLength > 2097152) return fail("Máximo 2 MB por fotografía");
+  const { count } = await db.from("family_photos").select("id", { count: "exact", head: true }).eq("product_id", product_id);
+  if (limitPerProduct && (count || 0) >= limitPerProduct) return fail("Este producto ya tiene suficientes fotos");
+  const extension = mime === "image/png" ? "png" : mime === "image/webp" ? "webp" : "jpg";
+  const path = `${product_id}/${crypto.randomUUID()}.${extension}`;
+  const { error: storageError } = await db.storage.from("family-photos").upload(path, bytes, { contentType: mime, upsert: false });
+  if (storageError) throw storageError;
+  const { data, error } = await db.from("family_photos").insert({
+    product_id, storage_path: path, color_label: txt(body.color_label, 80),
+    is_primary: !count, created_by: role
+  }).select("id").single();
+  if (error) {
+    await db.storage.from("family-photos").remove([path]);
+    throw error;
+  }
+  await audit(role, "uploadPhoto", data.id);
+  return response({ ok: true, id: data.id });
 }
 Deno.serve(async (request: Request) => {
   if (request.method === "OPTIONS") return new Response(null, { status: 204, headers });
   if (request.method !== "POST") return fail("Método no permitido", 405);
   if (!supabaseUrl || !serviceKey) return fail("Falta configurar Supabase", 503);
-  const role = await getRole(request);
-  if (!role) return fail("Perfil de almacén inválido", 401);
   let body: any;
   try { body = await request.json(); } catch { return fail("Solicitud JSON inválida"); }
   const action = txt(body?.action, 50);
+  const role = await getRole(request);
+  if (!role) {
+    // Acceso público de la familia: ver precios y subir fotos de productos.
+    try {
+      if (action === "catalog") return await publicCatalog();
+      if (action === "uploadPhoto") {
+        const by = txt(body.by, 20).toLowerCase();
+        if (by !== "edgar" && by !== "gloria") return fail("Indica quién toma la foto");
+        return await uploadPhoto(by as Shop, body, 12);
+      }
+    } catch (error) {
+      console.error(action, error);
+      return fail(message(error), 400);
+    }
+    return fail("Esta acción solo está disponible en la app de Jefferson", 401);
+  }
   try {
+    if (action === "catalog") return await publicCatalog();
     if (action === "bootstrap") return await bootstrap(role);
 
     if (action === "importExcel") {
@@ -216,30 +275,7 @@ Deno.serve(async (request: Request) => {
       await audit(role, action, id, { shop });
       return response({ ok: true });
     }
-    if (action === "uploadPhoto") {
-      const product_id = requiredId(body.product_id);
-      const base64 = txt(body.data, 3000000);
-      const mime = txt(body.mime, 30);
-      if (!["image/jpeg","image/png","image/webp"].includes(mime)) return fail("Formato de imagen no permitido");
-      if (!base64 || base64.length > 2700000) return fail("La fotografía es demasiado grande");
-      const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
-      if (bytes.byteLength > 2097152) return fail("Máximo 2 MB por fotografía");
-      const extension = mime === "image/png" ? "png" : mime === "image/webp" ? "webp" : "jpg";
-      const path = `${product_id}/${crypto.randomUUID()}.${extension}`;
-      const { error: storageError } = await db.storage.from("family-photos").upload(path, bytes, { contentType: mime, upsert: false });
-      if (storageError) throw storageError;
-      const { count } = await db.from("family_photos").select("id", { count: "exact", head: true }).eq("product_id", product_id);
-      const { data, error } = await db.from("family_photos").insert({
-        product_id, storage_path: path, color_label: txt(body.color_label, 80),
-        is_primary: !count, created_by: role
-      }).select("id").single();
-      if (error) {
-        await db.storage.from("family-photos").remove([path]);
-        throw error;
-      }
-      await audit(role, action, data.id);
-      return response({ ok: true, id: data.id });
-    }
+    if (action === "uploadPhoto") return await uploadPhoto(role, body);
     if (action === "setPrimaryPhoto") {
       const product_id = requiredId(body.product_id);
       const photo_id = requiredId(body.photo_id);

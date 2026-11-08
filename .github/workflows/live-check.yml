@@ -16,32 +16,33 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 6
     steps:
-      - name: Verificar los tres enlaces
+      - name: Verificar la lista de precios
         shell: bash
         run: |
           set -euo pipefail
-          for person in edgar gloria jefferson; do
-            url="https://jeffer91.github.io/almacen/$person/"
-            echo "Verificando $url"
-            curl -fLsS --retry 4 --retry-delay 3 --max-time 25 "$url" -o /tmp/"$person".html
-            grep -q "data-profile=\"$person\"" /tmp/"$person".html
-            grep -q "Nicole Encajes" /tmp/"$person".html
+          base="https://jeffer91.github.io/almacen"
+          curl -fLsS --retry 4 --retry-delay 3 --max-time 25 "$base/" -o /tmp/index.html
+          grep -q 'data-profile="familia"' /tmp/index.html
+          grep -q "viewer.js" /tmp/index.html
+          for old in edgar gloria; do
+            curl -fLsS --max-time 25 "$base/$old/" -o /tmp/old.html
+            grep -q 'url=../' /tmp/old.html
           done
-          curl -fLsS --max-time 25 https://jeffer91.github.io/almacen/config.js -o /tmp/config.js
+          code=$(curl -sS -o /dev/null -w "%{http_code}" --max-time 25 "$base/jefferson/")
+          test "$code" = "404"
+          curl -fLsS --max-time 25 "$base/config.js" -o /tmp/config.js
           grep -q "oppaviqjlyrnkpxjsfvo.supabase.co" /tmp/config.js
-          curl -fLsS --max-time 25 https://jeffer91.github.io/almacen/assets/nicole-icon.svg -o /tmp/nicole-icon.svg
-      - name: Comprobar API con acceso abierto
+      - name: Comprobar API (lectura pública, escritura protegida)
         shell: bash
         run: |
           set -euo pipefail
           url="https://oppaviqjlyrnkpxjsfvo.supabase.co/functions/v1/catalog-api"
-          code=$(curl -sS -o /tmp/preflight -w "%{http_code}" -X OPTIONS --retry 3 --retry-delay 2 --max-time 25 "$url")
+          code=$(curl -sS -o /dev/null -w "%{http_code}" -X OPTIONS --retry 3 --retry-delay 2 --max-time 25 "$url")
           test "$code" = "204"
-          for person in edgar gloria jefferson; do
-            code=$(curl -sS -o /tmp/boot -w "%{http_code}" -X POST --max-time 25 -H "Content-Type: application/json" -H "x-almacen-role: $person" --data '{"action":"bootstrap"}' "$url")
-            test "$code" = "200"
-            grep -q "\"role\":\"$person\"" /tmp/boot
-          done
-          rejected=$(curl -sS -o /dev/null -w "%{http_code}" -X POST --max-time 25 -H "Content-Type: application/json" --data '{"action":"bootstrap"}' "$url")
-          test "$rejected" = "401"
-          echo "Sitio y API disponibles; los tres perfiles abren sin enlace privado."
+          code=$(curl -sS -o /tmp/catalog -w "%{http_code}" -X POST --max-time 25 -H "Content-Type: application/json" --data '{"action":"catalog"}' "$url")
+          test "$code" = "200"
+          grep -q '"ok":true' /tmp/catalog
+          if grep -q '"costs"\|"suppliers"\|current_cost\|storage_path' /tmp/catalog; then echo "La lista pública expone datos internos"; exit 1; fi
+          code=$(curl -sS -o /dev/null -w "%{http_code}" -X POST --max-time 25 -H "Content-Type: application/json" --data '{"action":"setPrice"}' "$url")
+          test "$code" = "401"
+          echo "Lista pública disponible; la escritura exige la clave de la app de Jefferson."

@@ -6,8 +6,18 @@
   const nickname = people[role] || "Almacén";
   let apiUrl = String(window.ALMACEN_API_URL || "").trim().replace(/\/$/, "");
   const root = document.getElementById("app");
+  const storageKey = "almacen-v2-key-" + role;
   const snapshotKey = "almacen-v2-cache-" + role;
-  if (location.hash.includes("key=")) {
+  const params = new URLSearchParams(location.hash.slice(1));
+  let privateKey = "";
+  try { privateKey = localStorage.getItem(storageKey) || ""; } catch { /* algunas rutas file:// no admiten storage */ }
+  if (params.has("key")) {
+    const newKey = params.get("key") || "";
+    if (/^[0-9a-f]{64}$/i.test(newKey)) {
+      privateKey = newKey;
+      try { localStorage.setItem(storageKey, newKey); } catch {}
+      window.almacenDesktop?.saveAccessKey?.(newKey).catch(() => {});
+    }
     try { history.replaceState(null, "", location.pathname + location.search); } catch { /* file:// Electron */ }
   }
   const empty = { products: [], presentations: [], prices: [], costs: [], suppliers: [], photos: [] };
@@ -40,13 +50,16 @@
       : `<div class="${className} no-photo" aria-label="Sin fotografía"><span>▧</span><small>Sin foto</small></div>`;
   }
   async function request(action, fields = {}) {
+    if (!privateKey && window.almacenDesktop?.getAccessKey) {
+      try { privateKey = (await window.almacenDesktop.getAccessKey()) || ""; } catch {}
+    }
     if (!apiUrl && window.almacenDesktop?.getApiUrl) {
       apiUrl = String(await window.almacenDesktop.getApiUrl() || "").trim().replace(/\/$/, "");
     }
     if (!apiUrl) throw new Error("Supabase aún no está configurado");
-    const headers = { "content-type": "application/json", "x-almacen-role": role };
+    if (!privateKey) throw new Error("Este enlace aún no está activado");
     const res = await fetch(apiUrl, {
-      method: "POST", headers,
+      method: "POST", headers: { "content-type": "application/json", "x-almacen-key": privateKey },
       body: JSON.stringify({ action, ...fields }), cache: "no-store"
     });
     const data = await res.json().catch(() => ({}));
@@ -102,6 +115,12 @@
   function blank() {
     const configuration = !apiUrl ? `<h2>Falta conectar Supabase</h2>
       <p>La aplicación ya está preparada. Jefferson debe configurar la URL de la función en <code>web/config.js</code> y activar la base de datos.</p>` :
+      !privateKey ? `<h2>Enlace de acceso pendiente</h2>
+      <p>Pega tu enlace privado completo una sola vez. Después, este dispositivo lo recordará automáticamente.</p>
+      <form id="activation-form" class="activation-form">
+        <input name="link" type="text" autocomplete="off" spellcheck="false" required placeholder="Pega aquí tu enlace privado">
+        <button class="btn btn-primary" type="submit">Activar este dispositivo</button>
+      </form>` :
       `<h2>No se pudo conectar</h2><p>${esc(state.error)}</p>
       <p>Comprueba internet y que la función de Supabase esté activa.</p>`;
     return `<section class="empty-state"><span class="empty-icon">◈</span>${configuration}
@@ -452,6 +471,23 @@
     const form = event.target;
     if (state.busy) return;
     const data = Object.fromEntries(new FormData(form).entries());
+    if (form.id === "activation-form") {
+      let secret = String(data.link || "").trim();
+      if (/^https?:\/\//i.test(secret)) {
+        try {
+          const link = new URL(secret);
+          if (!link.pathname.replace(/\/$/, "").endsWith("/" + role))
+            throw new Error("El enlace corresponde a otro almacén");
+          secret = new URLSearchParams(link.hash.slice(1)).get("key") || "";
+        } catch (error) { return alert(String(error.message || error)); }
+      }
+      if (!/^[a-f0-9]{64}$/i.test(secret)) return alert("El enlace de acceso no es válido");
+      privateKey = secret;
+      try { localStorage.setItem(storageKey, privateKey); } catch {}
+      try { await window.almacenDesktop?.saveAccessKey?.(privateKey); } catch {}
+      state.error = "";
+      return load();
+    }
     if (form.id === "edit-form") {
       const type = state.showForm;
       const presentation_id = state.presentation;

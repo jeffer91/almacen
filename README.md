@@ -10,7 +10,7 @@ Catálogo compartido para **Edgar**, **Gloria** y **Jefferson**. Un solo proyect
 | Gloria | https://jeffer91.github.io/almacen/gloria/ |
 | Jefferson | https://jeffer91.github.io/almacen/jefferson/ |
 
-**Acceso abierto:** cada persona entra con su link simple (`https://jeffer91.github.io/almacen/edgar/`, `/gloria/`, `/jefferson/`), sin código privado. Cualquiera que tenga el link puede ver y editar el almacén.
+**Lista de precios familiar:** https://jeffer91.github.io/almacen/ es un solo link público para Edgar y Gloria: ver precios, buscar, descargar PDF/Excel y tomar fotos de productos pendientes. No pueden crear ni editar productos ni precios. La gestión (productos, precios, costos, proveedores) se hace solo desde la app Electron de Jefferson, que usa su clave privada cifrada en el equipo.
 
 Al abrirlo por primera vez, la aplicación guarda el acceso en el dispositivo y permite ingresar las siguientes veces sin contraseña. Si llega a terceros, revocar/regenerar el enlace en Supabase.
 

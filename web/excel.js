@@ -218,7 +218,31 @@
     });
     return {rows:good,errors};
   }
-  const api={HEADERS,FIELDS,downloadTemplate,buildTemplate,parse};
+  // Lista de precios familiar: Producto, Marca, Presentación, Precio.
+  function buildPriceList(rows){
+    const x=(v)=>e(v);
+    const body=[["Producto","Marca","Presentación","Precio"],...rows.map(r=>[r.product,r.brand||"",r.presentation,r.price])];
+    const sheetRows=body.map((r,i)=>'<row r="'+(i+1)+'">'+r.map((v,j)=>{
+      const a=String.fromCharCode(65+j)+(i+1);
+      if(i===0)return '<c r="'+a+'" t="inlineStr" s="1"><is><t>'+x(v)+'</t></is></c>';
+      if(j===3)return (v===null||v===undefined||!Number.isFinite(Number(v)))
+        ?'<c r="'+a+'" t="inlineStr"><is><t>Pendiente</t></is></c>':'<c r="'+a+'" s="2"><v>'+Number(v)+'</v></c>';
+      return '<c r="'+a+'" t="inlineStr"><is><t>'+x(v)+'</t></is></c>';
+    }).join("")+'</row>').join("");
+    const sheet='<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'+
+      '<sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>'+
+      '<cols><col min="1" max="1" width="42" customWidth="1"/><col min="2" max="2" width="20" customWidth="1"/><col min="3" max="3" width="20" customWidth="1"/><col min="4" max="4" width="14" customWidth="1"/></cols>'+
+      '<sheetData>'+sheetRows+'</sheetData><autoFilter ref="A1:D'+body.length+'"/></worksheet>';
+    return zip({
+      "[Content_Types].xml":'<?xml version="1.0" encoding="UTF-8"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/></Types>',
+      "_rels/.rels":'<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>',
+      "xl/workbook.xml":'<?xml version="1.0" encoding="UTF-8"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="PRECIOS" sheetId="1" r:id="rId1"/></sheets><definedNames><definedName name="_xlnm._FilterDatabase" localSheetId="0" hidden="1">PRECIOS!$A$1:$D$'+body.length+'</definedName></definedNames></workbook>',
+      "xl/_rels/workbook.xml.rels":'<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>',
+      "xl/styles.xml":'<?xml version="1.0" encoding="UTF-8"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><numFmts count="1"><numFmt numFmtId="164" formatCode="&quot;$&quot;#,##0.00"/></numFmts><fonts count="2"><font><sz val="12"/><name val="Calibri"/></font><font><b/><sz val="12"/><color rgb="FFFFFFFF"/><name val="Calibri"/></font></fonts><fills count="3"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FF5433B8"/><bgColor indexed="64"/></patternFill></fill></fills><borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="3"><xf fontId="0" fillId="0" borderId="0" numFmtId="0" xfId="0"/><xf fontId="1" fillId="2" borderId="0" numFmtId="0" xfId="0" applyFill="1" applyFont="1"/><xf fontId="0" fillId="0" borderId="0" numFmtId="164" xfId="0" applyNumberFormat="1"/></cellXfs></styleSheet>',
+      "xl/worksheets/sheet1.xml":sheet
+    });
+  }
+  const api={HEADERS,FIELDS,downloadTemplate,buildTemplate,parse,buildPriceList};
   if(typeof module!=="undefined"&&module.exports)module.exports=api;
   if(scope)scope.NICOLE_EXCEL=api;
 })(typeof window!=="undefined"?window:null);

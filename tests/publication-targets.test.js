@@ -6,13 +6,12 @@ const path = require("node:path");
 const root = path.resolve(__dirname, "..");
 const read = (file) => fs.readFileSync(path.join(root, file), "utf8");
 
-test("tres enlaces web independientes y despliegue GitHub Pages", () => {
-  for (const person of ["edgar", "gloria", "jefferson"]) {
-    const file = "web/" + person + "/index.html";
-    assert.equal(fs.existsSync(path.join(root, file)), true);
-    assert.ok(read(file).includes('data-profile="' + person + '"'));
-  }
-  assert.ok(fs.existsSync(path.join(root, ".github/workflows/web-deploy.yml")));
+test("un solo link familiar en GitHub Pages y la app de Jefferson solo en Electron", () => {
+  assert.ok(read("web/index.html").includes('data-profile="familia"'));
+  assert.ok(read("web/jefferson/index.html").includes('data-profile="jefferson"'));
+  for (const old of ["edgar", "gloria"]) assert.ok(read("web/" + old + "/index.html").includes("url=../"));
+  const deploy = read(".github/workflows/web-deploy.yml");
+  assert.ok(deploy.includes("rm -rf site/jefferson site/app.js"));
   assert.ok(fs.existsSync(path.join(root, "web/app.js")));
   assert.ok(fs.existsSync(path.join(root, "web/config.js")));
 });
