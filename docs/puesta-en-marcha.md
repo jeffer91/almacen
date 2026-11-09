@@ -17,21 +17,11 @@ supabase functions deploy catalog-api --no-verify-jwt
 La verificación JWT de Supabase va desactivada porque la función hace su propia comprobación:
 
 - **Sin clave (público):** `catalog` y `uploadPhoto` (con `by` = `edgar` o `gloria`).
-- **Con la clave de Jefferson:** todas las demás acciones (`bootstrap`, productos, presentaciones, precios, costos, proveedores, Excel, `setPrimaryPhoto`, `deletePhoto`, `archiveProduct`).
+- **App de administración (`x-almacen-admin: jefferson`):** todas las demás acciones (`bootstrap`, productos, presentaciones, precios, costos, proveedores, Excel, `setPrimaryPhoto`, `deletePhoto`, `archiveProduct`).
 
-## 3. Clave de Jefferson
+## 3. Acceso de administración
 
-La clave se guarda solo como hash en `family_access_links`. Para generar una nueva (invalida la anterior):
-
-```sql
-with t as materialized (select encode(gen_random_bytes(32),'hex') as secret)
-update public.family_access_links
-   set token_hash = encode(digest((select secret from t),'sha256'),'hex'), enabled = true, updated_at = now()
- where role = 'jefferson'
-returning (select secret from t) as secret;
-```
-
-En Electron, pegar `https://jeffer91.github.io/almacen/jefferson/#key=SECRETO` (o solo el secreto) en la pantalla de activación. **Nunca** guardar el secreto en el repositorio.
+La app Electron entra sin activación: envía `x-almacen-admin: jefferson` en cada solicitud. No hay contraseña (decisión del dueño), así que cualquiera que conozca la dirección de la API podría editar. La lista familiar nunca envía esa cabecera.
 
 ## 4. GitHub Pages
 

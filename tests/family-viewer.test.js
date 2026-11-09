@@ -79,16 +79,17 @@ test("la web familiar no carga la app de escritura y los links viejos redirigen"
     assert.match(fs.readFileSync(path.join(web, old, "index.html"), "utf8"), /url=\.\.\//);
   }
   const viewer = fs.readFileSync(path.join(web, "viewer.js"), "utf8");
-  assert.doesNotMatch(viewer, /x-almacen-key|setPrice|addProduct|setCost/);
+  assert.doesNotMatch(viewer, /x-almacen-key|x-almacen-admin|setPrice|addProduct|setCost/);
 });
 
 test("app de administración: Guardar no cierra la ventana y hay gestión de fotos", () => {
   const app = fs.readFileSync(path.join(__dirname, "..", "web", "app.js"), "utf8");
   assert.match(app, /classList\.contains\("modal-shade"\) && event\.target !== target/);
-  assert.match(app, /"x-almacen-key": privateKey/);
+  assert.match(app, /"x-almacen-admin": "jefferson"/);
+  assert.doesNotMatch(app, /activation-form|Enlace de acceso pendiente/);
   for (const act of ["photo-primary", "photo-delete", "photos-view"]) assert.ok(app.includes(act), act);
   const api = fs.readFileSync(path.join(__dirname, "..", "supabase", "functions", "catalog-api", "index.ts"), "utf8");
   assert.match(api, /action === "deletePhoto"/);
   assert.match(api, /storage\.from\("family-photos"\)\.remove/);
-  assert.match(api, /return fail\("Esta acción solo está disponible en la app de Jefferson", 401\)/);
+  assert.match(api, /return fail\("Esta acción solo está disponible en la app de administración", 401\)/);
 });

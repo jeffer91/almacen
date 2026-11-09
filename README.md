@@ -23,7 +23,7 @@ Los links viejos `/edgar/` y `/gloria/` redirigen al link nuevo. La página de a
 - Crear y editar productos y presentaciones, importar Excel, fijar precios, registrar costos (con historial) y proveedores.
 - Fotos: subir varias con color, elegir la principal, eliminar, ver quién la tomó y cuándo.
 - Botón **📷 Fotos**: todas las fotos recientes (incluidas las de la familia) y la lista de productos sin foto.
-- La primera vez pide pegar el enlace privado de Jefferson; la clave se guarda cifrada con `safeStorage` de Windows.
+- Entra directo, sin activación ni contraseña.
 
 ```bash
 npm ci
@@ -36,7 +36,7 @@ El instalador de Windows se compila y verifica en GitHub Actions (`windows-insta
 
 - Tablas con RLS y sin acceso directo; todo pasa por la Edge Function `catalog-api` (service_role solo en servidor).
 - Sin clave: solo `catalog` (lista pública sin costos, proveedores ni rutas internas) y `uploadPhoto` (máx. 2 MB, solo JPG/PNG/WebP, productos existentes, máx. 12 fotos por producto).
-- Todo lo demás exige la clave de Jefferson (hash SHA-256 en `family_access_links`). Los enlaces de Edgar y Gloria están desactivados.
+- La app de administración se identifica con la cabecera `x-almacen-admin: jefferson` (sin contraseña, por decisión del dueño: quien conozca la dirección de la API podría editar).
 - Fotos en un bucket privado; se entregan con URLs firmadas que vencen en 1 hora.
 
 ## Desarrollo

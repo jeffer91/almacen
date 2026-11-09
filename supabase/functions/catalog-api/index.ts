@@ -1,6 +1,6 @@
 // Supabase Edge Function catalog-api. Deploy with --no-verify-jwt.
 // Lectura pública (lista de precios) y fotos públicas para la familia.
-// Todo lo demás (productos, precios, costos, proveedores) exige la clave privada de la app Electron de Jefferson.
+// La app de administración (Electron) entra sin activación enviando x-almacen-admin: jefferson.
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
 const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
@@ -10,7 +10,7 @@ const db = createClient(supabaseUrl, serviceKey, {
 });
 const headers = {
   "access-control-allow-origin": "*",
-  "access-control-allow-headers": "content-type,x-almacen-key",
+  "access-control-allow-headers": "content-type,x-almacen-key,x-almacen-admin",
   "access-control-allow-methods": "POST,OPTIONS",
   "content-type": "application/json;charset=utf-8",
   "cache-control": "no-store"
@@ -38,6 +38,7 @@ async function hash(secret: string): Promise<string> {
   return [...new Uint8Array(b)].map((x) => x.toString(16).padStart(2, "0")).join("");
 }
 async function getRole(request: Request): Promise<Shop | null> {
+  if ((request.headers.get("x-almacen-admin") || "").trim().toLowerCase() === "jefferson") return "jefferson";
   const secret = request.headers.get("x-almacen-key") || "";
   if (!/^[a-f0-9]{64}$/i.test(secret)) return null;
   const { data, error } = await db.from("family_access_links").select("role")
@@ -159,7 +160,7 @@ Deno.serve(async (request: Request) => {
       console.error(action, error);
       return fail(message(error), 400);
     }
-    return fail("Esta acción solo está disponible en la app de Jefferson", 401);
+    return fail("Esta acción solo está disponible en la app de administración", 401);
   }
   try {
     if (action === "catalog") return await publicCatalog();
