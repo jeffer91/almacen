@@ -18,7 +18,7 @@
   function senderValid(event) {
     return Boolean(mainWindow && !mainWindow.isDestroyed() && event.sender.id === mainWindow.webContents.id);
   }
-  // La clave privada de Jefferson se cifra con el almacén seguro de Windows.
+  // La sesión de administración (obtenida con el PIN) se cifra con el almacén seguro de Windows.
   ipcMain.handle("family:access:get", (event) => {
     if (!senderValid(event) || !safeStorage.isEncryptionAvailable()) return "";
     try {
@@ -37,6 +37,10 @@
       fs.renameSync(temp, file);
       return true;
     } catch { try { fs.rmSync(temp, { force: true }); } catch {} return false; }
+  });
+  ipcMain.handle("family:access:clear", (event) => {
+    if (!senderValid(event)) return false;
+    try { fs.rmSync(path.join(app.getPath("userData"), "nicole-access.bin"), { force: true }); return true; } catch { return false; }
   });
   ipcMain.handle("family:config:get", (event) => {
     if (!senderValid(event)) return "";

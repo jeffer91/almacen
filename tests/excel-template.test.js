@@ -3,7 +3,7 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const { buildTemplate, HEADERS, FIELDS } = require("../web/excel.js");
 
-test("plantilla Excel .xlsx mantiene los once encabezados del importador",async()=>{
+test("plantilla Excel .xlsx con código, costo y precio sin/con IVA",async()=>{
   assert.equal(HEADERS.length,11);
   assert.equal(FIELDS.length,11);
   const bytes=new Uint8Array(await buildTemplate().arrayBuffer());
@@ -23,10 +23,13 @@ test("plantilla Excel .xlsx mantiene los once encabezados del importador",async(
   for(const file of required) assert.ok(files[file],file);
   assert.ok(files["xl/workbook.xml"].includes('name="PRODUCTOS"'));
   const sheet=files["xl/worksheets/sheet1.xml"];
-  for(const label of HEADERS) assert.ok(sheet.includes(label),label);
+  const xmlText=(t)=>t.replace(/&/g,"&amp;");
+  for(const label of HEADERS) assert.ok(sheet.includes(xmlText(label)),label);
   assert.match(sheet,/<dataValidations count="2">/);
   assert.ok(files["xl/worksheets/sheet2.xml"].includes("INSTRUCCIONES"));
-  assert.ok(files["xl/worksheets/sheet2.xml"].includes("Completa la hoja PRODUCTOS"));
+  assert.ok(files["xl/worksheets/sheet2.xml"].includes("Llena la hoja PRODUCTOS"));
+  assert.deepEqual(HEADERS.slice(0,2),["Código","Producto"]);
+  assert.deepEqual(HEADERS.slice(-2),["Precio sin IVA","Precio con IVA"]);
 });
 
 test("la plantilla está vacía de productos para no cargar ejemplos por accidente",async()=>{

@@ -6,13 +6,16 @@ on:
       - Publicar Nicole Encajes en GitHub Pages
     types: [completed]
   workflow_dispatch:
+  # Cada 3 días: mantiene despierto el proyecto gratuito de Supabase (se pausa tras 7 días sin uso).
+  schedule:
+    - cron: "17 13 */3 * *"
 
 permissions:
   contents: read
 
 jobs:
   smoke:
-    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     timeout-minutes: 6
     steps:
@@ -42,7 +45,7 @@ jobs:
           code=$(curl -sS -o /tmp/catalog -w "%{http_code}" -X POST --max-time 25 -H "Content-Type: application/json" --data '{"action":"catalog"}' "$url")
           test "$code" = "200"
           grep -q '"ok":true' /tmp/catalog
-          if grep -q '"costs"\|"suppliers"\|current_cost\|storage_path' /tmp/catalog; then echo "La lista pública expone datos internos"; exit 1; fi
+          if grep -q '"costs"\|"suppliers"\|storage_path\|supplier_id' /tmp/catalog; then echo "La lista pública expone datos internos"; exit 1; fi
           code=$(curl -sS -o /dev/null -w "%{http_code}" -X POST --max-time 25 -H "Content-Type: application/json" --data '{"action":"setPrice"}' "$url")
           test "$code" = "401"
-          echo "Lista pública disponible; la escritura exige la clave de la app de Jefferson."
+          echo "Lista pública disponible; la escritura exige la sesión con PIN."

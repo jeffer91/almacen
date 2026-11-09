@@ -5,5 +5,6 @@ contextBridge.exposeInMainWorld("almacenDesktop", Object.freeze({
   saveCachedSnapshot: (value) => ipcRenderer.invoke("family:cache:put", value),
   getApiUrl: () => ipcRenderer.invoke("family:config:get"),
   getAccessKey: () => ipcRenderer.invoke("family:access:get"),
-  saveAccessKey: (secret) => ipcRenderer.invoke("family:access:put", secret)
+  saveAccessKey: (secret) => ipcRenderer.invoke("family:access:put", secret),
+  clearAccessKey: () => ipcRenderer.invoke("family:access:clear")
 }));

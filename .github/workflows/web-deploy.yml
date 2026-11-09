@@ -32,7 +32,7 @@ jobs:
           mkdir -p site
           cp -R web/. site/
           # La app de Jefferson (escritura) vive solo en Electron; no se publica en la web.
-          rm -rf site/jefferson site/app.js
+          rm -rf site/jefferson site/app.js site/admin-core.js
           if [ -n "$SUPABASE_REF" ]; then
             if ! [[ "$SUPABASE_REF" =~ ^[a-z0-9]{20}$ ]]; then
               echo "ALMACEN_SUPABASE_PROJECT_REF inválida"

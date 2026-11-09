@@ -111,7 +111,8 @@
       ? `<button class="v-pic" data-act="view" data-id="${c.id}" aria-label="Ver fotos de ${esc(c.name)}"><img src="${esc(main.signed_url)}" alt="" loading="lazy">${c.photos.length > 1 ? `<span>${c.photos.length}</span>` : ""}</button>`
       : `<div class="v-pic v-nopic" aria-hidden="true">▧</div>`;
     const meta = [c.brand, c.category].filter(Boolean).map(esc).join(" · ");
-    const items = c.items.length ? c.items.map((i) => `<li><span>${esc(i.label)}</span><b class="${i.price === null ? "v-pend" : ""}">${V.money(i.price)}</b></li>`).join("")
+    const items = c.items.length ? c.items.map((i) => `<li><span>${esc(i.label)}</span><span class="v-amounts"><b class="${i.gross === null ? "v-pend" : ""}">${V.money(i.gross)}</b>
+      ${i.gross === null ? "" : `<small>sin IVA ${V.money(i.net)}</small>`}<small>costo ${V.money(i.cost)}</small></span></li>`).join("")
       : `<li><span>Sin presentaciones</span><b class="v-pend">Pendiente</b></li>`;
     return `<article class="v-card">${pic}<div class="v-info"><h3>${esc(c.name)}</h3>${meta ? `<p>${meta}</p>` : ""}
       <ul class="v-prices">${items}</ul>

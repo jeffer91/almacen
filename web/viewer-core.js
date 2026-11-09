@@ -1,15 +1,22 @@
 /* Nicole Encajes · lógica de la lista de precios familiar (sin DOM, probada con node --test). */
 "use strict";
 (function (scope) {
-  const rules = (typeof module !== "undefined" && module.exports) ? require("./pricing.js") : scope.ALMACEN_RULES;
   const PRICE_SHOP = "jefferson";
+  const DEFAULT_IVA = 15;
 
   function normalize(value) {
     return String(value ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "")
       .toLowerCase().replace(/[^a-z0-9ñ.,]+/g, " ").trim();
   }
+  // Precio guardado = sin IVA (fijado por Jefferson en la app de administración).
   function priceOf(prices, presentationId) {
-    return rules.resolvePrice(prices, presentationId, PRICE_SHOP).price;
+    const own = (prices || []).find((p) => p.presentation_id === presentationId && p.shop === PRICE_SHOP);
+    return own ? Number(own.price) : null;
+  }
+  const round2 = (n) => Math.round((Number(n) + Number.EPSILON) * 100) / 100;
+  function withIva(net, rate) {
+    if (net === null || net === undefined) return null;
+    return round2(Number(net) * (1 + (Number.isFinite(Number(rate)) ? Number(rate) : DEFAULT_IVA) / 100));
   }
   // Une productos, presentaciones y precios en tarjetas listas para mostrar.
   function buildCards(data) {
@@ -24,13 +31,18 @@
       if (!photosBy.has(ph.product_id)) photosBy.set(ph.product_id, []);
       photosBy.get(ph.product_id).push(ph);
     }
+    const rate = data?.iva_rate ?? DEFAULT_IVA;
     return products.map((p) => {
       const items = (byProduct.get(p.id) || [])
-        .map((pr) => ({ id: pr.id, label: pr.label, quantity: pr.quantity, unit: pr.unit, price: priceOf(data.prices, pr.id) }))
+        .map((pr) => {
+          const net = priceOf(data.prices, pr.id);
+          const cost = pr.current_cost === null || pr.current_cost === undefined ? null : Number(pr.current_cost);
+          return { id: pr.id, label: pr.label, quantity: pr.quantity, unit: pr.unit, sku: pr.sku || "", net, gross: withIva(net, rate), cost, price: withIva(net, rate) };
+        })
         .sort((a, b) => Number(a.quantity) - Number(b.quantity) || String(a.label).localeCompare(String(b.label), "es"));
       const photos = (photosBy.get(p.id) || []).slice()
         .sort((a, b) => Number(b.is_primary) - Number(a.is_primary) || String(a.created_at).localeCompare(String(b.created_at)));
-      const haystack = normalize([p.name, p.brand, p.category, ...items.map((i) => i.label + " " + (i.unit || ""))].join(" "));
+      const haystack = normalize([p.name, p.brand, p.category, ...items.map((i) => i.label + " " + (i.unit || "") + " " + i.sku)].join(" "));
       return { id: p.id, name: p.name, brand: p.brand || "", category: p.category || "", items, photos, haystack };
     }).sort((a, b) => a.name.localeCompare(b.name, "es"));
   }
@@ -55,8 +67,8 @@
   function rows(cards) {
     const out = [];
     for (const c of cards) {
-      if (!c.items.length) out.push({ product: c.name, brand: c.brand, presentation: "—", price: null });
-      for (const i of c.items) out.push({ product: c.name, brand: c.brand, presentation: i.label, price: i.price });
+      if (!c.items.length) out.push({ product: c.name, brand: c.brand, presentation: "—", cost: null, net: null, gross: null });
+      for (const i of c.items) out.push({ product: c.name, brand: c.brand, presentation: i.label, cost: i.cost, net: i.net, gross: i.gross });
     }
     return out;
   }
@@ -91,8 +103,9 @@
     const header = () => {
       ops.push("BT /F2 16 Tf 40 " + (pageH - 45) + " Td (" + pdfText("Nicole Encajes - Lista de precios") + ") Tj ET");
       ops.push("BT /F1 10 Tf 40 " + (pageH - 62) + " Td (" + pdfText(dateText) + ") Tj ET");
-      ops.push("BT /F2 11 Tf 40 " + (top - 4) + " Td (Producto) Tj 290 0 Td (" + pdfText("Presentación") + ") Tj ET");
-      ops.push("BT /F2 11 Tf " + (555 - textWidth("Precio", 11)).toFixed(1) + " " + (top - 4) + " Td (Precio) Tj ET");
+      ops.push("BT /F2 10 Tf 40 " + (top - 4) + " Td (Producto) Tj 210 0 Td (" + pdfText("Presentación") + ") Tj ET");
+      for (const [label, x] of [["Costo", 395], ["Sin IVA", 475], ["Con IVA", 555]])
+        ops.push("BT /F2 10 Tf " + (x - textWidth(label, 10)).toFixed(1) + " " + (top - 4) + " Td (" + pdfText(label) + ") Tj ET");
       ops.push("0.75 G 40 " + (top - 10) + " m 555 " + (top - 10) + " l S");
       y = top - 28;
     };
@@ -100,10 +113,12 @@
     for (const r of list) {
       if (y < bottom) { pages.push(ops.join("\n")); ops = []; header(); }
       if (n++ % 2 === 0) ops.push("0.96 g 36 " + (y - 5) + " 523 " + line + " re f 0 g");
-      const name = cut(r.product + (r.brand ? " (" + r.brand + ")" : ""), 52);
-      const price = money(r.price);
-      ops.push("BT /F1 11 Tf 40 " + y + " Td (" + pdfText(name) + ") Tj 290 0 Td (" + pdfText(cut(r.presentation, 22)) + ") Tj ET");
-      ops.push("BT /F2 11 Tf " + (555 - textWidth(price, 11)).toFixed(1) + " " + y + " Td (" + pdfText(price) + ") Tj ET");
+      const name = cut(r.product + (r.brand ? " (" + r.brand + ")" : ""), 38);
+      ops.push("BT /F1 10 Tf 40 " + y + " Td (" + pdfText(name) + ") Tj 210 0 Td (" + pdfText(cut(r.presentation, 18)) + ") Tj ET");
+      for (const [value, x, bold] of [[r.cost, 395, false], [r.net, 475, false], [r.gross, 555, true]]) {
+        const text = money(value);
+        ops.push("BT /F" + (bold ? 2 : 1) + " 10 Tf " + (x - textWidth(text, 10)).toFixed(1) + " " + y + " Td (" + pdfText(text) + ") Tj ET");
+      }
       y -= line;
     }
     if (!list.length) ops.push("BT /F1 12 Tf 40 " + y + " Td (" + pdfText("Todavía no hay productos.") + ") Tj ET");
@@ -136,7 +151,7 @@
   }
   function latin1Length(text) { return text.length; }
 
-  const api = Object.freeze({ PRICE_SHOP, normalize, priceOf, buildCards, search, categories, pendingPhotos, money, rows, buildPdf });
+  const api = Object.freeze({ PRICE_SHOP, normalize, priceOf, withIva, buildCards, search, categories, pendingPhotos, money, rows, buildPdf });
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   if (scope) scope.NICOLE_VIEW = api;
 })(typeof window !== "undefined" ? window : null);

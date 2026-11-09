@@ -20,10 +20,16 @@ Los links viejos `/edgar/` y `/gloria/` redirigen al link nuevo. La página de a
 
 ## Administración (Electron)
 
-- Crear y editar productos y presentaciones, importar Excel, fijar precios, registrar costos (con historial) y proveedores.
-- Fotos: subir varias con color, elegir la principal, eliminar, ver quién la tomó y cuándo.
-- Botón **📷 Fotos**: todas las fotos recientes (incluidas las de la familia) y la lista de productos sin foto.
-- Entra directo, sin activación ni contraseña.
+Entra con **PIN** (se pide una vez por computadora; 5 intentos fallidos bloquean 15 minutos). Pestañas:
+
+- **Catálogo:** productos con código, costo, precio sin IVA, con IVA y margen; ficha con fotos e historial de costos.
+- **Cargar productos:** formulario uno por uno (indica si es nuevo o actualiza) y carga por lote con plantilla Excel, vista previa editable y filas marcadas como nuevo / actualiza / error.
+- **Precios:** tabla global editable (costo, sin IVA, con IVA), margen y descarga a Excel.
+- **Fotos:** fotos recientes (incluidas las de la familia) y productos sin foto.
+- **Tienda:** nombre, RUC, teléfono, dirección, correo, IVA y validez de cotizaciones; cerrar sesión.
+- **Clientes** y **Ventas:** próximamente.
+
+El precio se guarda **sin IVA** (4 decimales) y el precio con IVA se calcula con el IVA de la tienda.
 
 ```bash
 npm ci
@@ -35,8 +41,8 @@ El instalador de Windows se compila y verifica en GitHub Actions (`windows-insta
 ## Seguridad
 
 - Tablas con RLS y sin acceso directo; todo pasa por la Edge Function `catalog-api` (service_role solo en servidor).
-- Sin clave: solo `catalog` (lista pública sin costos, proveedores ni rutas internas) y `uploadPhoto` (máx. 2 MB, solo JPG/PNG/WebP, productos existentes, máx. 12 fotos por producto).
-- La app de administración se identifica con la cabecera `x-almacen-admin: jefferson` (sin contraseña, por decisión del dueño: quien conozca la dirección de la API podría editar).
+- Sin sesión: solo `catalog` (lista pública con costo y precios, sin proveedores ni rutas internas), `login` y `uploadPhoto` (máx. 2 MB, solo JPG/PNG/WebP, productos existentes, máx. 12 fotos por producto).
+- La app de administración entra con PIN: el PIN se guarda como hash con sal en `family_admin_auth` (nunca en el repositorio) y la sesión resultante (`family_admin_sessions`, 180 días) se guarda cifrada en Windows.
 - Fotos en un bucket privado; se entregan con URLs firmadas que vencen en 1 hora.
 
 ## Desarrollo

@@ -1,6 +1,6 @@
 // Supabase Edge Function catalog-api. Deploy with --no-verify-jwt.
 // Lectura pública (lista de precios) y fotos públicas para la familia.
-// La app de administración (Electron) entra sin activación enviando x-almacen-admin: jefferson.
+// La app de administración (Electron) entra con PIN: el servidor entrega una sesión que viaja en x-almacen-key.
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
 const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
@@ -10,7 +10,7 @@ const db = createClient(supabaseUrl, serviceKey, {
 });
 const headers = {
   "access-control-allow-origin": "*",
-  "access-control-allow-headers": "content-type,x-almacen-key,x-almacen-admin",
+  "access-control-allow-headers": "content-type,x-almacen-key",
   "access-control-allow-methods": "POST,OPTIONS",
   "content-type": "application/json;charset=utf-8",
   "cache-control": "no-store"
@@ -38,13 +38,64 @@ async function hash(secret: string): Promise<string> {
   return [...new Uint8Array(b)].map((x) => x.toString(16).padStart(2, "0")).join("");
 }
 async function getRole(request: Request): Promise<Shop | null> {
-  if ((request.headers.get("x-almacen-admin") || "").trim().toLowerCase() === "jefferson") return "jefferson";
-  const secret = request.headers.get("x-almacen-key") || "";
-  if (!/^[a-f0-9]{64}$/i.test(secret)) return null;
+  const secret = (request.headers.get("x-almacen-key") || "").toLowerCase();
+  if (!/^[a-f0-9]{64}$/.test(secret)) return null;
+  const tokenHash = await hash(secret);
+  const { data: session } = await db.from("family_admin_sessions").select("token_hash,last_used_at")
+    .eq("token_hash", tokenHash).gt("expires_at", new Date().toISOString()).maybeSingle();
+  if (session) {
+    if (Date.now() - Date.parse(String(session.last_used_at)) > 3600000)
+      await db.from("family_admin_sessions").update({ last_used_at: new Date().toISOString() }).eq("token_hash", tokenHash);
+    return "jefferson";
+  }
   const { data, error } = await db.from("family_access_links").select("role")
-    .eq("token_hash", await hash(secret.toLowerCase())).eq("enabled", true).maybeSingle();
+    .eq("token_hash", tokenHash).eq("enabled", true).maybeSingle();
   if (error || !data || !shops.includes(data.role)) return null;
   return data.role as Shop;
+}
+function randomHex(bytes = 32): string {
+  return [...crypto.getRandomValues(new Uint8Array(bytes))].map((x) => x.toString(16).padStart(2, "0")).join("");
+}
+function sameText(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return diff === 0;
+}
+// PIN de administración: 5 intentos fallidos bloquean 15 minutos.
+async function login(body: any) {
+  const pin = txt(body.pin, 12);
+  if (!/^[0-9]{4,8}$/.test(pin)) return fail("Escribe tu PIN de 4 a 8 dígitos");
+  const { data: auth, error } = await db.from("family_admin_auth").select("*").eq("id", 1).maybeSingle();
+  if (error) throw error;
+  if (!auth) return fail("El PIN de administración no está configurado", 503);
+  if (auth.locked_until && Date.parse(auth.locked_until) > Date.now()) {
+    const minutes = Math.ceil((Date.parse(auth.locked_until) - Date.now()) / 60000);
+    return fail(`Demasiados intentos. Espera ${minutes} min.`, 429);
+  }
+  if (!sameText(await hash(auth.pin_salt + pin), auth.pin_hash)) {
+    const failed = (auth.failed_attempts || 0) + 1;
+    const locked = failed >= 5;
+    await db.from("family_admin_auth").update({
+      failed_attempts: locked ? 0 : failed,
+      locked_until: locked ? new Date(Date.now() + 15 * 60000).toISOString() : null,
+      updated_at: new Date().toISOString()
+    }).eq("id", 1);
+    return fail(locked ? "PIN incorrecto. Bloqueado por 15 minutos." : `PIN incorrecto. Te quedan ${5 - failed} intentos.`, 401);
+  }
+  await db.from("family_admin_auth").update({ failed_attempts: 0, locked_until: null, updated_at: new Date().toISOString() }).eq("id", 1);
+  await db.from("family_admin_sessions").delete().lt("expires_at", new Date().toISOString());
+  const token = randomHex();
+  const { error: sessionError } = await db.from("family_admin_sessions").insert({
+    token_hash: await hash(token), expires_at: new Date(Date.now() + 180 * 86400000).toISOString()
+  });
+  if (sessionError) throw sessionError;
+  await audit("jefferson", "login", "admin");
+  return response({ ok: true, token });
+}
+async function storeSettings() {
+  const { data } = await db.from("family_settings").select("value").eq("key", "store").maybeSingle();
+  return { name: "Nicole Encajes", ruc: "", phone: "", address: "", email: "", iva_rate: 15, quote_valid_days: 8, ...(data?.value || {}) };
 }
 async function audit(role: Shop, action: string, id: string, details: Record<string,unknown> = {}) {
   const { error } = await db.from("family_audit").insert({ actor: role, action, target_id: id, details });
@@ -91,13 +142,14 @@ async function bootstrap(role: Shop) {
     listAll("family_cost_history", "*"), listAll("family_photos", "*")
   ]);
   await signPhotos(photos);
-  return response({ ok: true, role, products, presentations, suppliers, prices, costs, photos, server_time: new Date().toISOString() });
+  const settings = await storeSettings();
+  return response({ ok: true, role, products, presentations, suppliers, prices, costs, photos, settings, server_time: new Date().toISOString() });
 }
-// Lista pública: sin costos, sin proveedores y solo productos activos.
+// Lista pública: costo y precio por presentación (decisión del dueño), sin proveedores ni historial; solo productos activos.
 async function publicCatalog() {
   const [products, presentations, prices, photos] = await Promise.all([
     listAll("family_products", "id,name,category,brand,active,updated_at"),
-    listAll("family_presentations", "id,product_id,label,quantity,unit,updated_at"),
+    listAll("family_presentations", "id,product_id,label,quantity,unit,sku,current_cost,updated_at"),
     listAll("family_prices", "presentation_id,shop,price,updated_at"),
     listAll("family_photos", "id,product_id,storage_path,color_label,is_primary,created_by,created_at")
   ]);
@@ -106,7 +158,8 @@ async function publicCatalog() {
   const visiblePhotos = photos.filter((p) => ids.has(p.product_id));
   await signPhotos(visiblePhotos);
   for (const p of visiblePhotos) delete p.storage_path;
-  return response({ ok: true, role: "familia", products: active,
+  const { iva_rate } = await storeSettings();
+  return response({ ok: true, role: "familia", iva_rate, products: active,
     presentations: presentations.filter((p) => ids.has(p.product_id)), prices,
     photos: visiblePhotos, server_time: new Date().toISOString() });
 }
@@ -151,6 +204,7 @@ Deno.serve(async (request: Request) => {
     // Acceso público de la familia: ver precios y subir fotos de productos.
     try {
       if (action === "catalog") return await publicCatalog();
+      if (action === "login") return await login(body);
       if (action === "uploadPhoto") {
         const by = txt(body.by, 20).toLowerCase();
         if (by !== "edgar" && by !== "gloria") return fail("Indica quién toma la foto");
@@ -160,25 +214,44 @@ Deno.serve(async (request: Request) => {
       console.error(action, error);
       return fail(message(error), 400);
     }
-    return fail("Esta acción solo está disponible en la app de administración", 401);
+    return fail("Ingresa tu PIN en la app de administración", 401);
   }
   try {
     if (action === "catalog") return await publicCatalog();
     if (action === "bootstrap") return await bootstrap(role);
+    if (action === "logout") {
+      const secret = (request.headers.get("x-almacen-key") || "").toLowerCase();
+      await db.from("family_admin_sessions").delete().eq("token_hash", await hash(secret));
+      return response({ ok: true });
+    }
+    if (action === "saveSettings") {
+      if (role !== "jefferson") return fail("Solo Jefferson puede cambiar los datos de la tienda", 403);
+      const s = body.settings || {};
+      const iva = Number(s.iva_rate), days = Number(s.quote_valid_days);
+      if (!Number.isFinite(iva) || iva < 0 || iva > 50) return fail("IVA inválido");
+      if (!Number.isInteger(days) || days < 1 || days > 90) return fail("Validez de cotización inválida (1 a 90 días)");
+      const ruc = txt(s.ruc, 13);
+      if (ruc && !/^[0-9]{10}([0-9]{3})?$/.test(ruc)) return fail("El RUC o cédula debe tener 10 o 13 dígitos");
+      const email = txt(s.email, 160);
+      if (email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return fail("Correo de la tienda inválido");
+      const value = { name: txt(s.name, 120) || "Nicole Encajes", ruc, phone: txt(s.phone, 40), address: txt(s.address, 240), email, iva_rate: iva, quote_valid_days: days };
+      const { error } = await db.from("family_settings").upsert({ key: "store", value, updated_at: new Date().toISOString() });
+      if (error) throw error;
+      await audit(role, action, "store");
+      return response({ ok: true, settings: value });
+    }
 
     if (action === "importExcel") {
       if (role !== "jefferson") return fail("Solo Jefferson puede importar Excel", 403);
       if (!Array.isArray(body.rows) || body.rows.length < 1 || body.rows.length > 500)
         return fail("El Excel debe contener entre 1 y 500 presentaciones");
+      const num = (v: unknown) => v === null || v === undefined || v === "" ? "" : String(v);
       const rows = body.rows.map((r: any) => ({
-        producto: txt(r.producto, 180), presentacion: txt(r.presentacion, 80),
-        cantidad: r.cantidad, unidad: txt(r.unidad, 40),
-        marca: txt(r.marca, 100), categoria: txt(r.categoria, 100),
-        proveedor: txt(r.proveedor, 160), costo: r.costo,
-        precio_edgar: r.precio_edgar, precio_gloria: r.precio_gloria,
-        precio_jefferson: r.precio_jefferson
+        codigo: txt(r.codigo, 40), producto: txt(r.producto, 180), marca: txt(r.marca, 100),
+        categoria: txt(r.categoria, 100), presentacion: txt(r.presentacion, 80), cantidad: num(r.cantidad),
+        unidad: txt(r.unidad, 40), proveedor: txt(r.proveedor, 160), costo: num(r.costo), precio: num(r.precio)
       }));
-      const { data, error } = await db.rpc("family_import_catalog", { p_rows: rows });
+      const { data, error } = await db.rpc("family_import_catalog_v2", { p_rows: rows });
       if (error) throw error;
       return response({ ok: true, summary: data });
     }
@@ -212,7 +285,7 @@ Deno.serve(async (request: Request) => {
       const quantity = Number(body.quantity);
       if (!label || !Number.isFinite(quantity) || quantity <= 0 || quantity > 999999999) return fail("Presentación o cantidad inválida");
       const { data, error } = await db.from("family_presentations").insert({
-        product_id, label, quantity, unit: txt(body.unit, 40) || "unidad"
+        product_id, label, quantity, unit: txt(body.unit, 40) || "unidad", sku: txt(body.sku, 40) || null
       }).select("id").single();
       if (error) throw error;
       await audit(role, action, data.id);
@@ -225,7 +298,7 @@ Deno.serve(async (request: Request) => {
       const quantity = Number(body.quantity);
       if (!label || !Number.isFinite(quantity) || quantity <= 0) return fail("Presentación o cantidad inválida");
       const { error } = await db.from("family_presentations").update({
-        label, quantity, unit: txt(body.unit, 40) || "unidad", updated_at: new Date().toISOString()
+        label, quantity, unit: txt(body.unit, 40) || "unidad", sku: txt(body.sku, 40) || null, updated_at: new Date().toISOString()
       }).eq("id", id);
       if (error) throw error;
       await audit(role, action, id);
