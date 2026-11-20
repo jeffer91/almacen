@@ -95,3 +95,7 @@ button:disabled{opacity:.5;cursor:not-allowed}
 }
 .v-amounts{display:flex;flex-direction:column;align-items:flex-end;text-align:right}
 .v-amounts small{color:var(--muted);font-size:13px;line-height:1.3}
+
+/* Acceso al registro privado de ventas (protegido con PIN). */
+.v-ventas{display:inline-flex;align-items:center;text-decoration:none;justify-content:center}
+@media(max-width:420px){.v-top{flex-wrap:wrap}.v-actions{width:100%;justify-content:flex-end}}
