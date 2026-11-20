@@ -219,6 +219,13 @@ Deno.serve(async (request: Request) => {
   try {
     if (action === "catalog") return await publicCatalog();
     if (action === "bootstrap") return await bootstrap(role);
+    if (action === "exportSalesBackup") {
+      if (role !== "jefferson") return fail("Solo administración puede respaldar ventas", 403);
+      const sales = await listAll("family_daily_sales",
+        "id,sale_date,product_name,presentation_label,quantity,unit,unit_price,total,payment_method,notes,created_at,voided_at");
+      return response({ ok: true, sales, server_time: new Date().toISOString() });
+    }
+
     if (action === "logout") {
       const secret = (request.headers.get("x-almacen-key") || "").toLowerCase();
       await db.from("family_admin_sessions").delete().eq("token_hash", await hash(secret));
