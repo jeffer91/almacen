@@ -9,6 +9,14 @@ Catálogo y lista de precios de la familia. Un solo proyecto de Supabase sirve d
 
 Los links viejos `/edgar/` y `/gloria/` redirigen al link nuevo. La página de administración (`web/jefferson/`) **no** se publica en internet: solo la abre Electron.
 
+## Respaldo en Google Sheets y actualización de Supabase
+
+- **Supabase sigue siendo la base oficial.** Google Sheets es un respaldo de consulta y una zona de preparación, no un segundo origen de verdad.
+- Página protegida con PIN: [Sincronización y respaldo](https://jeffer91.github.io/almacen/sincronizar/).
+- Importar filas aprobadas de la hoja `CAMBIOS_PENDIENTES` con validación y vista previa; recibir CSV/TSV de respaldo de productos y ventas.
+- **La copia hacia Sheets no es automática**: requiere pegar el respaldo exportado o pedir la actualización mediante ChatGPT/Google Drive. La hoja no se hace pública.
+- [Procedimiento, controles y limitaciones](docs/google-sheets-sync.md).
+
 ## Ventas del día (GitHub Pages con PIN)
 
 - Acceso desde **https://jeffer91.github.io/almacen/ventas/** o desde el botón «Ventas» del catálogo público.
