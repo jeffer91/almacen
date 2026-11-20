@@ -241,6 +241,65 @@ Deno.serve(async (request: Request) => {
       return response({ ok: true, settings: value });
     }
 
+    // Ventas del día: solo usuarios con sesión de administrador.
+    // El nombre del artículo puede ser libre mientras se completa el catálogo.
+    if (action === "listSales") {
+      if (role !== "jefferson") return fail("Solo administración puede consultar ventas", 403);
+      const day = txt(body.sale_date, 10);
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(day) || !Number.isFinite(Date.parse(day + "T00:00:00Z")) ||
+          new Date(day + "T00:00:00Z").toISOString().slice(0, 10) !== day)
+        return fail("Fecha inválida");
+      const { data, error } = await db.from("family_daily_sales")
+        .select("id,sale_date,product_name,presentation_label,quantity,unit,unit_price,total,payment_method,notes,created_at")
+        .eq("sale_date", day).is("voided_at", null)
+        .order("created_at", { ascending: false }).limit(1000);
+      if (error) throw error;
+      return response({ ok: true, sales: data || [], truncated: (data || []).length >= 1000 });
+    }
+    if (action === "addSale") {
+      if (role !== "jefferson") return fail("Solo administración puede registrar ventas", 403);
+      const day = txt(body.sale_date, 10);
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(day) || !Number.isFinite(Date.parse(day + "T00:00:00Z")) ||
+          new Date(day + "T00:00:00Z").toISOString().slice(0, 10) !== day)
+        return fail("Fecha inválida");
+      const productName = txt(body.product_name, 180);
+      const qty = Number(body.quantity), unitPrice = Number(body.unit_price);
+      const unit = txt(body.unit, 40) || "unidad";
+      const method = txt(body.payment_method, 30) || "sin_especificar";
+      if (!productName) return fail("Indica el producto vendido");
+      if (!Number.isFinite(qty) || qty <= 0 || qty > 1000000) return fail("Cantidad inválida");
+      if (!Number.isFinite(unitPrice) || unitPrice < 0 || unitPrice > 1000000) return fail("Precio inválido");
+      if (!["sin_especificar", "efectivo", "transferencia", "tarjeta", "otro"].includes(method))
+        return fail("Forma de pago inválida");
+      const requestKey = body.request_key ? requiredId(body.request_key) : null;
+      const sale = {
+        sale_date: day, product_name: productName, presentation_label: txt(body.presentation_label, 100),
+        quantity: Number(qty.toFixed(3)), unit, unit_price: Number(unitPrice.toFixed(2)),
+        payment_method: method, notes: txt(body.notes, 400),
+        created_by: "jefferson", request_key: requestKey
+      };
+      const { data, error } = await db.from("family_daily_sales").insert(sale).select("id,total").single();
+      if (error && requestKey && error.code === "23505") {
+        const { data: existing } = await db.from("family_daily_sales")
+          .select("id,total").eq("request_key", requestKey).maybeSingle();
+        if (existing) return response({ ok: true, sale: existing, duplicate: true });
+      }
+      if (error) throw error;
+      await audit(role, action, data.id, { product_name: productName, total: data.total });
+      return response({ ok: true, sale: data });
+    }
+    if (action === "voidSale") {
+      if (role !== "jefferson") return fail("Solo administración puede anular ventas", 403);
+      const id = requiredId(body.id);
+      const { data, error } = await db.from("family_daily_sales")
+        .update({ voided_at: new Date().toISOString(), void_reason: txt(body.reason, 200) || "Anulada desde ventas" })
+        .eq("id", id).is("voided_at", null).select("id").maybeSingle();
+      if (error) throw error;
+      if (!data) return fail("Venta no encontrada o ya anulada", 404);
+      await audit(role, action, id);
+      return response({ ok: true });
+    }
+
     if (action === "importExcel") {
       if (role !== "jefferson") return fail("Solo Jefferson puede importar Excel", 403);
       if (!Array.isArray(body.rows) || body.rows.length < 1 || body.rows.length > 500)
