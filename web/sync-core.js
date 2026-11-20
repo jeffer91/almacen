@@ -80,11 +80,15 @@
         unidad,proveedor,costo:cost,precio,gross:gross!==null?gross:precio!==null?round2(precio*(1+rate/100)):null
       });
     }
-    const seen=new Set();
+    const seen=new Set(),seenPresentation=new Set();
     for(const r of rows) {
       const k=normalize(r.codigo);
       if(seen.has(k)) errors.push("SKU repetido en filas aprobadas: "+r.codigo);
       seen.add(k);
+      const identity=[r.producto,r.marca,r.presentacion].map(normalize).join("|");
+      if(seenPresentation.has(identity))
+        errors.push("Presentación repetida entre filas aprobadas: "+r.producto+" / "+r.presentacion);
+      seenPresentation.add(identity);
     }
     if(rows.length>500) errors.push("Máximo 500 filas aprobadas por lote. Divide la importación.");
     return {rows,ignored,errors,totalSource:parsed.length-1};
@@ -107,9 +111,10 @@
       const oldPrice=old?prices.find(x=>x.presentation_id===old.id&&x.shop==="jefferson"):null;
       const changed=!!(old &&
         (normalize(old.label)!==normalize(r.presentacion) ||
+        (!old.sku && !!r.codigo) ||
         Number(old.quantity)!==r.cantidad || normalize(old.unit)!==normalize(r.unidad) ||
         (r.categoria && normalize(related?.category)!==normalize(r.categoria)) ||
-        (r.costo!==null && Number(old.current_cost)!==r.costo) ||
+        (r.costo!==null && (old.current_cost===null||old.current_cost===undefined||Number(old.current_cost)!==r.costo)) ||
         (r.precio!==null && (!oldPrice||Math.abs(Number(oldPrice.price)-r.precio)>0.00005))));
       plan.push({ ...r, operation:old?(changed?"ACTUALIZAR":"SIN CAMBIOS"):"CREAR",
         oldGross:oldPrice?round2(Number(oldPrice.price)*(1+Number(data?.settings?.iva_rate??15)/100)):null,
