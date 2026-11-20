@@ -33,6 +33,13 @@ jobs:
           done
           curl -fLsS --max-time 25 "$base/ventas/" -o /tmp/ventas.html
           grep -q 'id="loginForm"' /tmp/ventas.html
+          curl -fLsS --max-time 25 "$base/sincronizar/" -o /tmp/sync.html
+          grep -q 'id="loginForm"' /tmp/sync.html
+          grep -q 'id="apply"' /tmp/sync.html
+          curl -fLsS --max-time 25 "$base/sync-core.js" -o /tmp/sync-core.js
+          grep -q 'parsePending' /tmp/sync-core.js
+          curl -fLsS --max-time 25 "$base/sincronizar/sync.js" -o /tmp/sync.js
+          grep -q 'importExcel' /tmp/sync.js
           curl -fLsS --max-time 25 "$base/ventas/sales.js" -o /tmp/sales.js
           grep -q 'addSale' /tmp/sales.js
           code=$(curl -sS -o /dev/null -w "%{http_code}" --max-time 25 "$base/jefferson/")
@@ -52,7 +59,7 @@ jobs:
           if grep -q '"costs"\|"suppliers"\|storage_path\|supplier_id' /tmp/catalog; then echo "La lista pública expone datos internos"; exit 1; fi
           code=$(curl -sS -o /dev/null -w "%{http_code}" -X POST --max-time 25 -H "Content-Type: application/json" --data '{"action":"setPrice"}' "$url")
           test "$code" = "401"
-          for action in listSales addSale voidSale; do
+          for action in listSales addSale voidSale exportSalesBackup bootstrap importExcel; do
             payload=$(printf '{"action":"%s","sale_date":"2026-11-20"}' "$action")
             code=$(curl -sS -o /dev/null -w "%{http_code}" -X POST --max-time 25 -H "Content-Type: application/json" --data "$payload" "$url")
             test "$code" = "401"
