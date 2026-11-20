@@ -66,6 +66,7 @@
         <div><strong>Nicole Encajes</strong><span>Lista de precios</span></div></div>
       <div class="v-actions">
         <a class="v-mini v-ventas" href="./ventas/">Ventas</a>
+        <a class="v-mini v-ventas" href="./sincronizar/" title="Respaldo y sincronización con Google Sheets (requiere PIN)">Respaldo</a>
         <button class="v-mini" data-act="pdf" ${ready ? "" : "disabled"} title="Descargar PDF">PDF</button>
         <button class="v-mini" data-act="xlsx" ${ready ? "" : "disabled"} title="Descargar Excel">Excel</button>
       </div></header>`;
