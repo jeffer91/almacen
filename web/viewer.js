@@ -65,6 +65,7 @@
       <div class="v-brand"><img src="./assets/nicole-icon.svg" alt="" width="40" height="40">
         <div><strong>Nicole Encajes</strong><span>Lista de precios</span></div></div>
       <div class="v-actions">
+        <a class="v-mini v-ventas" href="./ventas/">Ventas</a>
         <button class="v-mini" data-act="pdf" ${ready ? "" : "disabled"} title="Descargar PDF">PDF</button>
         <button class="v-mini" data-act="xlsx" ${ready ? "" : "disabled"} title="Descargar Excel">Excel</button>
       </div></header>`;
