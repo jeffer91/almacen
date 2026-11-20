@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="light">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob: https://*.supabase.co; connect-src 'self' https://*.supabase.co; object-src 'none'; base-uri 'self'; form-action 'self'">
+<title>Nicole Encajes · Ventas del día</title>
+<link rel="icon" href="../assets/nicole-icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="./sales.css"></head>
+<body>
+<header><a href="../" class="back">← Lista de precios</a><div class="brand"><img src="../assets/nicole-icon.svg" width="36" height="36" alt=""><div><strong>Nicole Encajes</strong><small>Ventas del día</small></div></div><button id="logout" class="plain" hidden>Cerrar sesión</button></header>
+<main>
+  <section id="loginSection" class="panel login">
+    <h1>Registro de ventas</h1><p>Solo administración. Introduce el PIN de la aplicación para consultar y registrar ventas.</p>
+    <form id="loginForm"><label for="pin">PIN de administración</label><input id="pin" type="password" inputmode="numeric" autocomplete="off" pattern="[0-9]{4,8}" minlength="4" maxlength="8" required>
+      <button type="submit" id="loginSubmit">Entrar a ventas</button></form>
+    <p id="loginError" class="error" role="alert"></p>
+    <small>Tu sesión se mantiene únicamente mientras esta página está abierta.</small>
+  </section>
+  <div id="salesSection" hidden>
+    <div class="page-title"><div><h1>Ventas del día</h1><p>Registra cada artículo vendido. Puedes escribir productos que aún no estén en el catálogo.</p></div></div>
+    <section class="panel daybar">
+      <label for="saleDate">Fecha de la venta</label><input id="saleDate" type="date" required><button id="exportCsv" type="button" class="outline">Descargar Excel (CSV)</button>
+    </section>
+    <section class="stats">
+      <div class="stat"><span>Total vendido</span><strong id="total">$0,00</strong></div>
+      <div class="stat"><span>Registros del día</span><strong id="count">0</strong></div>
+    </section>
+    <section class="panel">
+      <h2>Nueva venta</h2>
+      <form id="saleForm">
+        <div class="formgrid">
+          <div class="full"><label for="product">Producto</label><input id="product" list="catalogSuggestions" placeholder="Ej. Cinta N.º 4" maxlength="180" autocomplete="off" required><datalist id="catalogSuggestions"></datalist></div>
+          <div class="full"><label for="presentation">Presentación / detalle</label><input id="presentation" placeholder="Ej. Rollo de 50 yardas, color rojo" maxlength="100"></div>
+          <div><label for="quantity">Cantidad</label><input id="quantity" type="number" inputmode="decimal" min="0.001" max="1000000" step="0.001" value="1" required></div>
+          <div><label for="unit">Unidad</label><select id="unit"><option value="unidad">Unidad</option><option value="metro">Metro</option><option value="rollo">Rollo</option><option value="yarda">Yarda</option><option value="paquete">Paquete</option><option value="otro">Otro</option></select></div>
+          <div><label for="unitPrice">Precio unitario ($)</label><input id="unitPrice" type="number" inputmode="decimal" min="0" max="1000000" step="0.01" placeholder="0.00" required></div>
+          <div><label for="payment">Forma de pago</label><select id="payment"><option value="sin_especificar">Sin especificar</option><option value="efectivo">Efectivo</option><option value="transferencia">Transferencia</option><option value="tarjeta">Tarjeta</option><option value="otro">Otro</option></select></div>
+          <div class="full"><label for="notes">Observaciones (opcional)</label><input id="notes" maxlength="400" placeholder="Ej. Color beige"></div>
+        </div>
+        <div class="submitrow"><div>Importe <strong id="previewTotal">$0,00</strong></div><button type="submit" id="saveSale">Guardar venta</button></div>
+      </form>
+      <p id="saleMessage" role="status" aria-live="polite"></p>
+    </section>
+    <section class="panel">
+      <div class="histhead"><h2>Historial del día</h2><button id="reload" class="outline" type="button">Actualizar</button></div>
+      <p id="listError" class="error" role="alert"></p>
+      <p id="empty">Todavía no hay ventas registradas para esta fecha.</p>
+      <div id="history" class="history"></div>
+      <p id="truncated" class="notice" hidden>Se muestran las primeras 1.000 ventas del día.</p>
+    </section>
+  </div>
+</main>
+<script src="../config.js"></script><script src="./sales.js"></script>
+</body></html>
