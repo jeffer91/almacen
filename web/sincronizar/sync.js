@@ -4,11 +4,14 @@
   const $=id=>document.getElementById(id);
   const core=window.NICOLE_SYNC;
   const url=String(window.ALMACEN_API_URL||"").trim().replace(/\/$/,"");
-  const sheetsUrl="https://docs.google.com/spreadsheets/d/1cr8mVW4ab6SFY1OJE90TCtHi2i_TnrM8Q8O1PwqawVE/edit";
   let token=null,current=null,planned=null,baseline=null;
-  const localDate=()=>new Intl.DateTimeFormat("en-CA",{
-    year:"numeric",month:"2-digit",day:"2-digit",timeZone:"America/Guayaquil"
-  }).format(new Date());
+  const localDate=()=>{
+    const parts=new Intl.DateTimeFormat("en-US",{
+      year:"numeric",month:"2-digit",day:"2-digit",timeZone:"America/Guayaquil"
+    }).formatToParts(new Date());
+    const get=type=>parts.find(x=>x.type===type)?.value||"";
+    return get("year")+"-"+get("month")+"-"+get("day");
+  };
   const money=n=>new Intl.NumberFormat("es-EC",{style:"currency",currency:"USD"}).format(Number(n)||0);
   const show=valid=>{
     $("loginSection").hidden=valid;
