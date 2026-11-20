@@ -9,6 +9,15 @@ Catálogo y lista de precios de la familia. Un solo proyecto de Supabase sirve d
 
 Los links viejos `/edgar/` y `/gloria/` redirigen al link nuevo. La página de administración (`web/jefferson/`) **no** se publica en internet: solo la abre Electron.
 
+## Ventas del día (GitHub Pages con PIN)
+
+- Acceso desde **https://jeffer91.github.io/almacen/ventas/** o desde el botón «Ventas» del catálogo público.
+- Solicita el PIN administrativo existente; token solo en memoria de la pestaña, no en almacenamiento persistente.
+- Registrar ventas por artículo, incluso cuando todavía no existe en el catálogo; fecha de Ecuador, presentación, cantidad (incluidos metros), unidad, precio, forma de pago y notas.
+- Consultar total e historial por fecha, exportar CSV para Excel y anular registros con auditoría (sin borrado físico).
+- Los registros se guardan en `public.family_daily_sales`, con RLS y sin permisos de consulta pública directa. La Edge Function requiere sesión de administrador para registrar, listar o anular.
+- No descuenta inventario (todavía no existe control de existencias) y no genera comprobantes fiscales.
+
 ## Lista de precios familiar (web)
 
 - Un solo link público, sin contraseña.
@@ -27,7 +36,7 @@ Entra con **PIN** (se pide una vez por computadora; 5 intentos fallidos bloquean
 - **Precios:** tabla global editable (costo, sin IVA, con IVA), margen y descarga a Excel.
 - **Fotos:** fotos recientes (incluidas las de la familia) y productos sin foto.
 - **Tienda:** nombre, RUC, teléfono, dirección, correo, IVA y validez de cotizaciones; cerrar sesión.
-- **Clientes** y **Ventas:** próximamente.
+- **Clientes** y **Ventas** en Electron: próximamente (el registro de ventas ya está disponible en GitHub Pages con PIN).
 
 El precio se guarda **sin IVA** (4 decimales) y el precio con IVA se calcula con el IVA de la tienda.
 
