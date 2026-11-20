@@ -31,6 +31,10 @@ jobs:
             curl -fLsS --max-time 25 "$base/$old/" -o /tmp/old.html
             grep -q 'url=../' /tmp/old.html
           done
+          curl -fLsS --max-time 25 "$base/ventas/" -o /tmp/ventas.html
+          grep -q 'id="loginForm"' /tmp/ventas.html
+          curl -fLsS --max-time 25 "$base/ventas/sales.js" -o /tmp/sales.js
+          grep -q 'addSale' /tmp/sales.js
           code=$(curl -sS -o /dev/null -w "%{http_code}" --max-time 25 "$base/jefferson/")
           test "$code" = "404"
           curl -fLsS --max-time 25 "$base/config.js" -o /tmp/config.js
@@ -48,4 +52,8 @@ jobs:
           if grep -q '"costs"\|"suppliers"\|storage_path\|supplier_id' /tmp/catalog; then echo "La lista pública expone datos internos"; exit 1; fi
           code=$(curl -sS -o /dev/null -w "%{http_code}" -X POST --max-time 25 -H "Content-Type: application/json" --data '{"action":"setPrice"}' "$url")
           test "$code" = "401"
+          for action in listSales addSale voidSale; do
+            code=$(curl -sS -o /dev/null -w "%{http_code}" -X POST --max-time 25 -H "Content-Type: application/json" --data "{\\"action\\":\\"$action\\",\\"sale_date\\":\\"2026-11-20\\"}" "$url")
+            test "$code" = "401"
+          done
           echo "Lista pública disponible; la escritura exige la sesión con PIN."
