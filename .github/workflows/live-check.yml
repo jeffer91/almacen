@@ -53,7 +53,8 @@ jobs:
           code=$(curl -sS -o /dev/null -w "%{http_code}" -X POST --max-time 25 -H "Content-Type: application/json" --data '{"action":"setPrice"}' "$url")
           test "$code" = "401"
           for action in listSales addSale voidSale; do
-            code=$(curl -sS -o /dev/null -w "%{http_code}" -X POST --max-time 25 -H "Content-Type: application/json" --data "{\\"action\\":\\"$action\\",\\"sale_date\\":\\"2026-11-20\\"}" "$url")
+            payload=$(printf '{"action":"%s","sale_date":"2026-11-20"}' "$action")
+            code=$(curl -sS -o /dev/null -w "%{http_code}" -X POST --max-time 25 -H "Content-Type: application/json" --data "$payload" "$url")
             test "$code" = "401"
           done
           echo "Lista pública disponible; la escritura exige la sesión con PIN."
