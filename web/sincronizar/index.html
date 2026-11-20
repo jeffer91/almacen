@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="light"><meta name="robots" content="noindex,nofollow"><meta name="referrer" content="no-referrer">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' https://*.supabase.co; connect-src 'self' https://*.supabase.co; object-src 'none'; base-uri 'self'; form-action 'self'">
+<title>Nicole Encajes · Sincronización segura</title>
+<link rel="stylesheet" href="../ventas/sales.css"><link rel="stylesheet" href="./sync.css"><link rel="icon" href="../assets/nicole-icon.svg" type="image/svg+xml"></head>
+<body>
+<header><a class="back" href="../">← Catálogo</a>
+<div class="brand"><img src="../assets/nicole-icon.svg" width="36" height="36" alt=""><div><strong>Nicole Encajes</strong><small>Sincronización y respaldo</small></div></div>
+<button id="logout" class="plain" hidden>Cerrar sesión</button></header>
+<main>
+<section id="loginSection" class="panel login">
+<h1>Sincronización protegida</h1><p>Supabase es la base principal. Google Sheets se utiliza como respaldo de consulta y para preparar actualizaciones.</p>
+<form id="loginForm"><label for="pin">PIN de administración</label><input id="pin" type="password" inputmode="numeric" autocomplete="off" pattern="[0-9]{4,8}" minlength="4" maxlength="8" required>
+<button type="submit" id="loginButton">Acceder</button></form>
+<p id="loginError" class="error" role="alert"></p><small>La sesión no se guarda en el navegador al cerrar la pestaña.</small>
+</section>
+<div id="syncSection" hidden>
+<h1>Supabase ↔ Google Sheets</h1>
+<p><strong>Supabase es la fuente oficial.</strong> Una tabla de Google Sheets no se aplica hasta revisar diferencias y confirmarlas. La hoja es privada: no se abre ni se modifica automáticamente desde esta página.</p>
+<div class="stats">
+<div class="stat"><span>Productos en Supabase</span><strong id="productCount">—</strong></div>
+<div class="stat"><span>Presentaciones en Supabase</span><strong id="presentationCount">—</strong></div>
+</div>
+<section class="panel">
+<h2>1. Consultar y respaldar Supabase</h2>
+<p>Genera una copia de los datos actuales y pégala en las pestañas <code>RESPALDO_PRODUCTOS</code> o <code>RESPALDO_VENTAS</code> del Google Sheets.</p>
+<div class="buttonrow">
+<button type="button" class="outline" id="copyProducts">Copiar productos</button>
+<button type="button" class="outline" id="downloadProducts">Descargar productos</button>
+<button type="button" class="outline" id="copySales">Copiar ventas</button>
+<button type="button" class="outline" id="downloadSales">Descargar ventas</button>
+</div>
+<p id="backupStatus" class="help" role="status"></p>
+<p><a class="sheet-link" href="https://docs.google.com/spreadsheets/d/1cr8mVW4ab6SFY1OJE90TCtHi2i_TnrM8Q8O1PwqawVE/edit" rel="noopener noreferrer" target="_blank">Abrir Google Sheets privado</a></p>
+</section>
+<section class="panel">
+<h2>2. Preparar actualizaciones desde Google Sheets</h2>
+<ol>
+<li>Abre la pestaña <strong>CAMBIOS_PENDIENTES</strong> de Google Sheets.</li>
+<li>Revisa los datos y marca <strong>SI</strong> solamente en las filas autorizadas.</li>
+<li>Copia desde <strong>A1 hasta L</strong> (incluye encabezados), pega aquí y revisa antes de actualizar.</li>
+</ol>
+<p class="notice"><strong>Precio CON IVA</strong>: usa el precio final de venta. Si lo introduces aquí, se convertirá automáticamente al precio sin IVA configurado en Supabase. No completes ambas columnas de precio con valores incompatibles.</p>
+<label for="sheetText">Datos de CAMBIOS_PENDIENTES</label>
+<textarea id="sheetText" rows="7" spellcheck="false" placeholder="Pega aquí la tabla de Google Sheets, desde A1 hasta L..."></textarea>
+<div class="buttonrow">
+<button type="button" id="preview" class="primary">Revisar diferencias con Supabase</button>
+<button type="button" id="clear" class="outline">Limpiar</button>
+</div>
+<p id="previewError" class="error" role="alert"></p>
+</section>
+<section class="panel" id="results" hidden>
+<h2>3. Vista previa antes de aplicar</h2>
+<p id="previewSummary"></p>
+<div class="table-wrap"><table><thead><tr><th>SKU / producto</th><th>Cambio</th><th>Precio final</th><th>Detalle</th></tr></thead><tbody id="previewRows"></tbody></table></div>
+<p id="applyError" class="error" role="alert"></p>
+<div class="buttonrow"><button type="button" id="apply" class="primary" disabled>Aplicar cambios autorizados a Supabase</button></div>
+<p class="notice">Antes de aplicar se vuelve a consultar Supabase. Si los datos cambiaron desde la vista previa, la operación se bloquea.</p>
+</section>
+<section class="panel"><h2>Reglas de seguridad</h2>
+<p>Los cambios solo se envían con sesión de administrador; no se usan credenciales privadas en GitHub Pages. La operación requiere aprobación expresa. Las copias de Google Sheets son instantáneas y no sustituyen un respaldo integral de Postgres ni de fotografías.</p></section>
+</div>
+</main>
+<script src="../config.js"></script><script src="../sync-core.js"></script><script src="./sync.js"></script>
+</body></html>
