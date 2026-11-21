@@ -6,6 +6,8 @@
   const root = document.getElementById("app");
   const CACHE = "nicole-lista-cache", WHO = "nicole-quien", HIDE = "nicole-ocultar-fotos";
   const PAGE = 40;
+  let sheetRows = [];
+  let suggesting = false;
   const store = {
     get(k) { try { return localStorage.getItem(k); } catch { return null; } },
     set(k, v) { try { localStorage.setItem(k, v); } catch { /* sin almacenamiento */ } },
@@ -34,11 +36,31 @@
   function setData(data) {
     state.data = data;
     state.cards = V.buildCards(data);
+    const names = new Set(state.cards.map(c => V.normalize(c.name)));
+    const groups = new Map();
+    for (const row of sheetRows) {
+      const key = V.normalize(row.name);
+      if (!key || names.has(key)) continue;
+      if (!groups.has(key)) groups.set(key, {id: "sheet-" + groups.size, sheet: true, name: row.name, category: row.category, brand: "", photos: [], items: [], haystack: key});
+      const c = groups.get(key);
+      c.items.push({label: row.label, gross: row.amount, cost: null, net: null});
+      c.haystack += " " + V.normalize(row.label + " " + row.category);
+    }
+    state.cards.push(...groups.values());
+    state.cards.sort((a,b) => a.name.localeCompare(b.name, "es"));
   }
   async function load() {
     state.loading = true; render();
     try {
-      const data = await call("catalog");
+      const [sheet, catalog] = await Promise.allSettled([
+        fetch("./sheet-catalog.json", {cache: "no-cache"}).then(r => {
+          if (!r.ok) throw new Error("Catálogo de la hoja no disponible");
+          return r.json();
+        }), call("catalog")
+      ]);
+      if (sheet.status === "fulfilled") sheetRows = sheet.value;
+      if (catalog.status === "rejected") throw catalog.reason;
+      const data = catalog.value;
       setData(data); state.online = true; state.error = "";
       const { photos, ...rest } = data; // las fotos firmadas caducan: no se guardan
       store.set(CACHE, JSON.stringify({ ...rest, photos: [] }));
@@ -47,6 +69,7 @@
       if (!state.data) {
         try { const cached = JSON.parse(store.get(CACHE) || "null"); if (cached?.products) setData(cached); } catch { /* caché dañada */ }
       }
+          if (!state.data && sheetRows.length) setData({products: []});
     } finally { state.loading = false; render(); }
   }
 
@@ -85,6 +108,7 @@
       <label class="v-search"><span aria-hidden="true">⌕</span>
         <input id="q" type="search" inputmode="search" autocomplete="off" placeholder="Buscar producto o marca" value="${esc(state.query)}" aria-label="Buscar producto">
         ${state.query ? `<button class="v-clear" data-act="clear" aria-label="Borrar búsqueda">✕</button>` : ""}</label>
+      ${suggesting && state.query.trim() && results.length ? `<div style="display:grid;gap:.25rem;margin:.25rem 0" class="v-suggestions" aria-label="Sugerencias">${results.slice(0,8).map(c => `<button class="v-chip" data-act="suggest" data-name="${esc(c.name)}">${esc(c.name)}</button>`).join("")}</div>` : ""}
       ${cats.length > 1 ? `<div class="v-chips">${["", ...cats].map((c) =>
         `<button class="v-chip ${state.category === c ? "on" : ""}" data-act="cat" data-cat="${esc(c)}">${esc(c || "Todos")}</button>`).join("")}</div>` : ""}
       ${state.query || state.category ? "" : pending()}
@@ -95,7 +119,7 @@
   }
   function pending() {
     if (!state.online) return "";
-    const { total, list } = V.pendingPhotos(state.cards, state.skipped, 3);
+    const { total, list } = V.pendingPhotos(state.cards.filter(c => !c.sheet), state.skipped, 3);
     if (!total) return "";
     if (state.hidePending) return `<button class="v-link v-show-pending" data-act="showPending">📷 Faltan ${total} fotos</button>`;
     if (!list.length) { state.skipped = []; return pending(); }
@@ -114,11 +138,11 @@
       : `<div class="v-pic v-nopic" aria-hidden="true">▧</div>`;
     const meta = [c.brand, c.category].filter(Boolean).map(esc).join(" · ");
     const items = c.items.length ? c.items.map((i) => `<li><span>${esc(i.label)}</span><span class="v-amounts"><b class="${i.gross === null ? "v-pend" : ""}">${V.money(i.gross)}</b>
-      ${i.gross === null ? "" : `<small>sin IVA ${V.money(i.net)}</small>`}<small>costo ${V.money(i.cost)}</small></span></li>`).join("")
+      ${i.gross === null ? "" : `${c.sheet ? "" : `<small>sin IVA ${V.money(i.net)}</small>`}`}${c.sheet ? "" : `<small>costo ${V.money(i.cost)}</small>`}</span></li>`).join("")
       : `<li><span>Sin presentaciones</span><b class="v-pend">Pendiente</b></li>`;
     return `<article class="v-card">${pic}<div class="v-info"><h3>${esc(c.name)}</h3>${meta ? `<p>${meta}</p>` : ""}
       <ul class="v-prices">${items}</ul>
-      ${state.online ? `<button class="v-link v-addphoto" data-act="photo" data-id="${c.id}">📷 ${c.photos.length ? "Agregar foto o color" : "Tomar foto"}</button>` : ""}</div></article>`;
+      ${state.online && !c.sheet ? `<button class="v-link v-addphoto" data-act="photo" data-id="${c.id}">📷 ${c.photos.length ? "Agregar foto o color" : "Tomar foto"}</button>` : ""}</div></article>`;
   }
   function overlay() {
     if (state.viewer) {
@@ -214,7 +238,7 @@
   // ---------- Eventos ----------
   root.addEventListener("input", (event) => {
     if (event.target.id !== "q") return;
-    state.query = event.target.value; state.limit = PAGE; render();
+    suggesting = true; state.query = event.target.value; state.limit = PAGE; render();
   });
   root.addEventListener("submit", (event) => {
     if (event.target.id !== "photo-form") return;
@@ -227,6 +251,7 @@
     const id = el.dataset.id;
     switch (el.dataset.act) {
       case "reload": load(); break;
+      case "suggest": suggesting = false; state.query = el.dataset.name; state.limit = PAGE; render(); document.getElementById("q")?.focus(); break;
       case "clear": state.query = ""; state.limit = PAGE; render(); document.getElementById("q")?.focus(); break;
       case "cat": state.category = el.dataset.cat || ""; state.limit = PAGE; render(); break;
       case "more": state.limit += PAGE; render(); break;
