@@ -34,6 +34,10 @@ jobs:
           curl -fLsS --max-time 25 "$base/edgar/" -o /tmp/edgar.html
           grep -q 'id="price-editor"' /tmp/edgar.html
           grep -q 'edgar/access.js' /tmp/edgar.html
+          grep -q 'id="sheets-sync-dialog"' /tmp/edgar.html
+          grep -q 'sheets-backup-core.js' /tmp/edgar.html
+          curl -fLsS --max-time 25 "$base/sheets-backup-core.js" -o /tmp/sheet-backup.js
+          grep -q 'RESPALDO' /tmp/sheet-backup.js
           ! grep -q 'id="activation-editor"' /tmp/edgar.html
           curl -fLsS --max-time 25 "$base/edgar/access.js" -o /tmp/edgar-access.js
           grep -q 'EDGAR_EDIT_DEVICE' /tmp/edgar-access.js
