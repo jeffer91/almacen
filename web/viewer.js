@@ -6,6 +6,7 @@
   const root = document.getElementById("app");
   const editor = document.getElementById("price-editor");
   const productEditor = document.getElementById("product-editor");
+  const activationEditor = document.getElementById("activation-editor");
   const deviceKey = "nicole-edgar-device";
   let options = { options: [], assigned: {}, suppliers: null };
   async function rpc(name, fields) {
@@ -16,16 +17,60 @@
     if (!res.ok) throw Error(result.message || "No se pudo conectar con la tabla.");
     return result;
   }
+  function canEdit() {
+    return Boolean(editor && state.online && Array.isArray(options.suppliers));
+  }
+  function isValidDevice(value) { return /^[0-9a-f]{64}$/.test(String(value || "")); }
+  async function pairBrowser(invite) {
+    if (!/^[0-9a-f]{64}$/i.test(invite)) throw Error("El código de activación debe tener 64 caracteres.");
+    let device = store.get(deviceKey);
+    if (!isValidDevice(device)) {
+      device = Array.from(crypto.getRandomValues(new Uint8Array(32)), n => n.toString(16).padStart(2,"0")).join("");
+    }
+    if (!await rpc("family_pair_editor", { invite: invite.toLowerCase(), device })) {
+      throw Error("El enlace de activación ya fue utilizado o no es válido.");
+    }
+    store.set(deviceKey, device);
+  }
   async function activate() {
     const invite = new URLSearchParams(location.hash.slice(1)).get("activar");
     if (!editor || !invite) return;
-    let device = store.get(deviceKey);
-    if (!device) {
-      device = Array.from(crypto.getRandomValues(new Uint8Array(32)), n => n.toString(16).padStart(2,"0")).join("");
-      localStorage.setItem(deviceKey, device);
+    try {
+      await pairBrowser(invite.trim());
+    } finally {
+      // El token es privado: quitarlo de la barra, incluso si hay un error.
+      history.replaceState(null, "", location.pathname + location.search);
     }
-    if (!await rpc("family_pair_editor", { invite, device })) throw Error("Este enlace de activación ya se utilizó.");
-    history.replaceState(null, "", location.pathname + location.search);
+  }
+  function showActivation() {
+    if (!activationEditor) return;
+    const form = activationEditor.querySelector("form");
+    const message = document.getElementById("activation-status");
+    const cancel = document.getElementById("cancel-activation");
+    const save = form.querySelector("[type=submit]");
+    if (activationEditor.open) return;
+    form.reset();
+    message.textContent = "";
+    cancel.onclick = () => activationEditor.close();
+    activationEditor.oncancel = event => { if (save.disabled) event.preventDefault(); };
+    form.onsubmit = async event => {
+      event.preventDefault();
+      if (save.disabled) return;
+      save.disabled = cancel.disabled = true;
+      try {
+        await pairBrowser(form.elements.invite.value.trim());
+        activationEditor.close();
+        await load();
+        if (!canEdit()) throw Error("Se guardó la activación, pero no se confirmó el acceso. Recarga la página.");
+        toast("Edición habilitada en este navegador");
+      } catch (error) {
+        message.textContent = String(error.message || error);
+      } finally {
+        save.disabled = cancel.disabled = false;
+      }
+    };
+    activationEditor.showModal();
+    form.elements.invite.focus();
   }
   const CACHE = "nicole-lista-cache", WHO = "nicole-quien", HIDE = "nicole-ocultar-fotos";
   const PAGE = 40;
@@ -159,7 +204,7 @@
     }
   }
   async function checkPublishedChanges() {
-    if (!document.hidden && !editor?.open && !productEditor?.open && !state.viewer && !state.draft && !state.photoFor) await load();
+    if (!document.hidden && !editor?.open && !productEditor?.open && !activationEditor?.open && !state.viewer && !state.draft && !state.photoFor) await load();
   }
   window.setInterval(checkPublishedChanges, 60000);
 
@@ -178,7 +223,7 @@
       <div class="v-brand"><img src="./assets/nicole-icon.svg" alt="" width="40" height="40">
         <div><strong>Nicole Encajes</strong><span>${editor ? "Edgar · Edición del catálogo" : "Lista de precios"}</span></div></div>
       <div class="v-actions">
-        ${editor && state.online && Array.isArray(options.suppliers) ? '<button class="v-btn v-add-product" data-act="new-product">+ Nuevo producto</button>' : ""}
+        ${editor && state.online ? '<button class="v-btn v-add-product" data-act="new-product">+ Nuevo producto</button>' : ""}
         <a class="v-mini v-ventas" href="./ventas/">Ventas</a>
         <a class="v-mini v-ventas" href="./sincronizar/" title="Respaldo y sincronización con Google Sheets (requiere PIN)">Respaldo</a>
         <button class="v-mini" data-act="pdf" ${ready ? "" : "disabled"} title="Descargar PDF">PDF</button>
@@ -193,7 +238,7 @@
       <button class="v-link" data-act="reload">Reintentar</button></p>` : "";
     if (!state.cards.length) return offline + `<section class="v-empty"><h2>Todavía no hay productos con precio o costo registrado</h2>
       <p>Aún no hay productos para mostrar.</p>
-      ${editor && state.online && Array.isArray(options.suppliers) ? '<button class="v-btn v-add-empty" data-act="new-product">+ Agregar primer producto</button>' : ""}</section>`;
+      ${editor && state.online ? '<button class="v-btn v-add-empty" data-act="new-product">+ Agregar primer producto</button>' : ""}</section>`;
     const results = V.search(state.cards, state.query, state.category);
     const cats = V.categories(state.cards);
     return offline + `<div class="v-layout"><div class="v-results">
@@ -209,7 +254,8 @@
       <select aria-label="Filtrar por categoría" id="category-select">${["", ...cats].map(c => `<option value="${esc(c)}" ${c === state.category ? "selected" : ""}>${esc(c || "Todos")}</option>`).join("")}</select></aside></div>`;
   }
   function catalogTable(cards) {
-    const editable = editor && state.online && Array.isArray(options.suppliers);
+    const editable = canEdit();
+    const showActions = Boolean(editor);
     const rows = cards.flatMap(c => c.items.map((item, index) => {
       const attrs = `data-id="${esc(c.id)}" data-index="${index}"`;
       const reference = item.gross == null && item.referencePrice != null;
@@ -219,12 +265,17 @@
         <td>${esc(item.label)}</td><td>${esc(item.supplier || "—")}</td><td>${esc(qty)}</td>
         <td class="money">${item.cost == null ? "—" : V.money(item.cost)}</td>
         <td class="money sale">${price == null ? "—" : V.money(price)}${reference ? "<small>Referencia · unidad por confirmar</small>" : ""}${item.net != null ? "<small>Sin IVA: "+V.money(item.net)+"</small>" : ""}</td>
-        ${editable ? `<td><button class="v-mini" data-act="edit-price" ${attrs}>Editar</button>
-        ${index === 0 ? `<button class="v-mini" data-act="add-option" ${attrs}>Agregar opción</button>` : ""}</td>` : ""}</tr>`;
+        ${showActions ? `<td class="v-row-actions">
+          <button class="v-pencil" data-act="edit-price" ${attrs} aria-label="Editar precio de ${esc(c.name)}, ${esc(item.label)}" title="Editar precio y presentación" ${state.online ? "" : "disabled"}>
+            <svg aria-hidden="true" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L9 17l-4 1 1-4z"/></svg><span>Editar</span>
+          </button>
+          ${index === 0 ? `<button class="v-mini" data-act="add-option" ${attrs} ${state.online ? "" : "disabled"}>+ Opción</button>` : ""}
+        </td>` : ""}</tr>`;
     })).join("");
-    return (editor && !editable && state.online ? '<p>Para editar, abre el enlace de activación en este navegador.</p>' : "") +
+    return (editor && !editable && state.online ?
+      '<div class="v-activation-banner">La edición todavía no está activada en este navegador. <button class="v-mini" data-act="activate-editor">Activar edición</button></div>' : "") +
       `<div class="table-scroll" role="region" aria-label="Tabla de productos" tabindex="0"><table class="catalog-table">
-      <thead><tr>${["Producto","Presentación","Proveedor","Cantidad","Costo de compra","Precio de venta",...(editable ? ["Acciones"] : [])].map(h=>"<th scope=col>"+h+"</th>").join("")}</tr></thead><tbody>${rows}</tbody></table></div>`;
+      <thead><tr>${["Producto","Presentación","Proveedor","Cantidad","Costo de compra","Precio de venta",...(showActions ? ["Acciones"] : [])].map(h=>"<th scope=col>"+h+"</th>").join("")}</tr></thead><tbody>${rows}</tbody></table></div>`;
   }
   function overlay() {
     if (state.viewer) {
@@ -320,6 +371,7 @@
   function openEditor(card, item, adding) {
     const form = editor.querySelector("form");
     const f = form.elements;
+    if (!canEdit()) return showActivation();
     const current = adding ? {} : item;
     const qty = /^(\d+(?:[.,]\d+)?)\s+(.+)$/.exec(current.label || "");
     const status = document.getElementById("edit-status");
@@ -327,11 +379,11 @@
     const save = form.querySelector("[type=submit]");
     document.getElementById("supplier-list").innerHTML = options.suppliers.map(n => `<option value="${esc(n)}"></option>`).join("");
     document.getElementById("edit-product").textContent = card.name;
-    document.getElementById("edit-title").textContent = adding ? "Agregar opción" : "Editar opción";
+    document.getElementById("edit-title").textContent = adding ? "Agregar presentación o proveedor" : "Editar precio y presentación";
     form.reset();
     for (const field of ["label","supplier","gross","cost"]) f[field].value = current[field] ?? "";
-    f.quantity.value = current.quantity ?? qty?.[1].replace(",",".") ?? "";
-    f.unit.value = current.unit ?? qty?.[2] ?? "";
+    f.quantity.value = current.quantity ?? qty?.[1].replace(",",".") ?? "1";
+    f.unit.value = current.unit ?? qty?.[2] ?? "unidad";
     status.textContent = "";
     cancel.onclick = () => editor.close();
     editor.oncancel = event => { if (save.disabled) event.preventDefault(); };
@@ -366,7 +418,8 @@
   }
 
   function openNewProduct() {
-    if (!productEditor || !state.online || !Array.isArray(options.suppliers)) return;
+    if (!productEditor || !state.online) return;
+    if (!canEdit()) return showActivation();
     const form = productEditor.querySelector("form");
     const f = form.elements;
     const save = form.querySelector("[type=submit]");
@@ -443,6 +496,7 @@
     if (el.dataset.act === "close" && el !== event.target && el.classList.contains("v-overlay")) return;
     const id = el.dataset.id;
     switch (el.dataset.act) {
+      case "activate-editor": showActivation(); break;
       case "new-product": openNewProduct(); break;
       case "add-option":
       case "edit-price": {
