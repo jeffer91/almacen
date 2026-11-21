@@ -6,6 +6,7 @@
   const root = document.getElementById("app");
   const editor = document.getElementById("price-editor");
   const productEditor = document.getElementById("product-editor");
+  const sheetDialog = document.getElementById("sheets-sync-dialog");
   let options = { options: [], assigned: {}, suppliers: null };
   async function rpc(name, fields) {
     const url = new URL("/rest/v1/rpc/" + name, apiUrl);
@@ -150,7 +151,7 @@
     }
   }
   async function checkPublishedChanges() {
-    if (!document.hidden && !editor?.open && !productEditor?.open && !state.viewer && !state.draft && !state.photoFor) await load();
+    if (!document.hidden && !editor?.open && !productEditor?.open && !sheetDialog?.open && !state.viewer && !state.draft && !state.photoFor) await load();
   }
   window.setInterval(checkPublishedChanges, 60000);
 
@@ -169,6 +170,7 @@
       <div class="v-brand"><img src="./assets/nicole-icon.svg" alt="" width="40" height="40">
         <div><strong>Nicole Encajes</strong><span>${editor ? "Edgar · Edición del catálogo" : "Lista de precios"}</span></div></div>
       <div class="v-actions">
+        ${editor ? '<button class="v-mini v-sync-btn" data-act="sync-sheet" title="Respaldar cambios de Supabase en Google Sheets">⟳ Google Sheets</button>' : ""}
         ${editor && state.online ? '<button class="v-btn v-add-product" data-act="new-product">+ Nuevo producto</button>' : ""}
         <a class="v-mini v-ventas" href="./ventas/">Ventas</a>
         <a class="v-mini v-ventas" href="./sincronizar/" title="Respaldo y sincronización con Google Sheets (requiere PIN)">Respaldo</a>
@@ -356,7 +358,7 @@
         }
         editor.close();
         await load();
-        toast(state.online ? "Opción guardada" : "Guardado. Recarga para ver los cambios.");
+        toast(state.online ? "Guardado en Supabase. Sincroniza Google Sheets cuando quieras." : "Guardado. Recarga para ver los cambios.");
       } catch(error) { status.textContent = error.message; }
       finally { save.disabled = cancel.disabled = false; }
     };
@@ -409,7 +411,7 @@
         state.category = "";
         state.limit = PAGE;
         await load();
-        toast(state.online ? "Producto creado y guardado para toda la familia" : "Producto guardado. Recarga para ver los cambios.");
+        toast(state.online ? "Producto guardado en Supabase. Sincroniza Google Sheets." : "Producto guardado. Recarga para ver los cambios.");
       } catch (error) {
         status.textContent = error.message || "No fue posible guardar el producto.";
       } finally {
@@ -418,6 +420,72 @@
     };
     productEditor.showModal();
     f.product.focus();
+  }
+
+  // Sincronización: nunca se considera realizada hasta que Google Sheets confirme la escritura.
+  function syncStatus(message,kind="") {
+    const target=document.getElementById("sheets-sync-status");
+    if(target) { target.textContent=message; target.className=kind; }
+  }
+  function openSheetSync() {
+    if(!sheetDialog) return;
+    syncStatus("La base oficial es Supabase. El respaldo incluye únicamente registros ya guardados en Supabase, no referencias estáticas de la web.");
+    sheetDialog.showModal();
+  }
+  async function sendSheetSync() {
+    if(!sheetDialog?.open || !state.online) return syncStatus("Sin conexión. Recarga el catálogo antes de sincronizar.","error");
+    const button=document.getElementById("sheets-sync-now");
+    if(button.disabled) return;
+    button.disabled=true;
+    syncStatus("Enviando respaldo actual de Supabase a Google Sheets…");
+    try {
+      const target=apiUrl.replace(/\/catalog-api$/,"/sync-sheets");
+      if(target===apiUrl) throw Error("No está configurada la dirección de sincronización.");
+      const response=await fetch(target,{method:"POST",headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({device:String(window.EDGAR_EDIT_DEVICE||"")}),cache:"no-store"});
+      const result=await response.json().catch(()=>({}));
+      if(!response.ok || !result.ok) {
+        if(result.code==="GOOGLE_NOT_CONNECTED" || result.needs_setup) {
+          throw Error("La conexión automática con Google todavía no está autorizada. Usa «Copiar respaldo de Supabase» y pégalo en RESPALDO_EDGAR, o completa la configuración de Apps Script.");
+        }
+        throw Error(result.error||"Google Sheets no confirmó la sincronización.");
+      }
+      syncStatus("Google Sheets actualizado correctamente: "+result.rows+" registros respaldados desde Supabase. Fecha UTC: "+result.synced_at,"good");
+    } catch(error) {
+      syncStatus(String(error.message||error),"error");
+    } finally {
+      button.disabled=false;
+    }
+  }
+  function freshSheetRows() {
+    if(!state.online || !state.data || !window.NICOLE_SHEETS_BACKUP)
+      throw Error("No hay una lectura en línea de Supabase. Pulsa recargar antes de exportar.");
+    const today=new Intl.DateTimeFormat("en-CA",{year:"numeric",month:"2-digit",day:"2-digit",
+      timeZone:"America/Guayaquil"}).format(new Date());
+    return window.NICOLE_SHEETS_BACKUP.backupRows(state.data,options,today);
+  }
+  async function copySheetBackup() {
+    try {
+      const rows=freshSheetRows();
+      if(!navigator.clipboard?.writeText) throw Error("El navegador no permite copiar. Pulsa «Descargar respaldo TSV».");
+      await navigator.clipboard.writeText(window.NICOLE_SHEETS_BACKUP.asTSV(rows));
+      syncStatus("Copiados "+(rows.length-1)+" registros oficiales de Supabase. En Google Sheets abre RESPALDO_EDGAR, borra los valores anteriores A:R y pega desde A1. Aún no está sincronizado hasta que pegues.","good");
+    }catch(error) { syncStatus(String(error.message||error),"error"); }
+  }
+  function downloadSheetBackup() {
+    try {
+      const rows=freshSheetRows();
+      const tsv=window.NICOLE_SHEETS_BACKUP.asTSV(rows);
+      download(new Blob(["\\uFEFF"+tsv],{type:"text/tab-separated-values;charset=utf-8"}),
+        "Nicole_Encajes_Respaldo_Edgar_"+stamp()+".tsv");
+      syncStatus("Descargados "+(rows.length-1)+" registros oficiales. Abre RESPALDO_EDGAR e importa el TSV; esto aún no actualiza Google Sheets.","good");
+    }catch(error) {syncStatus(String(error.message||error),"error");}
+  }
+  if(sheetDialog) {
+    document.getElementById("sheets-sync-close").onclick=()=>sheetDialog.close();
+    document.getElementById("sheets-sync-now").onclick=sendSheetSync;
+    document.getElementById("sheets-copy").onclick=copySheetBackup;
+    document.getElementById("sheets-download").onclick=downloadSheetBackup;
   }
 
   // ---------- Eventos ----------
@@ -442,6 +510,7 @@
     if (el.dataset.act === "close" && el !== event.target && el.classList.contains("v-overlay")) return;
     const id = el.dataset.id;
     switch (el.dataset.act) {
+      case "sync-sheet": openSheetSync(); break;
       case "new-product": openNewProduct(); break;
       case "add-option":
       case "edit-price": {
