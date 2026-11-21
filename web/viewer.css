@@ -102,14 +102,15 @@ button:disabled{opacity:.5;cursor:not-allowed}
 @media(max-width:420px){.v-top{flex-wrap:wrap}.v-actions{width:100%;justify-content:flex-end}}
 
 .v-main { width: min(1120px, 100%); }
-.v-layout { display: grid; grid-template-columns: minmax(0, 1fr) 210px; align-items: start; gap: 20px; }
-.v-categories { position: sticky; top: 80px; padding: 16px; background: var(--card); border: 1px solid var(--edge); border-radius: 14px; }
+.v-layout { display: grid; grid-template-columns: 210px minmax(0, 1fr); grid-template-areas: "categories results"; align-items: start; gap: 20px; }
+.v-results { grid-area: results; }
+.v-categories { grid-area: categories; position: sticky; top: 80px; padding: 16px; background: var(--card); border: 1px solid var(--edge); border-radius: 14px; }
 .v-categories nav { display: grid; gap: 6px; margin-top: 12px; }
 .v-categories button { text-align: left; border-radius: 8px; }
 .v-categories select { display: none; }
 @media (max-width: 760px) {
   .v-layout { display: flex; flex-direction: column; align-items: stretch; gap: 12px; }
-  .v-categories { position: static; order: -1; align-self: flex-end; display: flex; align-items: center; gap: 8px; padding: 6px 10px; font-size: 15px; }
+  .v-categories { position: static; order: -1; align-self: flex-start; display: flex; align-items: center; gap: 8px; padding: 6px 10px; font-size: 15px; }
   .v-categories nav { display: none; }
   .v-categories select { display: block; max-width: 50vw; font: inherit; padding: 6px; }
 }
