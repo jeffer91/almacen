@@ -43,7 +43,7 @@
       if (!key || names.has(key)) continue;
       if (!groups.has(key)) groups.set(key, {id: "sheet-" + groups.size, sheet: true, name: row.name, category: row.category, brand: "", photos: [], items: [], haystack: key});
       const c = groups.get(key);
-      c.items.push({label: row.label, gross: row.amount, cost: null, net: null});
+      c.items.push({label: row.label, gross: row.amount, cost: row.cost ?? null, referencePrice: row.referencePrice ?? null, net: null});
       c.haystack += " " + V.normalize(row.label + " " + row.category);
     }
     state.cards.push(...groups.values());
@@ -137,8 +137,16 @@
       ? `<button class="v-pic" data-act="view" data-id="${c.id}" aria-label="Ver fotos de ${esc(c.name)}"><img src="${esc(main.signed_url)}" alt="" loading="lazy">${c.photos.length > 1 ? `<span>${c.photos.length}</span>` : ""}</button>`
       : `<div class="v-pic v-nopic" aria-hidden="true">▧</div>`;
     const meta = [c.brand, c.category].filter(Boolean).map(esc).join(" · ");
-    const items = c.items.length ? c.items.map((i) => `<li><span>${esc(i.label)}</span><span class="v-amounts"><b class="${i.gross === null ? "v-pend" : ""}">${V.money(i.gross)}</b>
-      ${i.gross === null ? "" : `${c.sheet ? "" : `<small>sin IVA ${V.money(i.net)}</small>`}`}${c.sheet ? "" : `<small>costo ${V.money(i.cost)}</small>`}</span></li>`).join("")
+    const items = c.items.length ? c.items.map((item) => {
+      const reference = item.gross == null && item.referencePrice != null;
+      const price = item.gross ?? item.referencePrice;
+      return `<li><span>${esc(item.label)}</span><span class="v-amounts">
+        <b>Precio de venta: ${price == null ? "Sin registrar" : V.money(price)}</b>
+        ${reference ? "<small>Precio de referencia · unidad de venta por confirmar</small>" : ""}
+        ${item.net == null ? "" : `<small>Sin IVA: ${V.money(item.net)}</small>`}
+        <small>Costo de compra: ${item.cost == null ? "Sin registrar" : V.money(item.cost)}</small>
+      </span></li>`;
+    }).join("")
       : `<li><span>Sin presentaciones</span><b class="v-pend">Pendiente</b></li>`;
     return `<article class="v-card">${pic}<div class="v-info"><h3>${esc(c.name)}</h3>${meta ? `<p>${meta}</p>` : ""}
       <ul class="v-prices">${items}</ul>

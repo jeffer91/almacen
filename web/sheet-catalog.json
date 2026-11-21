@@ -3,312 +3,416 @@
     "name": "Encaje AMANDA",
     "category": "Encajes",
     "label": "100 metros",
-    "amount": null
+    "amount": null,
+    "cost": null,
+    "referencePrice": 29.9
   },
   {
     "name": "Encaje AZALEA",
     "category": "Encajes",
     "label": "100 metros",
-    "amount": null
+    "amount": null,
+    "cost": 22.25,
+    "referencePrice": 24.7
   },
   {
     "name": "Encaje BECKY",
     "category": "Encajes",
     "label": "80 metros",
-    "amount": null
+    "amount": null,
+    "cost": 27.5,
+    "referencePrice": 30.5
   },
   {
     "name": "Encaje BORDADA",
     "category": "Encajes",
     "label": "200 metros",
-    "amount": null
+    "amount": null,
+    "cost": 22,
+    "referencePrice": 24.5
   },
   {
     "name": "Encaje BORDADITO",
     "category": "Encajes",
     "label": "300 metros",
-    "amount": null
+    "amount": null,
+    "cost": 20.5,
+    "referencePrice": 22.8
   },
   {
     "name": "Encaje CAMPANITAS",
     "category": "Encajes",
     "label": "500 metros",
-    "amount": null
+    "amount": null,
+    "cost": 28.5,
+    "referencePrice": 31.7
   },
   {
     "name": "Encaje CATALINA",
     "category": "Encajes",
     "label": "100 metros",
-    "amount": null
+    "amount": null,
+    "cost": 28.5,
+    "referencePrice": 31.7
   },
   {
     "name": "Encaje CHAVELA",
     "category": "Encajes",
     "label": "200 metros",
-    "amount": null
+    "amount": null,
+    "cost": 19.5,
+    "referencePrice": 21.7
   },
   {
     "name": "Encaje CHAVELA -ik",
     "category": "Encajes",
     "label": "300 yardas",
-    "amount": null
+    "amount": null,
+    "cost": 21,
+    "referencePrice": null
   },
   {
     "name": "Encaje CHAVELITA",
     "category": "Encajes",
     "label": "200 metros",
-    "amount": null
+    "amount": null,
+    "cost": 15,
+    "referencePrice": 16.6
   },
   {
     "name": "Encaje CHAVELITA -ik",
     "category": "Encajes",
     "label": "100 yardas",
-    "amount": null
+    "amount": null,
+    "cost": 5,
+    "referencePrice": null
   },
   {
     "name": "Encaje CLAVELITOS",
     "category": "Encajes",
     "label": "300 metros",
-    "amount": null
+    "amount": null,
+    "cost": 29.75,
+    "referencePrice": 33
   },
   {
     "name": "Encaje DALIA",
     "category": "Encajes",
     "label": "200 metros",
-    "amount": null
+    "amount": null,
+    "cost": 26.5,
+    "referencePrice": 29.4
   },
   {
     "name": "Encaje DALIA -ik",
     "category": "Encajes",
     "label": "100 yardas",
-    "amount": null
+    "amount": null,
+    "cost": 9.5,
+    "referencePrice": null
   },
   {
     "name": "Encaje DALIA -ad",
     "category": "Encajes",
     "label": "200 metros",
-    "amount": null
+    "amount": null,
+    "cost": 18.5,
+    "referencePrice": null
   },
   {
     "name": "Encaje ENCAJE -Ref. 915 *ks",
     "category": "Encajes",
     "label": "50 yardas",
-    "amount": null
+    "amount": null,
+    "cost": null,
+    "referencePrice": 20.8
   },
   {
     "name": "Encaje ESPLENDOR",
     "category": "Encajes",
     "label": "150 metros",
-    "amount": null
+    "amount": null,
+    "cost": 26.5,
+    "referencePrice": 29.4
   },
   {
     "name": "Encaje FANTASIA",
     "category": "Encajes",
     "label": "100 metros",
-    "amount": null
+    "amount": null,
+    "cost": 17.75,
+    "referencePrice": 19.7
   },
   {
     "name": "Encaje GIRASOL",
     "category": "Encajes",
     "label": "200 metros",
-    "amount": null
+    "amount": null,
+    "cost": 16,
+    "referencePrice": 17.8
   },
   {
     "name": "Encaje GIRASOL -ik",
     "category": "Encajes",
     "label": "220 yardas",
-    "amount": null
+    "amount": null,
+    "cost": 14,
+    "referencePrice": null
   },
   {
     "name": "Encaje GLOBITO",
     "category": "Encajes",
     "label": "200 metros",
-    "amount": null
+    "amount": null,
+    "cost": 19.5,
+    "referencePrice": 21.8
   },
   {
     "name": "Encaje GLOBITO -ik",
     "category": "Encajes",
     "label": "100 metros",
-    "amount": null
+    "amount": null,
+    "cost": 7,
+    "referencePrice": null
   },
   {
     "name": "Encaje GLOBITO -ad",
     "category": "Encajes",
     "label": "200 metros",
-    "amount": null
+    "amount": null,
+    "cost": 16.75,
+    "referencePrice": 19.5
   },
   {
     "name": "Encaje GLOBO -Met 2 y 3",
     "category": "Encajes",
     "label": "",
-    "amount": null
+    "amount": null,
+    "cost": 20.75,
+    "referencePrice": 22.9
   },
   {
     "name": "Encaje ILANA",
     "category": "Encajes",
     "label": "60 metros",
-    "amount": null
+    "amount": null,
+    "cost": 1.17,
+    "referencePrice": 1.3
   },
   {
     "name": "Encaje ILUSION -ik",
     "category": "Encajes",
     "label": "200 yardas",
-    "amount": null
+    "amount": null,
+    "cost": 25,
+    "referencePrice": null
   },
   {
     "name": "Encaje ILUSION",
     "category": "Encajes",
     "label": "100 metros",
-    "amount": null
+    "amount": null,
+    "cost": 18.5,
+    "referencePrice": 20.6
   },
   {
     "name": "Encaje ILUSIONCITA",
     "category": "Encajes",
     "label": "200 metros",
-    "amount": null
+    "amount": null,
+    "cost": 26,
+    "referencePrice": 28.8
   },
   {
     "name": "Encaje ISADORA",
     "category": "Encajes",
     "label": "300 metros",
-    "amount": null
+    "amount": null,
+    "cost": null,
+    "referencePrice": 29.2
   },
   {
     "name": "Encaje KIKI",
     "category": "Encajes",
     "label": "100 metros",
-    "amount": null
+    "amount": null,
+    "cost": 19.25,
+    "referencePrice": 21.5
   },
   {
     "name": "Encaje LUCERO - 10,00",
     "category": "Encajes",
     "label": "150 metros",
-    "amount": null
+    "amount": null,
+    "cost": null,
+    "referencePrice": 25.2
   },
   {
     "name": "Encaje MELANY",
     "category": "Encajes",
     "label": "60 metros",
-    "amount": null
+    "amount": null,
+    "cost": 0.51,
+    "referencePrice": 0.68
   },
   {
     "name": "Encaje ORIOLE",
     "category": "Encajes",
     "label": "100 metros",
-    "amount": null
+    "amount": null,
+    "cost": 255,
+    "referencePrice": 79.3
   },
   {
     "name": "Encaje PANAMA",
     "category": "Encajes",
     "label": "200 metros",
-    "amount": null
+    "amount": null,
+    "cost": 28.5,
+    "referencePrice": 31.7
   },
   {
     "name": "Encaje PANAMA Bic.",
     "category": "Encajes",
     "label": "300 metros",
-    "amount": null
+    "amount": null,
+    "cost": 24,
+    "referencePrice": 26.8
   },
   {
     "name": "Encaje PASACINTA",
     "category": "Encajes",
     "label": "300 metros",
-    "amount": null
+    "amount": null,
+    "cost": 17.5,
+    "referencePrice": 19.4
   },
   {
     "name": "Encaje PEPITAS",
     "category": "Encajes",
     "label": "500 metros",
-    "amount": null
+    "amount": null,
+    "cost": 21.5,
+    "referencePrice": 23.8
   },
   {
     "name": "Encaje PEPITAS -ik",
     "category": "Encajes",
     "label": "600 yardas",
-    "amount": null
+    "amount": null,
+    "cost": 18,
+    "referencePrice": null
   },
   {
     "name": "Encaje PEPITAS -ad",
     "category": "Encajes",
     "label": "500 metros",
-    "amount": null
+    "amount": null,
+    "cost": 18.5,
+    "referencePrice": null
   },
   {
     "name": "Encaje PEPITAS Lurex.Esp.",
     "category": "Encajes",
     "label": "500 metros",
-    "amount": null
+    "amount": null,
+    "cost": null,
+    "referencePrice": 25
   },
   {
     "name": "Encaje RAQUELITA",
     "category": "Encajes",
     "label": "200 metros",
-    "amount": null
+    "amount": null,
+    "cost": 0.3,
+    "referencePrice": 0.4
   },
   {
     "name": "Encaje SABROSO",
     "category": "Encajes",
     "label": "100 metros",
-    "amount": null
+    "amount": null,
+    "cost": 18.25,
+    "referencePrice": 20.5
   },
   {
     "name": "Encaje SABROSO -ik",
     "category": "Encajes",
     "label": "100 metros",
-    "amount": null
+    "amount": null,
+    "cost": 13,
+    "referencePrice": null
   },
   {
     "name": "Encaje SABROSO -ad",
     "category": "Encajes",
     "label": "100 metros",
-    "amount": null
+    "amount": null,
+    "cost": 15.5,
+    "referencePrice": null
   },
   {
     "name": "Encaje SABROSO LUREX",
     "category": "Encajes",
     "label": "100 metros",
-    "amount": null
+    "amount": null,
+    "cost": 16,
+    "referencePrice": 21.5
   },
   {
     "name": "Cinta N.º 4",
     "category": "",
     "label": "Rollo",
-    "amount": 2.9
+    "amount": 2.9,
+    "cost": null,
+    "referencePrice": null
   },
   {
     "name": "Apliques (modelo por identificar)",
     "category": "",
     "label": "Pieza",
-    "amount": null
+    "amount": null,
+    "cost": null,
+    "referencePrice": null
   },
   {
     "name": "Fleco corto (JN5)",
     "category": "",
     "label": "Metro",
-    "amount": 0.6
+    "amount": 0.6,
+    "cost": null,
+    "referencePrice": null
   },
   {
     "name": "Fleco corto Lurex (JN5 Lurex)",
     "category": "",
     "label": "Metro",
-    "amount": 0.7
+    "amount": 0.7,
+    "cost": null,
+    "referencePrice": null
   },
   {
     "name": "Cinta N.º 2",
     "category": "",
     "label": "Rollo",
-    "amount": 1.6
+    "amount": 1.6,
+    "cost": null,
+    "referencePrice": null
   },
   {
     "name": "Silicón delgado",
     "category": "",
     "label": "Otro",
-    "amount": null
+    "amount": null,
+    "cost": null,
+    "referencePrice": null
   },
   {
     "name": "Plastigancho",
     "category": "",
     "label": "Caja",
-    "amount": 10
+    "amount": 10,
+    "cost": null,
+    "referencePrice": null
   }
 ]
