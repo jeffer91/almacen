@@ -137,3 +137,17 @@ button:disabled{opacity:.5;cursor:not-allowed}
 #price-editor label:not([hidden]) { display: grid; gap: 4px; margin: 12px 0; }
 #price-editor input { padding: 8px; width: 100%; border: 1px solid var(--edge); border-radius: 8px; }
 .edit-price { grid-column: 1 / -1; justify-self: end; }
+.v-results { min-width: 0; }
+.table-scroll { overflow-x:auto; max-width:100%; border:1px solid var(--edge); border-radius:12px; background:white; }
+.catalog-table { width:100%; border-collapse:separate; border-spacing:0; font-size:1rem; }
+.catalog-table th,.catalog-table td { text-align:left; padding:.8rem .65rem; border-bottom:1px solid var(--edge); }
+.catalog-table thead th { font-size:.86rem; background:#f0edf9; color:#46376b; }
+.catalog-table tbody th { min-width:8rem; }
+.catalog-table .money { text-align:right; font-variant-numeric:tabular-nums; font-weight:650; }
+.catalog-table .sale { color:#006852; }
+.catalog-table small { display:block; font-size:.75rem; font-weight:400; color:var(--muted); }
+.catalog-table tbody tr:hover { background:#faf9fe; }
+@media(max-width:720px) {
+  .catalog-table { min-width:650px; }
+  .catalog-table th:first-child { position:sticky; left:0; background:#faf9ff; max-width:9rem; border-right:1px solid var(--edge); }
+}

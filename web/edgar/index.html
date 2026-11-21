@@ -6,9 +6,14 @@
 <link rel="stylesheet" href="./viewer.css"><link rel="icon" href="./assets/nicole-icon.svg" type="image/svg+xml"></head>
 <body data-profile="edgar"><div id="app"><p class="v-empty">Cargando precios…</p></div>
 <dialog id="price-editor" aria-labelledby="edit-title"><form>
-<h2 id="edit-title">Editar precio</h2><p id="edit-product"></p>
-<label>Precio de venta por presentación (con IVA)<input name="gross" type="number" inputmode="decimal" min="0" step="0.01" required></label>
-<label id="pin-label">PIN de administración<input name="pin" type="password" inputmode="numeric" pattern="[0-9]{4,8}" autocomplete="off"></label>
+<h2 id="edit-title">Editar opción</h2><p id="edit-product"></p>
+<label>Presentación<input name="label" list="labels" required maxlength="100"></label>
+<datalist id="labels"><option>Pieza</option><option>Docena</option><option>Rollo</option></datalist>
+<label>Proveedor<input name="supplier" list="supplier-list" maxlength="160" autocomplete="off"></label><datalist id="supplier-list"></datalist>
+<label>Cantidad por presentación<input name="quantity" type="number" min="0.001" step="0.001"></label>
+<label>Unidad de la cantidad<input name="unit" maxlength="80" placeholder="Ej. metros"></label>
+<label>Costo de compra ($)<input name="cost" type="number" inputmode="decimal" min="0" step="0.0001"></label>
+<label>Precio de venta con IVA ($)<input name="gross" type="number" inputmode="decimal" min="0" step="0.01"></label>
 <p role="status" id="edit-status"></p><button type="button" id="cancel-edit" class="v-mini">Cancelar</button>
-<button class="v-btn" type="submit">Guardar precio</button></form></dialog>
+<button class="v-btn" type="submit">Guardar cambios</button></form></dialog>
 <script src="./config.js"></script><script src="./excel.js"></script><script src="./viewer-core.js"></script><script src="./viewer.js"></script></body></html>

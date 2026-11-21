@@ -38,7 +38,7 @@ jobs:
               echo "ALMACEN_SUPABASE_PROJECT_REF inválida"
               exit 1
             fi
-            printf 'window.ALMACEN_API_URL = "https://%s.supabase.co/functions/v1/catalog-api";\n' "$SUPABASE_REF" > site/config.js
+            printf 'window.ALMACEN_API_URL = "https://%s.supabase.co/functions/v1/catalog-api";\n' "$SUPABASE_REF" >> site/config.js
           fi
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3

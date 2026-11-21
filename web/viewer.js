@@ -5,7 +5,27 @@
   const apiUrl = String(window.ALMACEN_API_URL || "").trim().replace(/\/$/, "");
   const root = document.getElementById("app");
   const editor = document.getElementById("price-editor");
-  let editToken = "";
+  const deviceKey = "nicole-edgar-device";
+  let options = { options: [], assigned: {}, suppliers: null };
+  async function rpc(name, fields) {
+    const url = new URL("/rest/v1/rpc/" + name, apiUrl);
+    const res = await fetch(url, { method: "POST", headers: { apikey: window.ALMACEN_PUBLIC_KEY,
+      "Content-Type": "application/json" }, body: JSON.stringify(fields), cache: "no-store" });
+    const result = await res.json();
+    if (!res.ok) throw Error(result.message || "No se pudo conectar con la tabla.");
+    return result;
+  }
+  async function activate() {
+    const invite = new URLSearchParams(location.hash.slice(1)).get("activar");
+    if (!editor || !invite) return;
+    let device = store.get(deviceKey);
+    if (!device) {
+      device = Array.from(crypto.getRandomValues(new Uint8Array(32)), n => n.toString(16).padStart(2,"0")).join("");
+      localStorage.setItem(deviceKey, device);
+    }
+    if (!await rpc("family_pair_editor", { invite, device })) throw Error("Este enlace de activación ya se utilizó.");
+    history.replaceState(null, "", location.pathname + location.search);
+  }
   const CACHE = "nicole-lista-cache", WHO = "nicole-quien", HIDE = "nicole-ocultar-fotos";
   const PAGE = 40;
   let sheetRows = [];
@@ -33,7 +53,7 @@
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok || !data.ok) {
-      if (token && res.status === 401) editToken = "";
+
       throw new Error(data.error || "No fue posible conectar");
     }
     return data;
@@ -60,6 +80,17 @@
       c.haystack += " " + V.normalize(row.label + " " + row.category);
     }
     state.cards.push(...Array.from(groups.values()).filter(c => c.sheet && hasAmount(c)));
+    for (const c of state.cards) {
+      const matches = options.options.filter(o => o.product === c.name && o.brand === c.brand);
+      const originals = c.items;
+      c.items = originals.filter(i => !matches.some(o => o.source_label === i.label));
+      for (const i of c.items) i.supplier = options.assigned[i.id] || "";
+      for (const o of matches) {
+        const base = originals.find(i => i.label === o.source_label);
+        c.items.push({ ...o, optionId: o.id, referencePrice: base?.referencePrice, net: null });
+      }
+      c.items.sort((a,b) => a.label.localeCompare(b.label,"es") || (a.supplier || "").localeCompare(b.supplier || "","es"));
+    }
     state.cards.sort((a,b) => a.name.localeCompare(b.name, "es"));
   }
   let reading = false;
@@ -87,7 +118,11 @@
     reading = true;
     if (!state.data) render();
     try {
-      const [, catalog] = await Promise.allSettled([refreshSheet(), call("catalog")]);
+      const [, catalog, variants] = await Promise.allSettled([refreshSheet(), call("catalog"),
+        rpc("family_option_list", { device: editor ? store.get(deviceKey) || "" : "" })]);
+      if (variants.status === "rejected") throw variants.reason;
+      options = variants.value;
+      store.set("nicole-option-cache", JSON.stringify({ ...options, suppliers: null }));
       if (catalog.status === "rejected") throw catalog.reason;
       const data = catalog.value;
       setData(data);
@@ -102,6 +137,7 @@
       if (!fallback) {
         try { fallback = JSON.parse(store.get(CACHE)); } catch { /* caché dañada */ }
       }
+      try { options = JSON.parse(store.get("nicole-option-cache")) || options; } catch {}
       if (fallback?.products || sheetRows.length) setData(fallback || { products: [] });
     } finally {
       reading = false;
@@ -110,16 +146,7 @@
     }
   }
   async function checkPublishedChanges() {
-    if (document.hidden || reading || state.viewer || state.draft || state.photoFor) return;
-    if (!state.data) return load();
-    reading = true;
-    try {
-      if (await refreshSheet()) {
-        setData(state.data);
-        render();
-      }
-    } catch { /* Conserva la última lista y reintenta en el próximo intervalo. */ }
-    finally { reading = false; }
+    if (!document.hidden && !editor?.open && !state.viewer && !state.draft && !state.photoFor) await load();
   }
   window.setInterval(checkPublishedChanges, 60000);
 
@@ -136,7 +163,7 @@
     const ready = state.cards.length > 0;
     return `<header class="v-top">
       <div class="v-brand"><img src="./assets/nicole-icon.svg" alt="" width="40" height="40">
-        <div><strong>Nicole Encajes</strong><span>${editor ? "Edgar · Edición de precios" : "Lista de precios"}</span></div></div>
+        <div><strong>Nicole Encajes</strong><span>${editor ? "Edgar · Edición del catálogo" : "Lista de precios"}</span></div></div>
       <div class="v-actions">
         <a class="v-mini v-ventas" href="./ventas/">Ventas</a>
         <a class="v-mini v-ventas" href="./sincronizar/" title="Respaldo y sincronización con Google Sheets (requiere PIN)">Respaldo</a>
@@ -160,33 +187,29 @@
         ${state.query ? `<button class="v-clear" data-act="clear" aria-label="Borrar búsqueda">✕</button>` : ""}</label>
       ${suggesting && state.query.trim() && results.length ? `<div style="display:grid;gap:.25rem;margin:.25rem 0" class="v-suggestions" aria-label="Sugerencias">${results.slice(0,8).map(c => `<button class="v-chip" data-act="suggest" data-name="${esc(c.name)}">${esc(c.name)}</button>`).join("")}</div>` : ""}
       <p class="v-count">${results.length === state.cards.length ? results.length + " productos" : results.length + " de " + state.cards.length + " productos"}</p>
-      ${results.length ? `<div class="v-list">${results.slice(0, state.limit).map(card).join("")}</div>` :
+      ${results.length ? catalogTable(results.slice(0, state.limit)) :
         `<p class="v-empty">No encontramos “${esc(state.query)}”. Prueba con otra palabra.</p>`}
       ${results.length > state.limit ? `<button class="v-btn v-more" data-act="more">Ver más productos</button>` : ""}</div>
       <aside class="v-categories"><strong>Categorías</strong><nav aria-label="Categorías">${["", ...cats].map(c => `<button class="v-chip ${state.category === c ? "on" : ""}" aria-pressed="${state.category === c}" data-act="cat" data-cat="${esc(c)}">${esc(c || "Todos")}</button>`).join("")}</nav>
       <select aria-label="Filtrar por categoría" id="category-select">${["", ...cats].map(c => `<option value="${esc(c)}" ${c === state.category ? "selected" : ""}>${esc(c || "Todos")}</option>`).join("")}</select></aside></div>`;
   }
-  function card(c) {
-    const main = c.photos[0];
-    const pic = main?.signed_url
-      ? `<button class="v-pic" data-act="view" data-id="${c.id}" aria-label="Ver fotos de ${esc(c.name)}"><img src="${esc(main.signed_url)}" alt="" loading="lazy">${c.photos.length > 1 ? `<span>${c.photos.length}</span>` : ""}</button>`
-      : "";
-    const meta = [c.brand, c.category].filter(Boolean).map(esc).join(" · ");
-    const items = c.items.length ? c.items.map((item, index) => {
+  function catalogTable(cards) {
+    const editable = editor && state.online && Array.isArray(options.suppliers);
+    const rows = cards.flatMap(c => c.items.map((item, index) => {
+      const attrs = `data-id="${esc(c.id)}" data-index="${index}"`;
       const reference = item.gross == null && item.referencePrice != null;
       const price = item.gross ?? item.referencePrice;
-      return `<li class="v-price-row"><span class="v-unit">${esc(item.label)}</span>
-        <div class="v-metric"><small>Precio de venta</small><b class="${price == null ? "v-unset" : ""}">${price == null ? "Sin registrar" : V.money(price)}</b>
-        ${reference ? "<small>Referencia · unidad por confirmar</small>" : ""}
-        ${item.net == null ? "" : `<small>Sin IVA: ${V.money(item.net)}</small>`}</div>
-        <div class="v-metric"><small>Costo de compra</small><b class="v-cost ${item.cost == null ? "v-unset" : ""}">${item.cost == null ? "Sin registrar" : V.money(item.cost)}</b></div>
-        ${editor ? `<button type="button" class="v-mini edit-price" data-act="edit-price" data-id="${esc(c.id)}" data-index="${index}">Editar precio</button>` : ""}
-      </li>`;
-    }).join("")
-      : `<li><span>Sin presentaciones</span><b class="v-pend">Pendiente</b></li>`;
-    return `<article class="v-card">${pic}<div class="v-info"><h3>${esc(c.name)}</h3>${meta ? `<p>${meta}</p>` : ""}
-      <ul class="v-prices">${items}</ul>
-      </div></article>`;
+      const qty = item.quantity == null ? (/^[0-9]+(?:[.,][0-9]+)?\s+.+$/.test(item.label) ? item.label : "—") : [item.quantity,item.unit].filter(Boolean).join(" ");
+      return `<tr><th scope="row">${esc(c.name)}${c.brand ? "<small>"+esc(c.brand)+"</small>" : ""}</th>
+        <td>${esc(item.label)}</td><td>${esc(item.supplier || "—")}</td><td>${esc(qty)}</td>
+        <td class="money">${item.cost == null ? "—" : V.money(item.cost)}</td>
+        <td class="money sale">${price == null ? "—" : V.money(price)}${reference ? "<small>Referencia · unidad por confirmar</small>" : ""}${item.net != null ? "<small>Sin IVA: "+V.money(item.net)+"</small>" : ""}</td>
+        ${editable ? `<td><button class="v-mini" data-act="edit-price" ${attrs}>Editar</button>
+        ${index === 0 ? `<button class="v-mini" data-act="add-option" ${attrs}>Agregar opción</button>` : ""}</td>` : ""}</tr>`;
+    })).join("");
+    return (editor && !editable && state.online ? '<p>Para editar, abre el enlace de activación en este navegador.</p>' : "") +
+      `<div class="table-scroll" role="region" aria-label="Tabla de productos" tabindex="0"><table class="catalog-table">
+      <thead><tr>${["Producto","Presentación","Proveedor","Cantidad","Costo de compra","Precio de venta",...(editable ? ["Acciones"] : [])].map(h=>"<th scope=col>"+h+"</th>").join("")}</tr></thead><tbody>${rows}</tbody></table></div>`;
   }
   function overlay() {
     if (state.viewer) {
@@ -279,59 +302,46 @@
   function exportRows() { return V.rows(V.search(state.cards, state.query, state.category)); }
   function stamp() { return new Date().toISOString().slice(0, 10); }
 
-  function openEditor(card, item) {
+  function openEditor(card, item, adding) {
     const form = editor.querySelector("form");
-    const pin = form.elements.pin;
-    const gross = form.elements.gross;
+    const f = form.elements;
+    const current = adding ? {} : item;
+    const qty = /^(\d+(?:[.,]\d+)?)\s+(.+)$/.exec(current.label || "");
     const status = document.getElementById("edit-status");
     const cancel = document.getElementById("cancel-edit");
     const save = form.querySelector("[type=submit]");
-    function showPin() {
-      pin.required = !editToken;
-      document.getElementById("pin-label").hidden = Boolean(editToken);
-    }
-    showPin();
+    document.getElementById("supplier-list").innerHTML = options.suppliers.map(n => `<option value="${esc(n)}"></option>`).join("");
+    document.getElementById("edit-product").textContent = card.name;
+    document.getElementById("edit-title").textContent = adding ? "Agregar opción" : "Editar opción";
+    form.reset();
+    for (const field of ["label","supplier","gross","cost"]) f[field].value = current[field] ?? "";
+    f.quantity.value = current.quantity ?? qty?.[1].replace(",",".") ?? "";
+    f.unit.value = current.unit ?? qty?.[2] ?? "";
     status.textContent = "";
-    pin.value = "";
-    gross.value = item.gross ?? item.referencePrice ?? "";
-    document.getElementById("edit-product").textContent = card.name + " · " + item.label;
     cancel.onclick = () => editor.close();
     editor.oncancel = event => { if (save.disabled) event.preventDefault(); };
     form.onsubmit = async event => {
       event.preventDefault();
       if (save.disabled) return;
       save.disabled = cancel.disabled = true;
-      let written = false;
       try {
-        if (!editToken) editToken = (await call("login", { pin: pin.value })).token;
-        pin.value = "";
-        showPin();
-        const latest = await call("catalog");
-        const total = gross.valueAsNumber;
-        const net = Number((total / (1 + Number(latest.iva_rate ?? 15) / 100)).toFixed(4));
-        if (!Number.isFinite(net) || net < 0) throw Error("Revisa el importe.");
-        if (item.id) {
-          await call("setPrice", { presentation_id: item.id, shop: "jefferson", price: net }, editToken);
-        } else {
-          const qty = /^(\d+(?:[.,]\d+)?)\s+(.+)$/.exec(item.label);
-          const row = { producto: card.name, marca: card.brand, categoria: card.category,
-            presentacion: item.label, cantidad: qty ? qty[1].replace(",", ".") : 1,
-            unidad: qty ? qty[2] : item.label, costo: item.cost, precio: net };
-          await call("importExcel", { rows: [row] }, editToken);
-        }
-        written = true;
-        const fresh = await call("catalog");
-        setData(fresh);
-        state.online = true;
+        const entry = { id: current.optionId, revision: current.revision, product: card.name, brand: card.brand,
+          source_label: adding ? null : current.optionId ? current.source_label : current.label };
+        for (const field of ["label","supplier","unit"]) entry[field] = f[field].value.trim().replace(/\s+/g," ");
+        for (const field of ["quantity","cost","gross"]) entry[field] = f[field].value === "" ? null : f[field].valueAsNumber;
+        if (entry.cost == null && entry.gross == null && current.referencePrice == null) throw Error("Ingresa un costo o un precio.");
+        const supplier = options.suppliers.find(n => n.trim().toLowerCase() === entry.supplier.toLowerCase());
+        if (supplier) entry.supplier = supplier;
+        if (card.items.some(other => (adding || other !== item) && other.label.trim().toLowerCase() === entry.label.toLowerCase() &&
+            (other.supplier || "").trim().toLowerCase() === entry.supplier.toLowerCase())) throw Error("Ya existe esta combinación de presentación y proveedor.");
+        await rpc("family_save_option", { device: store.get(deviceKey), entry });
         editor.close();
-        toast("Precio guardado");
-      } catch (error) {
-        showPin();
-        status.textContent = written ? "Precio guardado. Vuelve a abrir la lista para actualizarla." : error.message;
-      } finally { save.disabled = cancel.disabled = false; }
+        await load();
+        toast(state.online ? "Opción guardada" : "Guardado. Recarga para ver los cambios.");
+      } catch(error) { status.textContent = error.message; }
+      finally { save.disabled = cancel.disabled = false; }
     };
     editor.showModal();
-    gross.focus();
   }
 
   // ---------- Eventos ----------
@@ -356,9 +366,10 @@
     if (el.dataset.act === "close" && el !== event.target && el.classList.contains("v-overlay")) return;
     const id = el.dataset.id;
     switch (el.dataset.act) {
+      case "add-option":
       case "edit-price": {
         const card = state.cards.find(c => c.id === id);
-        if (editor && card) openEditor(card, card.items[Number(el.dataset.index)]);
+        if (editor && card) openEditor(card, card.items[Number(el.dataset.index)], el.dataset.act === "add-option");
         break;
       }
       case "reload": load(); break;
@@ -382,5 +393,5 @@
     if (event.key === "Escape" && (state.viewer || state.draft)) { state.viewer = null; closeDraft(); render(); }
   });
   document.addEventListener("visibilitychange", () => { if (!document.hidden && !state.draft && !state.photoFor) load(); });
-  load();
+  activate().catch(error => toast(error.message)).finally(load);
 })();
