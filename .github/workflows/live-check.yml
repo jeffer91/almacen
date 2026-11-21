@@ -27,10 +27,12 @@ jobs:
           curl -fLsS --retry 4 --retry-delay 3 --max-time 25 "$base/" -o /tmp/index.html
           grep -q 'data-profile="familia"' /tmp/index.html
           grep -q "viewer.js" /tmp/index.html
-          for old in edgar gloria; do
+          for old in gloria; do
             curl -fLsS --max-time 25 "$base/$old/" -o /tmp/old.html
             grep -q 'url=../' /tmp/old.html
           done
+          curl -fLsS --max-time 25 "$base/edgar/" -o /tmp/edgar.html
+          grep -q 'id="price-editor"' /tmp/edgar.html
           curl -fLsS --max-time 25 "$base/ventas/" -o /tmp/ventas.html
           grep -q 'id="loginForm"' /tmp/ventas.html
           curl -fLsS --max-time 25 "$base/sincronizar/" -o /tmp/sync.html

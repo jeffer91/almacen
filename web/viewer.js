@@ -4,6 +4,8 @@
   const V = window.NICOLE_VIEW;
   const apiUrl = String(window.ALMACEN_API_URL || "").trim().replace(/\/$/, "");
   const root = document.getElementById("app");
+  const editor = document.getElementById("price-editor");
+  let editToken = "";
   const CACHE = "nicole-lista-cache", WHO = "nicole-quien", HIDE = "nicole-ocultar-fotos";
   const PAGE = 40;
   let sheetRows = [];
@@ -23,14 +25,17 @@
   const who = () => store.get(WHO) || "";
   const whoName = (w) => w === "edgar" ? "Edgar" : w === "gloria" ? "Gloria" : "";
 
-  async function call(action, fields = {}) {
+  async function call(action, fields = {}, token = "") {
     if (!apiUrl) throw new Error("La lista aún no está conectada");
     const res = await fetch(apiUrl, {
-      method: "POST", headers: { "content-type": "application/json" },
+      method: "POST", headers: { "content-type": "application/json", ...(token ? { "x-almacen-key": token } : {}) },
       body: JSON.stringify({ action, ...fields }), cache: "no-store"
     });
     const data = await res.json().catch(() => ({}));
-    if (!res.ok || !data.ok) throw new Error(data.error || "No fue posible conectar");
+    if (!res.ok || !data.ok) {
+      if (token && res.status === 401) editToken = "";
+      throw new Error(data.error || "No fue posible conectar");
+    }
     return data;
   }
   function hasAmount(card) {
@@ -41,17 +46,20 @@
   function setData(data) {
     state.data = data;
     state.cards = V.buildCards(data).filter(hasAmount);
-    const names = new Set(state.cards.map(c => V.normalize(c.name)));
+    const existing = new Map(state.cards.filter(c => !c.brand).map(c => [c.name.trim().toLowerCase(), c]));
     const groups = new Map();
     for (const row of sheetRows) {
-      const key = V.normalize(row.name);
-      if (!key || names.has(key)) continue;
-      if (!groups.has(key)) groups.set(key, {id: "sheet-" + groups.size, sheet: true, name: row.name, category: row.category, brand: "", photos: [], items: [], haystack: key});
+      const key = row.name.trim().toLowerCase();
+      if (!key) continue;
+      const current = existing.get(key);
+      if (current?.items.some(item => item.label.trim().toLowerCase() === row.label.trim().toLowerCase())) continue;
+      if (current) groups.set(key, current);
+      if (!groups.has(key)) groups.set(key, {id: "sheet-" + groups.size, sheet: true, name: row.name, category: row.category, brand: "", photos: [], items: [], haystack: V.normalize(key)});
       const c = groups.get(key);
       c.items.push({label: row.label, gross: row.amount, cost: row.cost ?? null, referencePrice: row.referencePrice ?? null, net: null});
       c.haystack += " " + V.normalize(row.label + " " + row.category);
     }
-    state.cards.push(...Array.from(groups.values()).filter(hasAmount));
+    state.cards.push(...Array.from(groups.values()).filter(c => c.sheet && hasAmount(c)));
     state.cards.sort((a,b) => a.name.localeCompare(b.name, "es"));
   }
   let reading = false;
@@ -128,7 +136,7 @@
     const ready = state.cards.length > 0;
     return `<header class="v-top">
       <div class="v-brand"><img src="./assets/nicole-icon.svg" alt="" width="40" height="40">
-        <div><strong>Nicole Encajes</strong><span>Lista de precios</span></div></div>
+        <div><strong>Nicole Encajes</strong><span>${editor ? "Edgar · Edición de precios" : "Lista de precios"}</span></div></div>
       <div class="v-actions">
         <a class="v-mini v-ventas" href="./ventas/">Ventas</a>
         <a class="v-mini v-ventas" href="./sincronizar/" title="Respaldo y sincronización con Google Sheets (requiere PIN)">Respaldo</a>
@@ -164,7 +172,7 @@
       ? `<button class="v-pic" data-act="view" data-id="${c.id}" aria-label="Ver fotos de ${esc(c.name)}"><img src="${esc(main.signed_url)}" alt="" loading="lazy">${c.photos.length > 1 ? `<span>${c.photos.length}</span>` : ""}</button>`
       : "";
     const meta = [c.brand, c.category].filter(Boolean).map(esc).join(" · ");
-    const items = c.items.length ? c.items.map((item) => {
+    const items = c.items.length ? c.items.map((item, index) => {
       const reference = item.gross == null && item.referencePrice != null;
       const price = item.gross ?? item.referencePrice;
       return `<li class="v-price-row"><span class="v-unit">${esc(item.label)}</span>
@@ -172,6 +180,7 @@
         ${reference ? "<small>Referencia · unidad por confirmar</small>" : ""}
         ${item.net == null ? "" : `<small>Sin IVA: ${V.money(item.net)}</small>`}</div>
         <div class="v-metric"><small>Costo de compra</small><b class="v-cost ${item.cost == null ? "v-unset" : ""}">${item.cost == null ? "Sin registrar" : V.money(item.cost)}</b></div>
+        ${editor ? `<button type="button" class="v-mini edit-price" data-act="edit-price" data-id="${esc(c.id)}" data-index="${index}">Editar precio</button>` : ""}
       </li>`;
     }).join("")
       : `<li><span>Sin presentaciones</span><b class="v-pend">Pendiente</b></li>`;
@@ -270,6 +279,61 @@
   function exportRows() { return V.rows(V.search(state.cards, state.query, state.category)); }
   function stamp() { return new Date().toISOString().slice(0, 10); }
 
+  function openEditor(card, item) {
+    const form = editor.querySelector("form");
+    const pin = form.elements.pin;
+    const gross = form.elements.gross;
+    const status = document.getElementById("edit-status");
+    const cancel = document.getElementById("cancel-edit");
+    const save = form.querySelector("[type=submit]");
+    function showPin() {
+      pin.required = !editToken;
+      document.getElementById("pin-label").hidden = Boolean(editToken);
+    }
+    showPin();
+    status.textContent = "";
+    pin.value = "";
+    gross.value = item.gross ?? item.referencePrice ?? "";
+    document.getElementById("edit-product").textContent = card.name + " · " + item.label;
+    cancel.onclick = () => editor.close();
+    editor.oncancel = event => { if (save.disabled) event.preventDefault(); };
+    form.onsubmit = async event => {
+      event.preventDefault();
+      if (save.disabled) return;
+      save.disabled = cancel.disabled = true;
+      let written = false;
+      try {
+        if (!editToken) editToken = (await call("login", { pin: pin.value })).token;
+        pin.value = "";
+        showPin();
+        const latest = await call("catalog");
+        const total = gross.valueAsNumber;
+        const net = Number((total / (1 + Number(latest.iva_rate ?? 15) / 100)).toFixed(4));
+        if (!Number.isFinite(net) || net < 0) throw Error("Revisa el importe.");
+        if (item.id) {
+          await call("setPrice", { presentation_id: item.id, shop: "jefferson", price: net }, editToken);
+        } else {
+          const qty = /^(\d+(?:[.,]\d+)?)\s+(.+)$/.exec(item.label);
+          const row = { producto: card.name, marca: card.brand, categoria: card.category,
+            presentacion: item.label, cantidad: qty ? qty[1].replace(",", ".") : 1,
+            unidad: qty ? qty[2] : item.label, costo: item.cost, precio: net };
+          await call("importExcel", { rows: [row] }, editToken);
+        }
+        written = true;
+        const fresh = await call("catalog");
+        setData(fresh);
+        state.online = true;
+        editor.close();
+        toast("Precio guardado");
+      } catch (error) {
+        showPin();
+        status.textContent = written ? "Precio guardado. Vuelve a abrir la lista para actualizarla." : error.message;
+      } finally { save.disabled = cancel.disabled = false; }
+    };
+    editor.showModal();
+    gross.focus();
+  }
+
   // ---------- Eventos ----------
   root.addEventListener("change", event => {
     if (event.target.id !== "category-select") return;
@@ -292,6 +356,11 @@
     if (el.dataset.act === "close" && el !== event.target && el.classList.contains("v-overlay")) return;
     const id = el.dataset.id;
     switch (el.dataset.act) {
+      case "edit-price": {
+        const card = state.cards.find(c => c.id === id);
+        if (editor && card) openEditor(card, card.items[Number(el.dataset.index)]);
+        break;
+      }
       case "reload": load(); break;
       case "suggest": suggesting = false; state.query = el.dataset.name; state.limit = PAGE; render(); document.getElementById("q")?.focus(); break;
       case "clear": state.query = ""; state.limit = PAGE; render(); document.getElementById("q")?.focus(); break;

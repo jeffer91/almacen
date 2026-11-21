@@ -130,3 +130,10 @@ button:disabled{opacity:.5;cursor:not-allowed}
   .v-card { padding: 14px; }
   .v-metric { padding-left: 8px; }
 }
+
+#price-editor { width: min(420px, 92vw); border: 1px solid var(--edge); border-radius: 14px; padding: 22px; color: var(--ink); }
+#price-editor::backdrop { background: #20183480; }
+#price-editor h2 { margin: 0; }
+#price-editor label:not([hidden]) { display: grid; gap: 4px; margin: 12px 0; }
+#price-editor input { padding: 8px; width: 100%; border: 1px solid var(--edge); border-radius: 8px; }
+.edit-price { grid-column: 1 / -1; justify-self: end; }
