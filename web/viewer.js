@@ -33,9 +33,14 @@
     if (!res.ok || !data.ok) throw new Error(data.error || "No fue posible conectar");
     return data;
   }
+  function hasAmount(card) {
+    return card.items.some(item =>
+      [item.gross, item.referencePrice, item.cost].some(Number.isFinite)
+    );
+  }
   function setData(data) {
     state.data = data;
-    state.cards = V.buildCards(data);
+    state.cards = V.buildCards(data).filter(hasAmount);
     const names = new Set(state.cards.map(c => V.normalize(c.name)));
     const groups = new Map();
     for (const row of sheetRows) {
@@ -46,7 +51,7 @@
       c.items.push({label: row.label, gross: row.amount, cost: row.cost ?? null, referencePrice: row.referencePrice ?? null, net: null});
       c.haystack += " " + V.normalize(row.label + " " + row.category);
     }
-    state.cards.push(...groups.values());
+    state.cards.push(...Array.from(groups.values()).filter(hasAmount));
     state.cards.sort((a,b) => a.name.localeCompare(b.name, "es"));
   }
   async function load() {
@@ -100,7 +105,7 @@
       <button class="v-btn" data-act="reload">Intentar de nuevo</button></section>`;
     const offline = !state.online ? `<p class="v-offline">Sin conexión: mostrando la última lista guardada.
       <button class="v-link" data-act="reload">Reintentar</button></p>` : "";
-    if (!state.cards.length) return offline + `<section class="v-empty"><h2>Todavía no hay productos</h2>
+    if (!state.cards.length) return offline + `<section class="v-empty"><h2>Todavía no hay productos con precio o costo registrado</h2>
       <p>Jefferson está cargando la lista. Vuelve a revisar más tarde.</p></section>`;
     const results = V.search(state.cards, state.query, state.category);
     const cats = V.categories(state.cards);
