@@ -32,4 +32,16 @@
 <p role="status" id="product-status"></p>
 <div class="v-dialog-actions"><button type="button" id="cancel-product" class="v-mini">Cancelar</button>
 <button class="v-btn" type="submit">Guardar producto</button></div></form></dialog>
+<dialog id="activation-editor" aria-labelledby="activation-title">
+<form id="activation-form" novalidate>
+<h2 id="activation-title">Activar edición de Edgar</h2>
+<p class="v-help">Este navegador todavía no tiene permiso para guardar cambios. La activación es una sola vez y después no se solicita PIN.</p>
+<p class="v-help">Abre aquí tu enlace privado de activación o pega el código que aparece después de <code>#activar=</code>.</p>
+<label>Código de activación
+<input name="invite" required minlength="64" maxlength="64" pattern="[a-fA-F0-9]{64}" spellcheck="false" autocomplete="off" autocapitalize="off" placeholder="Pega el código de activación">
+</label>
+<p role="status" id="activation-status"></p>
+<div class="v-dialog-actions"><button type="button" id="cancel-activation" class="v-mini">Cancelar</button>
+<button class="v-btn" type="submit">Activar este navegador</button></div>
+</form></dialog>
 <script src="./config.js"></script><script src="./excel.js"></script><script src="./viewer-core.js"></script><script src="./viewer.js"></script></body></html>
