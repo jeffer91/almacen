@@ -71,7 +71,7 @@ declare
   p_unit text := btrim(coalesce(nullif(entry->>'unit',''),'unidad'));
   p_supplier text := btrim(regexp_replace(coalesce(entry->>'supplier',''),'[[:space:]]+',' ','g'));
   p_qty numeric; p_cost numeric; p_gross numeric; p_iva numeric;
-  supplier_id uuid; existing_cost numeric; existing_supplier uuid; p_product uuid;
+  v_supplier_id uuid; existing_cost numeric; existing_supplier uuid; p_product uuid;
 begin
   if device is null or device !~ '^[0-9a-f]{64}$' or not exists (
     select 1 from public.family_editor_keys where not invitation
@@ -102,20 +102,20 @@ begin
     raise exception 'Ya existe esta presentación. Utiliza Agregar opción para otro proveedor.';
   end if;
   if p_supplier<>'' then
-    select id into supplier_id from public.family_suppliers
+    select id into v_supplier_id from public.family_suppliers
       where lower(btrim(name))=lower(p_supplier) order by created_at limit 1;
-    if supplier_id is null then insert into public.family_suppliers(name) values(p_supplier) returning id into supplier_id; end if;
+    if v_supplier_id is null then insert into public.family_suppliers(name) values(p_supplier) returning id into v_supplier_id; end if;
   end if;
   update public.family_presentations
-    set label=p_label, quantity=p_qty, unit=p_unit, supplier_id=supplier_id,
+    set label=p_label, quantity=p_qty, unit=p_unit, supplier_id=v_supplier_id,
       current_cost=coalesce(p_cost,current_cost),
       cost_recorded_at=case when p_cost is not null and p_cost is distinct from existing_cost then now() else cost_recorded_at end,
       updated_at=clock_timestamp()
     where id=p_id and updated_at=(entry->>'updated_at')::timestamptz;
   if not found then raise exception 'Otra persona cambió esta fila. Recarga antes de guardar.'; end if;
-  if p_cost is not null and (p_cost is distinct from existing_cost or supplier_id is distinct from existing_supplier) then
+  if p_cost is not null and (p_cost is distinct from existing_cost or v_supplier_id is distinct from existing_supplier) then
     insert into public.family_cost_history(presentation_id,supplier_id,cost,recorded_by)
-      values(p_id,supplier_id,p_cost,'edgar');
+      values(p_id,v_supplier_id,p_cost,'edgar');
   end if;
   if p_gross is not null then
     select coalesce((value->>'iva_rate')::numeric,15) into p_iva
