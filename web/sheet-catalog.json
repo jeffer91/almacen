@@ -361,7 +361,7 @@
   },
   {
     "name": "Cinta N.º 4",
-    "category": "",
+    "category": "Cintas",
     "label": "Rollo",
     "amount": 2.9,
     "cost": null,
@@ -369,7 +369,7 @@
   },
   {
     "name": "Apliques (modelo por identificar)",
-    "category": "",
+    "category": "Apliques",
     "label": "Pieza",
     "amount": null,
     "cost": null,
@@ -377,7 +377,7 @@
   },
   {
     "name": "Fleco corto (JN5)",
-    "category": "",
+    "category": "Flecos",
     "label": "Metro",
     "amount": 0.6,
     "cost": null,
@@ -385,7 +385,7 @@
   },
   {
     "name": "Fleco corto Lurex (JN5 Lurex)",
-    "category": "",
+    "category": "Flecos",
     "label": "Metro",
     "amount": 0.7,
     "cost": null,
@@ -393,7 +393,7 @@
   },
   {
     "name": "Cinta N.º 2",
-    "category": "",
+    "category": "Cintas",
     "label": "Rollo",
     "amount": 1.6,
     "cost": null,
@@ -401,7 +401,7 @@
   },
   {
     "name": "Silicón delgado",
-    "category": "",
+    "category": "Otros insumos",
     "label": "Otro",
     "amount": null,
     "cost": null,
@@ -409,7 +409,7 @@
   },
   {
     "name": "Plastigancho",
-    "category": "",
+    "category": "Otros insumos",
     "label": "Caja",
     "amount": 10,
     "cost": null,
@@ -417,7 +417,7 @@
   },
   {
     "name": "Tira bordada 2769",
-    "category": "",
+    "category": "Tiras bordadas",
     "label": "Pieza",
     "amount": null,
     "cost": null,
@@ -425,7 +425,7 @@
   },
   {
     "name": "Tira bordada 2785",
-    "category": "",
+    "category": "Tiras bordadas",
     "label": "Pieza",
     "amount": null,
     "cost": null,
@@ -433,7 +433,7 @@
   },
   {
     "name": "Tira bordada 3064",
-    "category": "",
+    "category": "Tiras bordadas",
     "label": "Pieza",
     "amount": null,
     "cost": null,
@@ -441,7 +441,7 @@
   },
   {
     "name": "Tira bordada 3558",
-    "category": "",
+    "category": "Tiras bordadas",
     "label": "Pieza",
     "amount": null,
     "cost": null,
@@ -449,7 +449,7 @@
   },
   {
     "name": "Tira bordada 3751 · Pasacinta",
-    "category": "",
+    "category": "Tiras bordadas",
     "label": "Pieza",
     "amount": null,
     "cost": null,
@@ -457,7 +457,7 @@
   },
   {
     "name": "Tira bordada 3940 · Multicolor",
-    "category": "",
+    "category": "Tiras bordadas",
     "label": "Pieza",
     "amount": null,
     "cost": null,
@@ -465,7 +465,7 @@
   },
   {
     "name": "Tira bordada 3940",
-    "category": "",
+    "category": "Tiras bordadas",
     "label": "Pieza",
     "amount": null,
     "cost": null,
@@ -473,7 +473,7 @@
   },
   {
     "name": "Tira bordada 3941 · Multicolor",
-    "category": "",
+    "category": "Tiras bordadas",
     "label": "Pieza",
     "amount": null,
     "cost": null,
@@ -481,7 +481,7 @@
   },
   {
     "name": "Tira bordada 3943 · Multicolor",
-    "category": "",
+    "category": "Tiras bordadas",
     "label": "Pieza",
     "amount": null,
     "cost": null,
@@ -489,7 +489,87 @@
   },
   {
     "name": "Tira bordada 3943",
-    "category": "",
+    "category": "Tiras bordadas",
+    "label": "Pieza",
+    "amount": null,
+    "cost": null,
+    "referencePrice": null
+  },
+  {
+    "name": "Guipur 803",
+    "category": "Guipur",
+    "label": "Pieza",
+    "amount": null,
+    "cost": null,
+    "referencePrice": null
+  },
+  {
+    "name": "Guipur 819",
+    "category": "Guipur",
+    "label": "Pieza",
+    "amount": null,
+    "cost": null,
+    "referencePrice": null
+  },
+  {
+    "name": "Guipur 829 · Escudo",
+    "category": "Guipur",
+    "label": "Pieza",
+    "amount": null,
+    "cost": null,
+    "referencePrice": null
+  },
+  {
+    "name": "Guipur 882 · Ecudo Mitad G.",
+    "category": "Guipur",
+    "label": "Pieza",
+    "amount": null,
+    "cost": null,
+    "referencePrice": null
+  },
+  {
+    "name": "Guipur 886 · Marg. Cont.",
+    "category": "Guipur",
+    "label": "Pieza",
+    "amount": null,
+    "cost": null,
+    "referencePrice": null
+  },
+  {
+    "name": "Guipur 890",
+    "category": "Guipur",
+    "label": "Pieza",
+    "amount": null,
+    "cost": null,
+    "referencePrice": null
+  },
+  {
+    "name": "Guipur 897",
+    "category": "Guipur",
+    "label": "Pieza",
+    "amount": null,
+    "cost": null,
+    "referencePrice": null
+  },
+  {
+    "name": "Guipur 903",
+    "category": "Guipur",
+    "label": "Pieza",
+    "amount": null,
+    "cost": null,
+    "referencePrice": null
+  },
+  {
+    "name": "Guipur 911",
+    "category": "Guipur",
+    "label": "Pieza",
+    "amount": null,
+    "cost": null,
+    "referencePrice": null
+  },
+  {
+    "name": "Guipur 941",
+    "category": "Guipur",
     "label": "Pieza",
     "amount": null,
     "cost": null,
