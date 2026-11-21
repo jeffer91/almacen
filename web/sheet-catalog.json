@@ -574,5 +574,165 @@
     "amount": null,
     "cost": null,
     "referencePrice": null
+  },
+  {
+    "name": "Guipur 951 · P.",
+    "category": "Guipur",
+    "label": "Pieza",
+    "amount": null,
+    "cost": null,
+    "referencePrice": null
+  },
+  {
+    "name": "Guipur 951",
+    "category": "Guipur",
+    "label": "Pieza",
+    "amount": null,
+    "cost": null,
+    "referencePrice": null
+  },
+  {
+    "name": "Guipur 956 · Estrella",
+    "category": "Guipur",
+    "label": "Pieza",
+    "amount": null,
+    "cost": null,
+    "referencePrice": null
+  },
+  {
+    "name": "Guipur 957 · Pestaña",
+    "category": "Guipur",
+    "label": "Pieza",
+    "amount": null,
+    "cost": null,
+    "referencePrice": null
+  },
+  {
+    "name": "Guipur 973",
+    "category": "Guipur",
+    "label": "Pieza",
+    "amount": null,
+    "cost": null,
+    "referencePrice": null
+  },
+  {
+    "name": "Guipur 1006",
+    "category": "Guipur",
+    "label": "Pieza",
+    "amount": null,
+    "cost": null,
+    "referencePrice": null
+  },
+  {
+    "name": "Guipur 1008 · Moneda",
+    "category": "Guipur",
+    "label": "Pieza",
+    "amount": null,
+    "cost": null,
+    "referencePrice": null
+  },
+  {
+    "name": "Guipur 1021",
+    "category": "Guipur",
+    "label": "Pieza",
+    "amount": null,
+    "cost": null,
+    "referencePrice": null
+  },
+  {
+    "name": "Guipur 1022",
+    "category": "Guipur",
+    "label": "Pieza",
+    "amount": null,
+    "cost": null,
+    "referencePrice": null
+  },
+  {
+    "name": "Guipur 1023",
+    "category": "Guipur",
+    "label": "Pieza",
+    "amount": null,
+    "cost": null,
+    "referencePrice": null
+  },
+  {
+    "name": "Guipur 1024",
+    "category": "Guipur",
+    "label": "Pieza",
+    "amount": null,
+    "cost": null,
+    "referencePrice": null
+  },
+  {
+    "name": "Guipur 1025 · Sombrilla",
+    "category": "Guipur",
+    "label": "Pieza",
+    "amount": null,
+    "cost": null,
+    "referencePrice": null
+  },
+  {
+    "name": "Guipur 1026",
+    "category": "Guipur",
+    "label": "Pieza",
+    "amount": null,
+    "cost": null,
+    "referencePrice": null
+  },
+  {
+    "name": "Guipur 1027 · Fresas",
+    "category": "Guipur",
+    "label": "Pieza",
+    "amount": null,
+    "cost": null,
+    "referencePrice": null
+  },
+  {
+    "name": "Guipur 1045",
+    "category": "Guipur",
+    "label": "Pieza",
+    "amount": null,
+    "cost": null,
+    "referencePrice": null
+  },
+  {
+    "name": "Guipur 1051",
+    "category": "Guipur",
+    "label": "Pieza",
+    "amount": null,
+    "cost": null,
+    "referencePrice": null
+  },
+  {
+    "name": "Guipur 1084 · Estrella Doble",
+    "category": "Guipur",
+    "label": "Pieza",
+    "amount": null,
+    "cost": null,
+    "referencePrice": null
+  },
+  {
+    "name": "Guipur 1085 · Flor Doble Grueza",
+    "category": "Guipur",
+    "label": "Pieza",
+    "amount": null,
+    "cost": null,
+    "referencePrice": null
+  },
+  {
+    "name": "Guipur 1093",
+    "category": "Guipur",
+    "label": "Pieza",
+    "amount": null,
+    "cost": null,
+    "referencePrice": null
+  },
+  {
+    "name": "Guipur 1094",
+    "category": "Guipur",
+    "label": "Pieza",
+    "amount": null,
+    "cost": null,
+    "referencePrice": null
   }
 ]
