@@ -5,6 +5,7 @@
   const apiUrl = String(window.ALMACEN_API_URL || "").trim().replace(/\/$/, "");
   const root = document.getElementById("app");
   const editor = document.getElementById("price-editor");
+  const productEditor = document.getElementById("product-editor");
   const deviceKey = "nicole-edgar-device";
   let options = { options: [], assigned: {}, suppliers: null };
   async function rpc(name, fields) {
@@ -80,16 +81,28 @@
       c.haystack += " " + V.normalize(row.label + " " + row.category);
     }
     state.cards.push(...Array.from(groups.values()).filter(c => c.sheet && hasAmount(c)));
+    // También permite ver opciones registradas para productos aún no presentes en el catálogo base.
+    const existingKeys = new Map(state.cards.map(c => [V.normalize(c.name) + "|" + V.normalize(c.brand), c]));
+    for (const option of options.options) {
+      const key = V.normalize(option.product) + "|" + V.normalize(option.brand);
+      if (!existingKeys.has(key)) {
+        const c = { id: "option-" + option.id, name: option.product, brand: option.brand || "",
+          category: option.category || "Otros", photos: [], items: [], haystack: "" };
+        state.cards.push(c);
+        existingKeys.set(key, c);
+      }
+    }
     for (const c of state.cards) {
-      const matches = options.options.filter(o => o.product === c.name && o.brand === c.brand);
+      const matches = options.options.filter(o => V.normalize(o.product) === V.normalize(c.name) && V.normalize(o.brand) === V.normalize(c.brand));
       const originals = c.items;
-      c.items = originals.filter(i => !matches.some(o => o.source_label === i.label));
+      c.items = originals.filter(i => !matches.some(o => o.source_label && V.normalize(o.source_label) === V.normalize(i.label)));
       for (const i of c.items) i.supplier = options.assigned[i.id] || "";
       for (const o of matches) {
-        const base = originals.find(i => i.label === o.source_label);
+        const base = originals.find(i => o.source_label && V.normalize(i.label) === V.normalize(o.source_label));
         c.items.push({ ...o, optionId: o.id, referencePrice: base?.referencePrice, net: null });
       }
       c.items.sort((a,b) => a.label.localeCompare(b.label,"es") || (a.supplier || "").localeCompare(b.supplier || "","es"));
+      c.haystack = V.normalize([c.name, c.brand, c.category, ...c.items.map(i => i.label + " " + (i.unit || "") + " " + (i.supplier || ""))].join(" "));
     }
     state.cards.sort((a,b) => a.name.localeCompare(b.name, "es"));
   }
@@ -146,7 +159,7 @@
     }
   }
   async function checkPublishedChanges() {
-    if (!document.hidden && !editor?.open && !state.viewer && !state.draft && !state.photoFor) await load();
+    if (!document.hidden && !editor?.open && !productEditor?.open && !state.viewer && !state.draft && !state.photoFor) await load();
   }
   window.setInterval(checkPublishedChanges, 60000);
 
@@ -165,6 +178,7 @@
       <div class="v-brand"><img src="./assets/nicole-icon.svg" alt="" width="40" height="40">
         <div><strong>Nicole Encajes</strong><span>${editor ? "Edgar · Edición del catálogo" : "Lista de precios"}</span></div></div>
       <div class="v-actions">
+        ${editor && state.online && Array.isArray(options.suppliers) ? '<button class="v-btn v-add-product" data-act="new-product">+ Nuevo producto</button>' : ""}
         <a class="v-mini v-ventas" href="./ventas/">Ventas</a>
         <a class="v-mini v-ventas" href="./sincronizar/" title="Respaldo y sincronización con Google Sheets (requiere PIN)">Respaldo</a>
         <button class="v-mini" data-act="pdf" ${ready ? "" : "disabled"} title="Descargar PDF">PDF</button>
@@ -178,7 +192,8 @@
     const offline = !state.online ? `<p class="v-offline">Sin conexión: mostrando la última lista guardada.
       <button class="v-link" data-act="reload">Reintentar</button></p>` : "";
     if (!state.cards.length) return offline + `<section class="v-empty"><h2>Todavía no hay productos con precio o costo registrado</h2>
-      <p>Jefferson está cargando la lista. Vuelve a revisar más tarde.</p></section>`;
+      <p>Aún no hay productos para mostrar.</p>
+      ${editor && state.online && Array.isArray(options.suppliers) ? '<button class="v-btn v-add-empty" data-act="new-product">+ Agregar primer producto</button>' : ""}</section>`;
     const results = V.search(state.cards, state.query, state.category);
     const cats = V.categories(state.cards);
     return offline + `<div class="v-layout"><div class="v-results">
@@ -334,7 +349,13 @@
         if (supplier) entry.supplier = supplier;
         if (card.items.some(other => (adding || other !== item) && other.label.trim().toLowerCase() === entry.label.toLowerCase() &&
             (other.supplier || "").trim().toLowerCase() === entry.supplier.toLowerCase())) throw Error("Ya existe esta combinación de presentación y proveedor.");
-        await rpc("family_save_option", { device: store.get(deviceKey), entry });
+        const canonical = !adding && !current.optionId && /^[0-9a-f-]{36}$/i.test(current.id || "") && current.updated_at;
+        if (canonical) {
+          await rpc("family_edgar_update_presentation", { device: store.get(deviceKey),
+            entry: { ...entry, presentation_id: current.id, updated_at: current.updated_at } });
+        } else {
+          await rpc("family_save_option", { device: store.get(deviceKey), entry });
+        }
         editor.close();
         await load();
         toast(state.online ? "Opción guardada" : "Guardado. Recarga para ver los cambios.");
@@ -342,6 +363,62 @@
       finally { save.disabled = cancel.disabled = false; }
     };
     editor.showModal();
+  }
+
+  function openNewProduct() {
+    if (!productEditor || !state.online || !Array.isArray(options.suppliers)) return;
+    const form = productEditor.querySelector("form");
+    const f = form.elements;
+    const save = form.querySelector("[type=submit]");
+    const cancel = document.getElementById("cancel-product");
+    const status = document.getElementById("product-status");
+    document.getElementById("product-categories").innerHTML = V.categories(state.cards)
+      .map(c => `<option value="${esc(c)}"></option>`).join("");
+    document.getElementById("product-suppliers").innerHTML = options.suppliers
+      .map(n => `<option value="${esc(n)}"></option>`).join("");
+    form.reset();
+    status.textContent = "";
+    cancel.onclick = () => productEditor.close();
+    productEditor.oncancel = event => { if (save.disabled) event.preventDefault(); };
+    form.onsubmit = async event => {
+      event.preventDefault();
+      if (save.disabled) return;
+      save.disabled = cancel.disabled = true;
+      try {
+        const entry = {};
+        for (const key of ["product", "brand", "category", "label", "supplier", "unit"]) {
+          entry[key] = f[key].value.trim().replace(/\s+/g, " ");
+        }
+        entry.quantity = f.quantity.valueAsNumber;
+        entry.cost = f.cost.value === "" ? null : f.cost.valueAsNumber;
+        entry.gross = f.gross.valueAsNumber;
+        if (!entry.product || !entry.category || !entry.label || !Number.isFinite(entry.quantity) ||
+            entry.quantity <= 0 || !Number.isFinite(entry.gross) || entry.gross < 0 ||
+            (entry.cost !== null && (!Number.isFinite(entry.cost) || entry.cost < 0))) {
+          throw Error("Completa el nombre, categoría, presentación, cantidad y precio de venta.");
+        }
+        const duplicates = [...(state.data?.products || []), ...state.cards];
+        if (duplicates.some(c => V.normalize(c.name) === V.normalize(entry.product) &&
+          V.normalize(c.brand) === V.normalize(entry.brand))) {
+          throw Error("Ese producto ya existe. Búscalo en la tabla y usa «Agregar opción».");
+        }
+        const supplier = options.suppliers.find(n => V.normalize(n) === V.normalize(entry.supplier));
+        if (supplier) entry.supplier = supplier;
+        await rpc("family_edgar_add_product", { device: store.get(deviceKey), entry });
+        productEditor.close();
+        state.query = entry.product;
+        state.category = "";
+        state.limit = PAGE;
+        await load();
+        toast(state.online ? "Producto creado y guardado para toda la familia" : "Producto guardado. Recarga para ver los cambios.");
+      } catch (error) {
+        status.textContent = error.message || "No fue posible guardar el producto.";
+      } finally {
+        save.disabled = cancel.disabled = false;
+      }
+    };
+    productEditor.showModal();
+    f.product.focus();
   }
 
   // ---------- Eventos ----------
@@ -366,6 +443,7 @@
     if (el.dataset.act === "close" && el !== event.target && el.classList.contains("v-overlay")) return;
     const id = el.dataset.id;
     switch (el.dataset.act) {
+      case "new-product": openNewProduct(); break;
       case "add-option":
       case "edit-price": {
         const card = state.cards.find(c => c.id === id);
