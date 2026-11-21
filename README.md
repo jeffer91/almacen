@@ -8,7 +8,7 @@ Catálogo y lista de precios de la familia. Un solo proyecto de Supabase sirve d
 | **Edgar** | Tabla de precios, edición de productos existentes, nueva presentación y alta de productos | https://jeffer91.github.io/almacen/edgar/ |
 | **Jefferson** | Administración: productos, precios, costos, proveedores y fotos | App de escritorio Electron (Windows) |
 
-La ruta `/gloria/` redirige a la lista familiar. La ruta `/edgar/` ofrece edición únicamente tras vincular el navegador mediante una invitación privada de un solo uso, sin pedir PIN en cada cambio. La página de administración (`web/jefferson/`) **no** se publica en internet: solo la abre Electron.
+La ruta `/gloria/` redirige a la lista familiar. La ruta `/edgar/` permite editar directamente, sin PIN ni código de activación. **Advertencia:** GitHub Pages es pública y el identificador de edición incluido en esta ruta no es autenticación: cualquier persona que visite o inspeccione el enlace de Edgar puede modificar el catálogo. La página de administración (`web/jefferson/`) **no** se publica en internet: solo la abre Electron.
 
 ## Respaldo en Google Sheets y actualización de Supabase
 
@@ -38,14 +38,13 @@ La ruta `/gloria/` redirige a la lista familiar. La ruta `/edgar/` ofrece edici�
 
 ## Edición de Edgar desde el navegador
 
-1. Abrir `/edgar/` en el dispositivo de Edgar.
-2. Activarlo una sola vez con el enlace privado `/edgar/#activar=...`. El enlace se consume y desaparece de la barra de dirección; **no se publica en GitHub ni se entrega a terceros**.
-3. Pulsar «Editar» para actualizar precios, costos o información de una presentación oficial. El precio ingresado es **con IVA**, y se guarda oficialmente sin IVA.
-4. Pulsar «Agregar opción» para registrar una alternativa (otro proveedor o presentación). Estas alternativas se guardan en `family_catalog_options`, visibles para ambas vistas, y no reemplazan las presentaciones oficiales.
-5. Pulsar «+ Nuevo producto» para dar de alta un producto real con categoría, primera presentación, cantidad, costo opcional, proveedor opcional y precio con IVA. Se guarda en las tablas oficiales de Supabase y se muestra en ambas vistas.
-6. Si otra persona actualiza la misma presentación, el guardado detecta el conflicto y exige volver a cargar.
+1. Abrir [Panel de Edgar](https://jeffer91.github.io/almacen/edgar/) sin ingresar códigos ni PIN.
+2. Pulsar el botón de **lápiz** en cualquier fila para abrir el formulario emergente, editar precio CON IVA, costo, cantidad, unidad, presentación y proveedor, y guardar.
+3. Pulsar **+ Opción** para agregar una presentación o un proveedor alternativo para un producto existente.
+4. Pulsar **+ Nuevo producto** para dar de alta un producto oficial con categoría, presentación y precio.
+5. Las ediciones se guardan en **Supabase** y aparecen en el catálogo familiar. **Google Sheets** sigue siendo respaldo manual, no sincronización automática.
 
-**Google Sheets** continúa como respaldo/manual; una edición de Edgar no modifica automáticamente la hoja privada.
+**Riesgo asumido en este modo:** sin autenticación no puede comprobarse quién es Edgar. La ruta y su identificador de escritura se publican en internet; cualquier persona que obtenga acceso puede modificar datos. El identificador público se puede revocar borrando su huella de `family_editor_keys`, pero no protege contra modificaciones no autorizadas mientras esté activo. Para proteger las ediciones se necesita inicio de sesión real.
 
 ## Administración (Electron)
 
