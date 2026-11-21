@@ -109,38 +109,23 @@
       <p>Jefferson está cargando la lista. Vuelve a revisar más tarde.</p></section>`;
     const results = V.search(state.cards, state.query, state.category);
     const cats = V.categories(state.cards);
-    return offline + `
+    return offline + `<div class="v-layout"><div class="v-results">
       <label class="v-search"><span aria-hidden="true">⌕</span>
         <input id="q" type="search" inputmode="search" autocomplete="off" placeholder="Buscar producto o marca" value="${esc(state.query)}" aria-label="Buscar producto">
         ${state.query ? `<button class="v-clear" data-act="clear" aria-label="Borrar búsqueda">✕</button>` : ""}</label>
       ${suggesting && state.query.trim() && results.length ? `<div style="display:grid;gap:.25rem;margin:.25rem 0" class="v-suggestions" aria-label="Sugerencias">${results.slice(0,8).map(c => `<button class="v-chip" data-act="suggest" data-name="${esc(c.name)}">${esc(c.name)}</button>`).join("")}</div>` : ""}
-      ${cats.length > 1 ? `<div class="v-chips">${["", ...cats].map((c) =>
-        `<button class="v-chip ${state.category === c ? "on" : ""}" data-act="cat" data-cat="${esc(c)}">${esc(c || "Todos")}</button>`).join("")}</div>` : ""}
-      ${state.query || state.category ? "" : pending()}
       <p class="v-count">${results.length === state.cards.length ? results.length + " productos" : results.length + " de " + state.cards.length + " productos"}</p>
       ${results.length ? `<div class="v-list">${results.slice(0, state.limit).map(card).join("")}</div>` :
         `<p class="v-empty">No encontramos “${esc(state.query)}”. Prueba con otra palabra.</p>`}
-      ${results.length > state.limit ? `<button class="v-btn v-more" data-act="more">Ver más productos</button>` : ""}`;
-  }
-  function pending() {
-    if (!state.online) return "";
-    const { total, list } = V.pendingPhotos(state.cards.filter(c => !c.sheet), state.skipped, 3);
-    if (!total) return "";
-    if (state.hidePending) return `<button class="v-link v-show-pending" data-act="showPending">📷 Faltan ${total} fotos</button>`;
-    if (!list.length) { state.skipped = []; return pending(); }
-    return `<section class="v-pending" aria-label="Fotos pendientes">
-      <div class="v-pending-head"><div><strong>📷 Fotos pendientes</strong><span>Faltan ${total}. Si tienes tiempo, toma una.</span></div>
-        <button class="v-link" data-act="hidePending">Ocultar</button></div>
-      ${list.map((c) => `<div class="v-pending-row"><div><strong>${esc(c.name)}</strong>${c.brand ? `<span>${esc(c.brand)}</span>` : ""}</div>
-        <div class="v-pending-btns"><button class="v-btn" data-act="photo" data-id="${c.id}">Tomar foto</button>
-        <button class="v-link" data-act="skip" data-id="${c.id}" title="Mostrar otro">Otro</button></div></div>`).join("")}
-    </section>`;
+      ${results.length > state.limit ? `<button class="v-btn v-more" data-act="more">Ver más productos</button>` : ""}</div>
+      <aside class="v-categories"><strong>Categorías</strong><nav aria-label="Categorías">${["", ...cats].map(c => `<button class="v-chip ${state.category === c ? "on" : ""}" aria-pressed="${state.category === c}" data-act="cat" data-cat="${esc(c)}">${esc(c || "Todos")}</button>`).join("")}</nav>
+      <select aria-label="Filtrar por categoría" id="category-select">${["", ...cats].map(c => `<option value="${esc(c)}" ${c === state.category ? "selected" : ""}>${esc(c || "Todos")}</option>`).join("")}</select></aside></div>`;
   }
   function card(c) {
     const main = c.photos[0];
     const pic = main?.signed_url
       ? `<button class="v-pic" data-act="view" data-id="${c.id}" aria-label="Ver fotos de ${esc(c.name)}"><img src="${esc(main.signed_url)}" alt="" loading="lazy">${c.photos.length > 1 ? `<span>${c.photos.length}</span>` : ""}</button>`
-      : `<div class="v-pic v-nopic" aria-hidden="true">▧</div>`;
+      : "";
     const meta = [c.brand, c.category].filter(Boolean).map(esc).join(" · ");
     const items = c.items.length ? c.items.map((item) => {
       const reference = item.gross == null && item.referencePrice != null;
@@ -155,7 +140,7 @@
       : `<li><span>Sin presentaciones</span><b class="v-pend">Pendiente</b></li>`;
     return `<article class="v-card">${pic}<div class="v-info"><h3>${esc(c.name)}</h3>${meta ? `<p>${meta}</p>` : ""}
       <ul class="v-prices">${items}</ul>
-      ${state.online && !c.sheet ? `<button class="v-link v-addphoto" data-act="photo" data-id="${c.id}">📷 ${c.photos.length ? "Agregar foto o color" : "Tomar foto"}</button>` : ""}</div></article>`;
+      </div></article>`;
   }
   function overlay() {
     if (state.viewer) {
@@ -249,6 +234,13 @@
   function stamp() { return new Date().toISOString().slice(0, 10); }
 
   // ---------- Eventos ----------
+  root.addEventListener("change", event => {
+    if (event.target.id !== "category-select") return;
+    state.category = event.target.value;
+    state.limit = PAGE;
+    render();
+    document.getElementById("category-select")?.focus();
+  });
   root.addEventListener("input", (event) => {
     if (event.target.id !== "q") return;
     suggesting = true; state.query = event.target.value; state.limit = PAGE; render();
