@@ -3,7 +3,7 @@
 <meta name="color-scheme" content="light">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob: https://*.supabase.co; connect-src 'self' https://*.supabase.co; object-src 'none'; base-uri 'self'; form-action 'none'">
 <base href="../"><title>Edgar · Nicole Encajes · Lista de precios</title>
-<link rel="stylesheet" href="./viewer.css?v=edgar-sin-codigo-20261121"><link rel="icon" href="./assets/nicole-icon.svg" type="image/svg+xml"></head>
+<link rel="stylesheet" href="./viewer.css?v=sync-20261121"><link rel="icon" href="./assets/nicole-icon.svg" type="image/svg+xml"></head>
 <body data-profile="edgar"><div id="app"><p class="v-empty">Cargando precios…</p></div>
 <dialog id="price-editor" aria-labelledby="edit-title"><form>
 <h2 id="edit-title">Editar opción</h2><p id="edit-product"></p>
@@ -32,4 +32,17 @@
 <p role="status" id="product-status"></p>
 <div class="v-dialog-actions"><button type="button" id="cancel-product" class="v-mini">Cancelar</button>
 <button class="v-btn" type="submit">Guardar producto</button></div></form></dialog>
-<script src="./config.js"></script><script src="./excel.js"></script><script src="./viewer-core.js"></script><script src="./edgar/access.js?v=edgar-sin-codigo-20261121"></script><script src="./viewer.js?v=edgar-sin-codigo-20261121"></script></body></html>
+<dialog id="sheets-sync-dialog" aria-labelledby="sheets-sync-title">
+<h2 id="sheets-sync-title">Sincronizar con Google Sheets</h2>
+<p class="v-help">Primero guardamos los cambios en Supabase. Esta función actualiza únicamente <strong>RESPALDO_EDGAR</strong> de tu Google Sheets, sin modificar PRODUCTOS, PRESENTACIONES ni CAMBIOS_PENDIENTES.</p>
+<p id="sheets-sync-status" role="status">El respaldo contiene solo los registros guardados en Supabase. Los precios de referencia del catálogo web aún no forman parte de la base oficial.</p>
+<div class="v-sheet-sync-actions">
+<button class="v-btn" type="button" id="sheets-sync-now">Sincronizar automáticamente</button>
+<button class="v-mini" type="button" id="sheets-copy">Copiar respaldo de Supabase</button>
+<button class="v-mini" type="button" id="sheets-download">Descargar respaldo TSV</button>
+<a class="v-mini v-ventas" href="https://docs.google.com/spreadsheets/d/1cr8mVW4ab6SFY1OJE90TCtHi2i_TnrM8Q8O1PwqawVE/edit#gid=2024364850" target="_blank" rel="noopener noreferrer">Abrir Google Sheets</a>
+</div>
+<p class="v-help">Si Google no está conectado para sincronización automática, copia el respaldo y pégalo desde A1 en RESPALDO_EDGAR. Antes de pegar nuevamente, limpia los valores anteriores de A:R de esa pestaña, sin tocar otras hojas.</p>
+<button class="v-mini v-sync-close" id="sheets-sync-close" type="button">Cerrar</button>
+</dialog>
+<script src="./config.js"></script><script src="./excel.js"></script><script src="./viewer-core.js"></script><script src="./edgar/access.js?v=edgar-sin-codigo-20261121"></script><script src="./sheets-backup-core.js?v=sync-20261121"></script><script src="./viewer.js?v=sync-20261121"></script></body></html>
