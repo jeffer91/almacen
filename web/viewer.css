@@ -43,6 +43,7 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .v-prices li{display:flex;justify-content:space-between;align-items:baseline;gap:10px;padding:6px 0;border-top:1px dashed var(--edge)}
 .v-prices li:first-child{border-top:0}
 .v-prices span{color:var(--ink)}
+.v-amounts .v-cost{margin-top:4px;color:var(--ink);white-space:normal}
 .v-prices b{font-size:21px;color:var(--ok);white-space:nowrap}
 .v-prices b.v-pend{font-size:15px;color:var(--warn);font-weight:600}
 

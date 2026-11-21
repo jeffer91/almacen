@@ -144,7 +144,7 @@
         <b>Precio de venta: ${price == null ? "Sin registrar" : V.money(price)}</b>
         ${reference ? "<small>Precio de referencia · unidad de venta por confirmar</small>" : ""}
         ${item.net == null ? "" : `<small>Sin IVA: ${V.money(item.net)}</small>`}
-        <small>Costo de compra: ${item.cost == null ? "Sin registrar" : V.money(item.cost)}</small>
+        <b class="v-cost">Costo de compra: ${item.cost == null ? "Sin registrar" : V.money(item.cost)}</b>
       </span></li>`;
     }).join("")
       : `<li><span>Sin presentaciones</span><b class="v-pend">Pendiente</b></li>`;
