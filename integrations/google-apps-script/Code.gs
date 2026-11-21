@@ -82,9 +82,10 @@ function doPost(e) {
     if(!sheet)throw Error("Falta la pestaña RESPALDO_EDGAR");
     if(sheet.getMaxRows()<rows.length)sheet.insertRowsAfter(sheet.getMaxRows(),rows.length-sheet.getMaxRows());
     const previous=sheet.getLastRow();
-    if(previous>0)sheet.getRange(1,1,previous,HEADERS.length).clearContent();
-    if(rows.length>1)sheet.getRange(2,1,rows.length-1,HEADERS.length).setValues(rows.slice(1));
-    sheet.getRange(1,1,1,HEADERS.length).setValues([HEADERS]);
+    // Escribir la nueva instantánea antes de limpiar las filas sobrantes del respaldo anterior.
+    sheet.getRange(1,1,rows.length,HEADERS.length).setValues(rows);
+    if(previous>rows.length)
+      sheet.getRange(rows.length+1,1,previous-rows.length,HEADERS.length).clearContent();
     sheet.getRange(1,12,Math.max(rows.length,1),2).setNumberFormat("0.0000");
     sheet.getRange(1,14,Math.max(rows.length,1),1).setNumberFormat("0.00");
     SpreadsheetApp.flush();
