@@ -88,6 +88,8 @@ test("Gloria consulta el catálogo y Edgar dispone del editor de precios", () =>
   const edgar = fs.readFileSync(path.join(web, "edgar", "index.html"), "utf8");
   assert.match(edgar, /id="price-editor"/);
   assert.match(edgar, /data-profile="edgar"/);
+  assert.match(edgar, /id="product-editor"/);
+  assert.match(edgar, /id="new-product-form"/);
   assert.doesNotMatch(edgar, /app\.js/);
 });
 
@@ -105,4 +107,20 @@ test("app de administración: Guardar no cierra la ventana y hay gestión de fot
   assert.doesNotMatch(api, /x-almacen-admin/);
   assert.match(api, /failed >= 5/);
   assert.doesNotMatch(api + app, /5626/);
+});
+
+test("Edgar puede crear productos oficiales y editar precios con invitación de dispositivo", () => {
+  const root = path.join(__dirname, "..");
+  const viewer = fs.readFileSync(path.join(root, "web", "viewer.js"), "utf8");
+  const sql = fs.readFileSync(path.join(root, "supabase", "migrations", "20261121_edgar_products_prices.sql"), "utf8");
+  assert.match(viewer, /data-act="new-product"/);
+  assert.match(viewer, /family_edgar_add_product/);
+  assert.match(viewer, /family_edgar_update_presentation/);
+  assert.match(viewer, /new URL\("\/rest\/v1\/rpc\//);
+  assert.match(sql, /family_editor_keys/);
+  assert.match(sql, /family_cost_history/);
+  assert.match(sql, /family_prices/);
+  assert.match(sql, /family_audit/);
+  const family = fs.readFileSync(path.join(root, "web", "index.html"), "utf8");
+  assert.doesNotMatch(family, /product-editor/);
 });
