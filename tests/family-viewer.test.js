@@ -77,16 +77,18 @@ test("el Excel de precios incluye costo y precios sin/con IVA, sin proveedores",
   assert.doesNotMatch(text, /Proveedor/);
 });
 
-test("la web familiar no carga la app de escritura y los links viejos redirigen", () => {
+test("Gloria consulta el catálogo y Edgar dispone del editor de precios", () => {
   const web = path.join(__dirname, "..", "web");
   const index = fs.readFileSync(path.join(web, "index.html"), "utf8");
   assert.match(index, /viewer\.js/);
   assert.doesNotMatch(index, /app\.js/);
-  for (const old of ["edgar", "gloria"]) {
-    assert.match(fs.readFileSync(path.join(web, old, "index.html"), "utf8"), /url=\.\.\//);
-  }
-  const viewer = fs.readFileSync(path.join(web, "viewer.js"), "utf8");
-  assert.doesNotMatch(viewer, /x-almacen-key|x-almacen-admin|setPrice|addProduct|setCost/);
+  assert.doesNotMatch(index, /id="price-editor"/);
+  const gloria = fs.readFileSync(path.join(web, "gloria", "index.html"), "utf8");
+  assert.ok(gloria.includes("url=../"));
+  const edgar = fs.readFileSync(path.join(web, "edgar", "index.html"), "utf8");
+  assert.match(edgar, /id="price-editor"/);
+  assert.match(edgar, /data-profile="edgar"/);
+  assert.doesNotMatch(edgar, /app\.js/);
 });
 
 test("app de administración: Guardar no cierra la ventana y hay gestión de fotos", () => {
