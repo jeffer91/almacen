@@ -49,3 +49,35 @@ npm test
 ```
 
 GitHub Actions comprueba la publicación de `/sincronizar/` y que `exportSalesBackup` devuelve 401 sin sesión. Los tests comprueban plantilla, IVA, rechazo de columnas erróneas y autorización.
+
+## Edgar: botón «⟳ Google Sheets» (Supabase → RESPALDO_EDGAR)
+
+La fuente oficial sigue siendo Supabase. El panel de Edgar guarda en Supabase antes de habilitar cualquier respaldo. Tras guardar, pulsa **⟳ Google Sheets** en `/edgar/`.
+
+### Estado de la integración
+
+- Se creó en la hoja privada la pestaña `RESPALDO_EDGAR`, con 18 columnas, encabezados y filtro. No se modificaron `PRODUCTOS`, `PRESENTACIONES`, `CAMBIOS_PENDIENTES` ni `RESPALDO_PRODUCTOS`.
+- Hay un botón **Sincronizar automáticamente**, conectado a `sync-sheets`, función de Supabase ya desplegada. **Mientras no se configure el webhook de Google Apps Script, la función devuelve `GOOGLE_NOT_CONNECTED` y no escribe la hoja**.
+- Alternativa operativa: **Copiar respaldo de Supabase** o **Descargar respaldo TSV**. Abrir `RESPALDO_EDGAR`, limpiar sólo sus valores anteriores A:R, y pegar desde A1 (o importar el TSV). La copia NO cuenta como sincronización hasta pegarla.
+- El respaldo incluye **productos/presentaciones oficiales** y **opciones/ediciones guardadas por Edgar en `family_catalog_options`**. No confundir con precios de referencia de `web/sheet-catalog.json` que todavía no se hayan migrado a Supabase. En particular, una cifra procedente sólo del JSON estático no se anuncia como respaldo confirmado.
+
+### Activar sincronización automática por botón (configuración una sola vez)
+
+Esta configuración debe realizarla la persona propietaria de la hoja de Google, dentro de su cuenta y de Supabase; **no enviar claves o secretos por chat ni subirlos a GitHub**.
+
+1. Abrir la hoja https://docs.google.com/spreadsheets/d/1cr8mVW4ab6SFY1OJE90TCtHi2i_TnrM8Q8O1PwqawVE/edit. Desde **Extensiones → Apps Script**, abrir el editor y pegar el código completo de [integrations/google-apps-script/Code.gs](../integrations/google-apps-script/Code.gs).
+2. En **Configuración del proyecto → Propiedades del script**, crear la propiedad `SYNC_SECRET` con un valor aleatorio de **al menos 32 caracteres**. Guardar el valor de forma privada.
+3. **Implementar → Nueva implementación → Aplicación web**: ejecutar como propietario, acceso **Cualquier usuario**. Autorizar los permisos para escribir en esa hoja. Copiar la URL que termina en `/exec`.
+4. En **Supabase → Nicole Encajes → Edge Functions → Secrets**, configurar:
+   - `EDGAR_SHEETS_WEBHOOK_URL`: URL de Apps Script desplegada en el paso 3.
+   - `EDGAR_SHEETS_SYNC_SECRET`: **exactamente el mismo** secreto de la propiedad `SYNC_SECRET` del paso 2.
+5. Abrir `/edgar/`, pulsar **⟳ Google Sheets → Sincronizar automáticamente**. El sistema sólo muestra éxito cuando la función de Google responde con `ok:true` y el número de filas. Reabrir la pestaña `RESPALDO_EDGAR` para verificar fecha, precio y cantidad.
+6. Si se modifica el código Apps Script, actualizar la implementación web; si se revoca o rota el secreto, actualizarlo tanto en Script Properties como en Secrets de Supabase.
+
+La función `sync-sheets` verifica la existencia del dispositivo Edgar, pero **el navegador de Edgar no solicita autenticación y su identificador es público**. Por tanto, cualquier visitante de la URL de Edgar podría editar el catálogo y ordenar un respaldo. El secreto del webhook nunca viaja al navegador y no debe exponerse. Para restringir el acceso se necesita autenticación real.
+
+### Sentido y comportamiento
+
+- **Edgar → Supabase → Google Sheets**. Nunca importar valores de `RESPALDO_EDGAR` a Supabase. La pestaña de respaldo es exclusivamente de salida.
+- Si Google falla, Supabase conserva el cambio y la interfaz muestra un error explícito. No se marca sincronización completa ni se duplican filas al reintentar: el receptor reemplaza el contenido de `RESPALDO_EDGAR` por la instantánea confirmada.
+- El botón no sincroniza ventas ni imágenes, ni edita las demás pestañas de trabajo.
