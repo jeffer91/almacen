@@ -476,7 +476,7 @@
     try {
       const rows=freshSheetRows();
       const tsv=window.NICOLE_SHEETS_BACKUP.asTSV(rows);
-      download(new Blob(["\\uFEFF"+tsv],{type:"text/tab-separated-values;charset=utf-8"}),
+      download(new Blob(["\uFEFF"+tsv],{type:"text/tab-separated-values;charset=utf-8"}),
         "Nicole_Encajes_Respaldo_Edgar_"+stamp()+".tsv");
       syncStatus("Descargados "+(rows.length-1)+" registros oficiales. Abre RESPALDO_EDGAR e importa el TSV; esto aún no actualiza Google Sheets.","good");
     }catch(error) {syncStatus(String(error.message||error),"error");}
