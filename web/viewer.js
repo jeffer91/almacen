@@ -6,8 +6,6 @@
   const root = document.getElementById("app");
   const editor = document.getElementById("price-editor");
   const productEditor = document.getElementById("product-editor");
-  const activationEditor = document.getElementById("activation-editor");
-  const deviceKey = "nicole-edgar-device";
   let options = { options: [], assigned: {}, suppliers: null };
   async function rpc(name, fields) {
     const url = new URL("/rest/v1/rpc/" + name, apiUrl);
@@ -19,58 +17,6 @@
   }
   function canEdit() {
     return Boolean(editor && state.online && Array.isArray(options.suppliers));
-  }
-  function isValidDevice(value) { return /^[0-9a-f]{64}$/.test(String(value || "")); }
-  async function pairBrowser(invite) {
-    if (!/^[0-9a-f]{64}$/i.test(invite)) throw Error("El código de activación debe tener 64 caracteres.");
-    let device = store.get(deviceKey);
-    if (!isValidDevice(device)) {
-      device = Array.from(crypto.getRandomValues(new Uint8Array(32)), n => n.toString(16).padStart(2,"0")).join("");
-    }
-    if (!await rpc("family_pair_editor", { invite: invite.toLowerCase(), device })) {
-      throw Error("El enlace de activación ya fue utilizado o no es válido.");
-    }
-    store.set(deviceKey, device);
-  }
-  async function activate() {
-    const invite = new URLSearchParams(location.hash.slice(1)).get("activar");
-    if (!editor || !invite) return;
-    try {
-      await pairBrowser(invite.trim());
-    } finally {
-      // El token es privado: quitarlo de la barra, incluso si hay un error.
-      history.replaceState(null, "", location.pathname + location.search);
-    }
-  }
-  function showActivation() {
-    if (!activationEditor) return;
-    const form = activationEditor.querySelector("form");
-    const message = document.getElementById("activation-status");
-    const cancel = document.getElementById("cancel-activation");
-    const save = form.querySelector("[type=submit]");
-    if (activationEditor.open) return;
-    form.reset();
-    message.textContent = "";
-    cancel.onclick = () => activationEditor.close();
-    activationEditor.oncancel = event => { if (save.disabled) event.preventDefault(); };
-    form.onsubmit = async event => {
-      event.preventDefault();
-      if (save.disabled) return;
-      save.disabled = cancel.disabled = true;
-      try {
-        await pairBrowser(form.elements.invite.value.trim());
-        activationEditor.close();
-        await load();
-        if (!canEdit()) throw Error("Se guardó la activación, pero no se confirmó el acceso. Recarga la página.");
-        toast("Edición habilitada en este navegador");
-      } catch (error) {
-        message.textContent = String(error.message || error);
-      } finally {
-        save.disabled = cancel.disabled = false;
-      }
-    };
-    activationEditor.showModal();
-    form.elements.invite.focus();
   }
   const CACHE = "nicole-lista-cache", WHO = "nicole-quien", HIDE = "nicole-ocultar-fotos";
   const PAGE = 40;
@@ -177,7 +123,7 @@
     if (!state.data) render();
     try {
       const [, catalog, variants] = await Promise.allSettled([refreshSheet(), call("catalog"),
-        rpc("family_option_list", { device: editor ? store.get(deviceKey) || "" : "" })]);
+        rpc("family_option_list", { device: editor ? String(window.EDGAR_EDIT_DEVICE || "") : "" })]);
       if (variants.status === "rejected") throw variants.reason;
       options = variants.value;
       store.set("nicole-option-cache", JSON.stringify({ ...options, suppliers: null }));
@@ -204,7 +150,7 @@
     }
   }
   async function checkPublishedChanges() {
-    if (!document.hidden && !editor?.open && !productEditor?.open && !activationEditor?.open && !state.viewer && !state.draft && !state.photoFor) await load();
+    if (!document.hidden && !editor?.open && !productEditor?.open && !state.viewer && !state.draft && !state.photoFor) await load();
   }
   window.setInterval(checkPublishedChanges, 60000);
 
@@ -273,7 +219,7 @@
         </td>` : ""}</tr>`;
     })).join("");
     return (editor && !editable && state.online ?
-      '<div class="v-activation-banner">La edición todavía no está activada en este navegador. <button class="v-mini" data-act="activate-editor">Activar edición</button></div>' : "") +
+      '<div class="v-activation-banner">No se pudo habilitar la edición. <button class="v-mini" data-act="reload">Recargar</button></div>' : "") +
       `<div class="table-scroll" role="region" aria-label="Tabla de productos" tabindex="0"><table class="catalog-table">
       <thead><tr>${["Producto","Presentación","Proveedor","Cantidad","Costo de compra","Precio de venta",...(showActions ? ["Acciones"] : [])].map(h=>"<th scope=col>"+h+"</th>").join("")}</tr></thead><tbody>${rows}</tbody></table></div>`;
   }
@@ -371,7 +317,7 @@
   function openEditor(card, item, adding) {
     const form = editor.querySelector("form");
     const f = form.elements;
-    if (!canEdit()) return showActivation();
+    if (!canEdit()) return toast("La edición no está disponible. Recarga la página.");
     const current = adding ? {} : item;
     const qty = /^(\d+(?:[.,]\d+)?)\s+(.+)$/.exec(current.label || "");
     const status = document.getElementById("edit-status");
@@ -403,10 +349,10 @@
             (other.supplier || "").trim().toLowerCase() === entry.supplier.toLowerCase())) throw Error("Ya existe esta combinación de presentación y proveedor.");
         const canonical = !adding && !current.optionId && /^[0-9a-f-]{36}$/i.test(current.id || "") && current.updated_at;
         if (canonical) {
-          await rpc("family_edgar_update_presentation", { device: store.get(deviceKey),
+          await rpc("family_edgar_update_presentation", { device: String(window.EDGAR_EDIT_DEVICE || ""),
             entry: { ...entry, presentation_id: current.id, updated_at: current.updated_at } });
         } else {
-          await rpc("family_save_option", { device: store.get(deviceKey), entry });
+          await rpc("family_save_option", { device: String(window.EDGAR_EDIT_DEVICE || ""), entry });
         }
         editor.close();
         await load();
@@ -419,7 +365,7 @@
 
   function openNewProduct() {
     if (!productEditor || !state.online) return;
-    if (!canEdit()) return showActivation();
+    if (!canEdit()) return toast("La edición no está disponible. Recarga la página.");
     const form = productEditor.querySelector("form");
     const f = form.elements;
     const save = form.querySelector("[type=submit]");
@@ -457,7 +403,7 @@
         }
         const supplier = options.suppliers.find(n => V.normalize(n) === V.normalize(entry.supplier));
         if (supplier) entry.supplier = supplier;
-        await rpc("family_edgar_add_product", { device: store.get(deviceKey), entry });
+        await rpc("family_edgar_add_product", { device: String(window.EDGAR_EDIT_DEVICE || ""), entry });
         productEditor.close();
         state.query = entry.product;
         state.category = "";
@@ -496,7 +442,6 @@
     if (el.dataset.act === "close" && el !== event.target && el.classList.contains("v-overlay")) return;
     const id = el.dataset.id;
     switch (el.dataset.act) {
-      case "activate-editor": showActivation(); break;
       case "new-product": openNewProduct(); break;
       case "add-option":
       case "edit-price": {
@@ -525,5 +470,7 @@
     if (event.key === "Escape" && (state.viewer || state.draft)) { state.viewer = null; closeDraft(); render(); }
   });
   document.addEventListener("visibilitychange", () => { if (!document.hidden && !state.draft && !state.photoFor) load(); });
-  activate().catch(error => toast(error.message)).finally(load);
+  // Los enlaces antiguos no deben mostrar ni procesar sus códigos de activación.
+  if (editor && location.hash.startsWith("#activar=")) history.replaceState(null, "", location.pathname + location.search);
+  load();
 })();
