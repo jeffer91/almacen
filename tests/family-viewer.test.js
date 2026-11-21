@@ -124,3 +124,19 @@ test("Edgar puede crear productos oficiales y editar precios con invitación de 
   const family = fs.readFileSync(path.join(root, "web", "index.html"), "utf8");
   assert.doesNotMatch(family, /product-editor/);
 });
+
+test("Edgar muestra botón de lápiz y ventanas emergentes de edición y activación", () => {
+  const web = path.join(__dirname, "..", "web");
+  const html = fs.readFileSync(path.join(web, "edgar", "index.html"), "utf8");
+  const js = fs.readFileSync(path.join(web, "viewer.js"), "utf8");
+  const css = fs.readFileSync(path.join(web, "viewer.css"), "utf8");
+  assert.match(html, /id="activation-editor"/);
+  assert.match(html, /id="price-editor"/);
+  assert.match(js, /class="v-pencil"/);
+  assert.match(js, /data-act="edit-price"/);
+  assert.match(js, /showActivation\(\)/);
+  assert.match(js, /activationEditor\.showModal\(\)/);
+  assert.match(js, /editor\.showModal\(\)/);
+  assert.match(css, /\.v-pencil\s*\{/);
+  assert.match(css, /#activation-editor\s*\{/);
+});
