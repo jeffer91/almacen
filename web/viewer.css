@@ -160,3 +160,34 @@ button:disabled{opacity:.5;cursor:not-allowed}
 #edit-status, #product-status { color: #a42b35; font-size: 14px; min-height: 1em; }
 .v-add-empty { margin: 12px auto; }
 @media (max-width: 520px) { .v-dialog-actions { display: grid; grid-template-columns: 1fr 1fr; } }
+
+/* Edgar: lápiz visible para editar precio y presentación en ventana emergente. */
+.v-row-actions { white-space: nowrap; min-width: 144px; }
+.v-pencil {
+  display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+  border: 1px solid #b9abe2; background: #f1eaff; color: var(--primary);
+  border-radius: 9px; padding: 8px 12px; min-height: 42px;
+  font-weight: 700; font-size: 14px;
+}
+.v-pencil:hover:not(:disabled), .v-pencil:focus-visible {
+  background: #e4d9ff; border-color: var(--primary);
+}
+.v-pencil svg { flex: none; }
+.v-row-actions .v-mini { margin-left: 4px; min-height: 42px; }
+.v-activation-banner {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between;
+  gap: 10px; margin: 12px 0; padding: 12px 14px; background: #f3eeff;
+  border: 1px solid #cdbfee; border-radius: 12px; font-size: 15px;
+}
+#activation-editor { width: min(465px, 92vw); max-height: 90vh; overflow-y: auto;
+  border: 1px solid var(--edge); border-radius: 14px; padding: 22px; color: var(--ink); }
+#activation-editor::backdrop { background: #20183480; }
+#activation-editor h2 { margin: 0; }
+#activation-editor label { display: grid; gap: 5px; margin: 12px 0; }
+#activation-editor input { width: 100%; padding: 10px; border: 1px solid var(--edge); border-radius: 8px; }
+#activation-status { color: #9f2335; font-size: 14px; min-height: 1.2em; }
+@media (max-width: 720px) {
+  .v-pencil { padding: 9px; min-width: 42px; min-height: 42px; }
+  .v-pencil span { display: none; }
+  .v-row-actions .v-mini { font-size: 13px; padding: 8px; }
+}
