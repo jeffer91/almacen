@@ -1,0 +1,42 @@
+// Nicole Encajes: puente seguro Supabase → Google Apps Script, sin credenciales Google en la web.
+import {createClient} from "jsr:@supabase/supabase-js@2";
+const url=Deno.env.get("SUPABASE_URL")||"";
+const key=Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")||"";
+const db=createClient(url,key,{auth:{autoRefreshToken:false,persistSession:false}});
+const headers={"content-type":"application/json;charset=utf-8","cache-control":"no-store",
+  "access-control-allow-origin":"https://jeffer91.github.io",
+  "access-control-allow-methods":"POST,OPTIONS","access-control-allow-headers":"content-type"};
+const reply=(body:unknown,status=200)=>new Response(JSON.stringify(body),{headers,status});
+async function digest(v:string){
+  const bits=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(v));
+  return Array.from(new Uint8Array(bits),b=>b.toString(16).padStart(2,"0")).join("");
+}
+Deno.serve(async(request:Request)=>{
+  if(request.method==="OPTIONS")return new Response(null,{status:204,headers});
+  if(request.method!=="POST")return reply({ok:false,error:"Método no permitido"},405);
+  try{
+    const body=await request.json();
+    const device=String(body?.device||"");
+    if(!/^[0-9a-f]{64}$/.test(device))return reply({ok:false,error:"Acceso denegado"},403);
+    const {data:access,error:accessError}=await db.from("family_editor_keys").select("fingerprint")
+      .eq("fingerprint",await digest(device)).eq("invitation",false).maybeSingle();
+    if(accessError)throw accessError;
+    if(!access)return reply({ok:false,error:"Acceso denegado"},403);
+    const webhook=Deno.env.get("EDGAR_SHEETS_WEBHOOK_URL")||"";
+    const secret=Deno.env.get("EDGAR_SHEETS_SYNC_SECRET")||"";
+    if(!/^https:\/\/script\.google\.com\/macros\/s\/[\w-]+\/exec$/.test(webhook) || secret.length<32)
+      return reply({ok:false,code:"GOOGLE_NOT_CONNECTED",error:"Google Sheets no está autorizado para sincronización automática.",needs_setup:true},503);
+    const {data:last}=await db.from("family_audit").select("at").eq("actor","edgar")
+      .eq("action","syncGoogleSheets").order("at",{ascending:false}).limit(1).maybeSingle();
+    if(last?.at && Date.now()-Date.parse(last.at)<25000)
+      return reply({ok:false,error:"Sincronización reciente. Revisa Google Sheets y vuelve a intentar después."},429);
+    const resp=await fetch(webhook,{method:"POST",headers:{"content-type":"application/json"},
+      body:JSON.stringify({secret,device}),redirect:"follow"});
+    const data=await resp.json().catch(()=>null);
+    if(!resp.ok || !data?.ok || !Number.isInteger(data?.rows))
+      return reply({ok:false,error:"Google Sheets no confirmó el respaldo. Supabase no se modificó."},502);
+    await db.from("family_audit").insert({actor:"edgar",action:"syncGoogleSheets",
+      target_id:"RESPALDO_EDGAR",details:{rows:data.rows,synced_at:new Date().toISOString()}});
+    return reply({ok:true,rows:data.rows,synced_at:new Date().toISOString()});
+  }catch(error){console.error("syncSheets",error);return reply({ok:false,error:"No se pudo sincronizar con Google Sheets; Supabase conserva los datos."},500)}
+});
