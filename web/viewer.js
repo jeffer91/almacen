@@ -54,29 +54,66 @@
     state.cards.push(...Array.from(groups.values()).filter(hasAmount));
     state.cards.sort((a,b) => a.name.localeCompare(b.name, "es"));
   }
+  let reading = false;
+  const sheetCache = "nicole-sheet-rows";
+  try {
+    const cached = JSON.parse(store.get(sheetCache) || "[]");
+    if (Array.isArray(cached)) sheetRows = cached;
+  } catch { /* Se recupera la copia en línea. */ }
+
+  async function refreshSheet() {
+    const response = await fetch("./sheet-catalog.json", { cache: "no-cache" });
+    if (!response.ok) throw new Error("No se pudo leer el catálogo de Sheets");
+    const rows = await response.json();
+    if (!Array.isArray(rows) || !rows.every(row => row && typeof row.name === "string" && typeof row.label === "string")) {
+      throw new Error("Formato de catálogo inválido");
+    }
+    const serialized = JSON.stringify(rows);
+    if (serialized === JSON.stringify(sheetRows)) return false;
+    sheetRows = rows;
+    store.set(sheetCache, serialized);
+    return true;
+  }
   async function load() {
-    state.loading = true; render();
+    if (reading) return;
+    reading = true;
+    if (!state.data) render();
     try {
-      const [sheet, catalog] = await Promise.allSettled([
-        fetch("./sheet-catalog.json", {cache: "no-cache"}).then(r => {
-          if (!r.ok) throw new Error("Catálogo de la hoja no disponible");
-          return r.json();
-        }), call("catalog")
-      ]);
-      if (sheet.status === "fulfilled") sheetRows = sheet.value;
+      const [, catalog] = await Promise.allSettled([refreshSheet(), call("catalog")]);
       if (catalog.status === "rejected") throw catalog.reason;
       const data = catalog.value;
-      setData(data); state.online = true; state.error = "";
-      const { photos, ...rest } = data; // las fotos firmadas caducan: no se guardan
+      setData(data);
+      state.online = true;
+      state.error = "";
+      const { photos, ...rest } = data;
       store.set(CACHE, JSON.stringify({ ...rest, photos: [] }));
     } catch (error) {
-      state.online = false; state.error = String(error.message || error);
-      if (!state.data) {
-        try { const cached = JSON.parse(store.get(CACHE) || "null"); if (cached?.products) setData(cached); } catch { /* caché dañada */ }
+      state.online = false;
+      state.error = String(error.message || error);
+      let fallback = state.data;
+      if (!fallback) {
+        try { fallback = JSON.parse(store.get(CACHE)); } catch { /* caché dañada */ }
       }
-          if (!state.data && sheetRows.length) setData({products: []});
-    } finally { state.loading = false; render(); }
+      if (fallback?.products || sheetRows.length) setData(fallback || { products: [] });
+    } finally {
+      reading = false;
+      state.loading = false;
+      render();
+    }
   }
+  async function checkPublishedChanges() {
+    if (document.hidden || reading || state.viewer || state.draft || state.photoFor) return;
+    if (!state.data) return load();
+    reading = true;
+    try {
+      if (await refreshSheet()) {
+        setData(state.data);
+        render();
+      }
+    } catch { /* Conserva la última lista y reintenta en el próximo intervalo. */ }
+    finally { reading = false; }
+  }
+  window.setInterval(checkPublishedChanges, 60000);
 
   // ---------- Vista ----------
   function render() {
@@ -130,12 +167,12 @@
     const items = c.items.length ? c.items.map((item) => {
       const reference = item.gross == null && item.referencePrice != null;
       const price = item.gross ?? item.referencePrice;
-      return `<li><span>${esc(item.label)}</span><span class="v-amounts">
-        <b>Precio de venta: ${price == null ? "Sin registrar" : V.money(price)}</b>
-        ${reference ? "<small>Precio de referencia · unidad de venta por confirmar</small>" : ""}
-        ${item.net == null ? "" : `<small>Sin IVA: ${V.money(item.net)}</small>`}
-        <b class="v-cost">Costo de compra: ${item.cost == null ? "Sin registrar" : V.money(item.cost)}</b>
-      </span></li>`;
+      return `<li class="v-price-row"><span class="v-unit">${esc(item.label)}</span>
+        <div class="v-metric"><small>Precio de venta</small><b class="${price == null ? "v-unset" : ""}">${price == null ? "Sin registrar" : V.money(price)}</b>
+        ${reference ? "<small>Referencia · unidad por confirmar</small>" : ""}
+        ${item.net == null ? "" : `<small>Sin IVA: ${V.money(item.net)}</small>`}</div>
+        <div class="v-metric"><small>Costo de compra</small><b class="v-cost ${item.cost == null ? "v-unset" : ""}">${item.cost == null ? "Sin registrar" : V.money(item.cost)}</b></div>
+      </li>`;
     }).join("")
       : `<li><span>Sin presentaciones</span><b class="v-pend">Pendiente</b></li>`;
     return `<article class="v-card">${pic}<div class="v-info"><h3>${esc(c.name)}</h3>${meta ? `<p>${meta}</p>` : ""}

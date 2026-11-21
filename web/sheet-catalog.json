@@ -414,5 +414,85 @@
     "amount": 10,
     "cost": null,
     "referencePrice": null
+  },
+  {
+    "name": "Tira bordada 2769",
+    "category": "",
+    "label": "Pieza",
+    "amount": null,
+    "cost": null,
+    "referencePrice": null
+  },
+  {
+    "name": "Tira bordada 2785",
+    "category": "",
+    "label": "Pieza",
+    "amount": null,
+    "cost": null,
+    "referencePrice": null
+  },
+  {
+    "name": "Tira bordada 3064",
+    "category": "",
+    "label": "Pieza",
+    "amount": null,
+    "cost": null,
+    "referencePrice": null
+  },
+  {
+    "name": "Tira bordada 3558",
+    "category": "",
+    "label": "Pieza",
+    "amount": null,
+    "cost": null,
+    "referencePrice": null
+  },
+  {
+    "name": "Tira bordada 3751 · Pasacinta",
+    "category": "",
+    "label": "Pieza",
+    "amount": null,
+    "cost": null,
+    "referencePrice": null
+  },
+  {
+    "name": "Tira bordada 3940 · Multicolor",
+    "category": "",
+    "label": "Pieza",
+    "amount": null,
+    "cost": null,
+    "referencePrice": null
+  },
+  {
+    "name": "Tira bordada 3940",
+    "category": "",
+    "label": "Pieza",
+    "amount": null,
+    "cost": null,
+    "referencePrice": null
+  },
+  {
+    "name": "Tira bordada 3941 · Multicolor",
+    "category": "",
+    "label": "Pieza",
+    "amount": null,
+    "cost": null,
+    "referencePrice": null
+  },
+  {
+    "name": "Tira bordada 3943 · Multicolor",
+    "category": "",
+    "label": "Pieza",
+    "amount": null,
+    "cost": null,
+    "referencePrice": null
+  },
+  {
+    "name": "Tira bordada 3943",
+    "category": "",
+    "label": "Pieza",
+    "amount": null,
+    "cost": null,
+    "referencePrice": null
   }
 ]

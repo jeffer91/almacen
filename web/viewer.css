@@ -114,3 +114,19 @@ button:disabled{opacity:.5;cursor:not-allowed}
   .v-categories nav { display: none; }
   .v-categories select { display: block; max-width: 50vw; font: inherit; padding: 6px; }
 }
+
+.v-card { padding: 16px 20px; }
+.v-info h3 { font-size: 20px; }
+.v-prices .v-price-row { display: grid; grid-template-columns: minmax(95px,1fr) repeat(2,minmax(0,1fr)); align-items: start; padding: 8px 0 0; }
+.v-unit { align-self: center; font-size: 16px; }
+.v-metric { display: grid; gap: 2px; border-left: 2px solid var(--edge); padding-left: 14px; }
+.v-metric small { font-size: 13px; color: var(--muted); }
+.v-metric b { font-size: 22px; line-height: 1.25; font-variant-numeric: tabular-nums; white-space: normal; }
+.v-metric .v-cost { color: var(--ink); }
+.v-metric .v-unset { color: var(--muted); font-size: 16px; font-weight: 500; }
+@media (max-width: 600px) {
+  .v-prices .v-price-row { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .v-unit { grid-column: 1 / -1; }
+  .v-card { padding: 14px; }
+  .v-metric { padding-left: 8px; }
+}
