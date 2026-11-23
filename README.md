@@ -10,6 +10,18 @@ Catálogo y lista de precios de la familia. Un solo proyecto de Supabase sirve d
 
 La ruta `/gloria/` redirige a la lista familiar. La ruta `/edgar/` permite editar directamente, sin PIN ni código de activación. **Advertencia:** GitHub Pages es pública y el identificador de edición incluido en esta ruta no es autenticación: cualquier persona que visite o inspeccione el enlace de Edgar puede modificar el catálogo. La página de administración (`web/jefferson/`) **no** se publica en internet: solo la abre Electron.
 
+
+## Catálogo Excel completo (23-11-2026)
+
+- Consulta administrativa: https://jeffer91.github.io/almacen/catalogo-excel/ (enlace también en Gloria y Edgar).
+- El acceso requiere **el PIN administrativo existente**. El token de sesión permanece solo en memoria.
+- Archivo de procedencia: `ALMACEN 2024(4).xls`; 16 hojas detectadas, de las cuales 2 están ocultas y **excluidas**: `Bordados` y `Pasamaneria`.
+- Se almacenaron **1.801 filas comerciales** de 11 hojas visibles, en **10 bloques**. Se descartaron las hojas sin catálogo de productos (`N, de P.`, `Jeff`, `Falta`) y el marcador aislado de la fila 65536 de Cintas.
+- Todos los encabezados y valores se preservan por columna original, con hoja y fila de procedencia. **No se inventan ni recalculan costos** cuando la naturaleza del valor es ambigua.
+- Datos de archivo originales: `family_excel_catalog_sheets` y `family_excel_catalog_rows`. Ambas tablas tienen RLS y **no admiten lectura directa anon/authenticated**; solo la Edge Function `excel-catalog` sirve datos a una sesión administrativa válida.
+- Copia legible en Google Sheets maestro: 11 pestañas `XLS_*`. No se alteraron las 17 pestañas existentes.
+- Los datos originales todavía **no equivalen** a productos normalizados en `family_products` ni a precios oficiales en `family_prices`; la consulta es de solo lectura y conserva la procedencia histórica.
+
 ## Respaldo en Google Sheets y actualización de Supabase
 
 - **Supabase sigue siendo la base oficial.** Google Sheets es un respaldo de consulta y una zona de preparación, no un segundo origen de verdad.
