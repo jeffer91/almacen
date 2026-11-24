@@ -9,12 +9,12 @@ const same=(a,b)=>num(a)===num(b);
 function retailOf(prices,id,rate){const r=prices.find(x=>x.presentation_id===id&&x.shop==="jefferson");return r?round2(Number(r.price)*rate):null}
 function priceRows(s,category=""){const p=new Map((s.products||[]).filter(x=>x.active!==false&&(!category||x.category===category)).map(x=>[x.id,x])),rate=1+Number(s.settings?.iva_rate??15)/100;return (s.presentations||[]).filter(r=>p.has(r.product_id)).map(r=>{const x=p.get(r.product_id);return [r.id,r.sku||"",x.name,x.brand||"",x.category||"",r.label,Number(r.quantity),r.unit,num(r.current_cost),retailOf(s.prices||[],r.id,rate),num(r.wholesale_price),num(r.meter_price),"","","",""]}).sort((a,b)=>String(a[4]).localeCompare(String(b[4]),"es")||String(a[2]).localeCompare(String(b[2]),"es"))}
 function validate(raw,old,q,u,amount){const values={};for(const key of ["costo","precio","pxm","precio_metro"]){const x=amount(raw[key]);if(Number.isNaN(x))return {error:key+" inválido"};values[key]=x}const c=values.costo??old.costo,price=values.precio??old.precio,w=values.pxm??old.pxm,m=values.precio_metro??old.precio_metro,len=meters(q,u),cm=c===null||!len?null:c/len;
-if(price===null)return {error:"Falta precio de venta."};
-if(price<=0||(c!==null&&price<=c))return {error:"El precio debe ser mayor al costo de la presentación."};
-if(Math.abs(price-round2(price))>1e-8)return {error:"El precio de venta admite máximo dos decimales."};
-if(w!==null&&(w<=0||(c!==null&&w<=c)||w>price))return {error:"PXM debe ser mayor al costo y no superar el precio."};
+if([c,price,w,m].every(x=>x===null))return {error:"Ingresa al menos un importe: costo, precio, PXM o precio por metro."};
+if(price!==null&&(price<=0||(c!==null&&price<=c)))return {error:"El precio debe ser mayor al costo de la presentación."};
+if(price!==null&&Math.abs(price-round2(price))>1e-8)return {error:"El precio de venta admite máximo dos decimales."};
+if(w!==null&&(w<=0||(c!==null&&w<=c)||(price!==null&&w>price)))return {error:"PXM debe ser mayor al costo y no superar el precio."};
 if(m!==null&&(!len||m<=0||(cm!==null&&m<=cm)))return {error:"Precio por metro debe superar el costo por metro ("+(cm===null?"sin longitud válida":cm.toFixed(4))+")."};
-return {values,c,price,w,m,cm,len,equivalent:len?price/len:null,warning:c===null?"Costo pendiente: margen sin verificar.":""};
+return {values,c,price,w,m,cm,len,equivalent:len&&price!==null?price/len:null,warning:[c===null?"Costo pendiente: margen sin verificar.":"",price===null?"Precio de venta pendiente.":""].filter(Boolean).join(" ")};
 }
 function oldValues(p,s,rate){return {costo:num(p?.current_cost),precio:p?retailOf(s.prices||[],p.id,rate):null,pxm:num(p?.wholesale_price),precio_metro:num(p?.meter_price)}}
 function planRow(r,v,previous,payload,operation){return {line:r._fila,name:r.producto,label:r.presentacion,previous:previous.precio,cost:v.c,price:v.price,wholesale:v.w,meter:v.m,costMeter:v.cm,equivalent:v.equivalent,warning:v.warning,operation,payload}}

@@ -53,7 +53,7 @@
   }
   function hasAmount(card) {
     return card.items.some(item =>
-      [item.gross, item.referencePrice, item.cost].some(Number.isFinite)
+      [item.gross, item.referencePrice, item.cost, item.wholesale, item.meterPrice].some(Number.isFinite)
     );
   }
   function setData(data) {

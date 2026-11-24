@@ -24,7 +24,7 @@ Gloria, Edgar, Ventas, Catálogo Excel y Sincronización se abren sin PIN. Cualq
 
 ## Precios comerciales y longitud
 
-Las nuevas plantillas web usan Costo, Precio final, PXM opcional y Precio por metro opcional. El precio debe superar costo; PXM debe superar costo y no superar precio. Para metros y yardas se calcula costo por metro, sin inventar costos faltantes. El costo puede quedar vacío: la carga se admite con una advertencia y el margen queda pendiente; si existe un costo anterior se conserva y se valida. El IVA interno se mantiene para compatibilidad. SKU opcional. El módulo comercial usa una función transaccional; otros módulos históricos conservan sus reglas.
+Las nuevas plantillas web usan Costo, Precio final, PXM opcional y Precio por metro opcional. El precio debe superar costo; PXM debe superar costo y no superar precio. Para metros y yardas se calcula costo por metro, sin inventar costos faltantes. Basta un importe disponible entre costo, precio, PXM y precio por metro. El costo y el precio pueden faltar: se advierte y se conservan los importes existentes. Las comparaciones de rentabilidad solo se realizan cuando están disponibles ambos valores. El IVA interno se mantiene para compatibilidad. SKU opcional. El módulo comercial usa una función transaccional; otros módulos históricos conservan sus reglas.
 
 ## Cargas masivas Excel
 
