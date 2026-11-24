@@ -63,7 +63,7 @@ jobs:
           grep -q 'id="product-template"' /tmp/bulk.html
           grep -q 'id="price-template"' /tmp/bulk.html
           grep -q 'id="bulk-confirm"' /tmp/bulk.html
-          curl -fLsS --max-time 25 "$base/administrador/cargas/bulk.js?v=2" -o /tmp/bulk.js
+          curl -fLsS --max-time 25 "$base/administrador/cargas/bulk.js?v=3" -o /tmp/bulk.js
           grep -q 'importCommercialExcel' /tmp/bulk.js
           curl -fLsS --max-time 25 "$base/administrador/catalog-dashboard.js?v=2" -o /tmp/catalog-dashboard.js
           grep -q 'catalog-export-details' /tmp/catalog-dashboard.js
