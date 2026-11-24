@@ -15,6 +15,12 @@ La ruta `/gloria/` redirige a la lista familiar. La ruta `/edgar/` permite edita
 
 Gloria, Edgar, Ventas, Catálogo Excel y Sincronización se abren sin PIN. Cualquier visitante puede consultar los datos y usar las operaciones ofrecidas, incluyendo ediciones, registro/anulación de ventas e importaciones. No se puede verificar su identidad. La administración de Electron conserva PIN y las tablas siguen sin acceso directo. Google Sheets y las credenciales del servidor permanecen privados.
 
+## Panel de administración comercial
+
+- https://jeffer91.github.io/almacen/administrador/ — público, solo consulta.
+- Indicadores reales, filtros, evolución, pagos, cantidades por unidad y ranking exportable.
+- No estima utilidad ni existencias: faltan costos históricos por venta e inventario.
+
 ## Catálogo Excel completo (23-11-2026)
 
 - Consulta administrativa: https://jeffer91.github.io/almacen/catalogo-excel/ (enlace también en Gloria y Edgar).

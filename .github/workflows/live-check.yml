@@ -56,6 +56,10 @@ jobs:
           grep -q 'id="catalog-content">' /tmp/excel.html
           grep -q 'catalogo.js?v=20261124-publico-2' /tmp/excel.html
           grep -q 'id="apply"' /tmp/sync.html
+          curl -fLsS --retry 3 --max-time 25 "$base/administrador/?v=20261124-admin1" -o /tmp/admin.html
+          grep -q 'id="report"' /tmp/admin.html
+          curl -fLsS --max-time 25 "$base/administrador/dashboard.js?v=1" -o /tmp/dashboard.js
+          grep -q 'exportSalesBackup' /tmp/dashboard.js
           curl -fLsS --max-time 25 "$base/sync-core.js" -o /tmp/sync-core.js
           grep -q 'parsePending' /tmp/sync-core.js
           curl -fLsS --max-time 25 "$base/sincronizar/sync.js?v=20261124-publico-2" -o /tmp/sync.js
