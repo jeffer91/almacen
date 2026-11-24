@@ -161,14 +161,15 @@
     let sum=0;for(const c of letters.toUpperCase())sum=sum*26+c.charCodeAt(0)-64;
     return sum-1;
   }
-  async function parse(file){
+  async function parse(file, options={}){
+    const expectedHeaders=options.headers||HEADERS,expectedFields=options.fields||FIELDS,wantedSheet=options.sheet||"PRODUCTOS";
     if(!file||! /\.xlsx$/i.test(file.name)||file.size>5*1024*1024)throw Error("Selecciona un Excel .xlsx de máximo 5 MB");
     const parts=await unzip(await file.arrayBuffer());
     let sheetPath="xl/worksheets/sheet1.xml";
     if(parts["xl/workbook.xml"]&&parts["xl/_rels/workbook.xml.rels"]){
       const workbook=xml(parts["xl/workbook.xml"]),relationships=xml(parts["xl/_rels/workbook.xml.rels"]);
       const sheets=elems(workbook,"sheet");
-      const wanted=sheets.find(s=>s.getAttribute("name")?.toUpperCase()==="PRODUCTOS")||sheets[0];
+      const wanted=sheets.find(s=>s.getAttribute("name")?.toUpperCase()===wantedSheet.toUpperCase())||sheets[0];
       const id=wanted?.getAttribute("r:id")||wanted?.getAttributeNS("http://schemas.openxmlformats.org/officeDocument/2006/relationships","id");
       const rel=elems(relationships,"Relationship").find(x=>x.getAttribute("Id")===id);
       if(rel){const target=rel.getAttribute("Target")||"";sheetPath=target.startsWith("/")?target.slice(1):"xl/"+target.replace(/^\.\//,"");}
@@ -180,6 +181,7 @@
       const cells=[];
       for(const c of [...row.children].filter(x=>localName(x)==="c")){
         const i=colNum(c.getAttribute("r"));if(i<0||i>100)continue;
+        if(options.rejectFormulas&&child(c,"f"))throw Error("La plantilla contiene fórmulas. Pega solo valores antes de cargar.");
         const type=c.getAttribute("t"),cellValue=child(c,"v");
         const raw= type==="inlineStr"?elems(c,"t").map(value).join(""):value(cellValue);
         cells[i]=type==="s"?ss[Number(raw)]??"":type==="n"||(!type&&raw&&Number.isFinite(Number(raw)))?Number(raw):raw;
@@ -189,12 +191,12 @@
     if(!rows.length)throw Error("La hoja está vacía");
     const normalized=(s)=>String(s??"").trim().normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/[^a-z0-9]/g,"");
     const header=rows[0].map(normalized);
-    const expected=HEADERS.map(normalized);
-    if(expected.some((h,i)=>header[i]!==h))throw Error("La plantilla no tiene las columnas esperadas ("+HEADERS.join(", ")+"). Descarga la plantilla actual.");
+    const expected=expectedHeaders.map(normalized);
+    if(expected.some((h,i)=>header[i]!==h))throw Error("La plantilla no tiene las columnas esperadas ("+expectedHeaders.join(", ")+"). Descarga la plantilla actual.");
     const data=[];
     rows.slice(1).forEach((cells,i)=>{
       if(!cells.some(x=>x!==null&&x!==undefined&&String(x).trim()!==""))return;
-      const row={_fila:i+2}; FIELDS.forEach((name,j)=>row[name]=cells[j]===undefined||cells[j]===null?"":cells[j]);
+      const row={_fila:i+2}; expectedFields.forEach((name,j)=>row[name]=cells[j]===undefined||cells[j]===null?"":cells[j]);
       data.push(row);
     });
     if(!data.length)throw Error("La plantilla no tiene filas con datos");

@@ -201,7 +201,7 @@ Deno.serve(async (request: Request) => {
   const action = txt(body?.action, 50);
   const authenticatedRole = await getRole(request);
   // Acceso público solicitado para los módulos web. Lista cerrada: no concede una sesión administrativa.
-  const publicWeb = !authenticatedRole && new Set(["listSales", "addSale", "voidSale", "exportSalesBackup", "syncSnapshot", "importExcel"]).has(action);
+  const publicWeb = !authenticatedRole && new Set(["listSales", "addSale", "voidSale", "exportSalesBackup", "syncSnapshot", "importExcel", "importPricesExcel"]).has(action);
   const role = authenticatedRole || (publicWeb ? "jefferson" : null);
   if (!role) {
     // Acceso público de la familia: ver precios y subir fotos de productos.
@@ -317,6 +317,49 @@ Deno.serve(async (request: Request) => {
       if (!data) return fail("Venta no encontrada o ya anulada", 404);
       await audit(role, action, id, { access: publicWeb ? "public-web" : "authenticated" });
       return response({ ok: true });
+    }
+
+    if (action === "importPricesExcel") {
+      if (role !== "jefferson") return fail("Solo administración puede importar precios", 403);
+      if (!Array.isArray(body.rows) || body.rows.length < 1 || body.rows.length > 500)
+        return fail("El Excel debe contener entre 1 y 500 precios");
+      const seen = new Set<string>();
+      const rows = body.rows.map((r: any) => {
+        const id = requiredId(r.presentation_id);
+        if (seen.has(id)) throw new Error("Presentación repetida");
+        seen.add(id);
+        if (r.price === undefined || r.price === null || r.price === "" || !Number.isFinite(Number(r.price))) throw new Error("Precio inválido");
+        const price = amount(r.price);
+        if (Math.abs(price - Number(price.toFixed(4))) > 0.00000001) throw new Error("Máximo cuatro decimales");
+        const expected = r.expected_price === null ? null : amount(r.expected_price);
+        return { presentation_id: id, price, expected };
+      });
+      const existing = new Map<string, number>();
+      for (let offset = 0; offset < rows.length; offset += 100) {
+        const ids = rows.slice(offset, offset + 100).map((r: any) => r.presentation_id);
+        const { data: pres, error: pe } = await db.from("family_presentations").select("id,product_id").in("id", ids);
+        if (pe) throw pe;
+        if (pres.length !== ids.length) return fail("Una presentación ya no existe", 409);
+        const productIds = [...new Set(pres.map((p: any) => p.product_id))];
+        const { data: products, error: pr } = await db.from("family_products").select("id").in("id", productIds).eq("active", true);
+        if (pr) throw pr;
+        if (products.length !== productIds.length) return fail("Un producto ya no está activo", 409);
+        const { data: prices, error: err } = await db.from("family_prices").select("presentation_id,price").eq("shop", "jefferson").in("presentation_id", ids);
+        if (err) throw err;
+        for (const item of prices) existing.set(item.presentation_id, Number(item.price));
+      }
+      for (const r of rows) {
+        const old = existing.has(r.presentation_id) ? existing.get(r.presentation_id) : null;
+        if (old !== r.expected) return fail("Un precio cambió; descarga la plantilla nuevamente", 409);
+      }
+      const now = new Date().toISOString();
+      const values = rows.filter((r: any) => r.expected !== r.price).map((r: any) => ({ presentation_id: r.presentation_id, shop: "jefferson", price: r.price, updated_by: "jefferson", updated_at: now }));
+      if (values.length) {
+        const { error } = await db.from("family_prices").upsert(values, { onConflict: "presentation_id,shop" });
+        if (error) throw error;
+        await audit(role, action, "catalog", { prices: values.length, access: publicWeb ? "public-web" : "authenticated" });
+      }
+      return response({ ok: true, summary: { prices: values.length } });
     }
 
     if (action === "importExcel") {

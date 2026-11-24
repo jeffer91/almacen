@@ -59,6 +59,12 @@ jobs:
           curl -fLsS --retry 3 --max-time 25 "$base/administrador/?v=20261124-admin2" -o /tmp/admin.html
           grep -q 'id="report"' /tmp/admin.html
           grep -q 'id="catalog-categories"' /tmp/admin.html
+          curl -fLsS --retry 3 --max-time 25 "$base/administrador/cargas/?v=1" -o /tmp/bulk.html
+          grep -q 'id="product-template"' /tmp/bulk.html
+          grep -q 'id="price-template"' /tmp/bulk.html
+          grep -q 'id="bulk-confirm"' /tmp/bulk.html
+          curl -fLsS --max-time 25 "$base/administrador/cargas/bulk.js?v=1" -o /tmp/bulk.js
+          grep -q 'importPricesExcel' /tmp/bulk.js
           curl -fLsS --max-time 25 "$base/administrador/catalog-dashboard.js?v=2" -o /tmp/catalog-dashboard.js
           grep -q 'catalog-export-details' /tmp/catalog-dashboard.js
           curl -fLsS --max-time 25 "$base/administrador/dashboard.js?v=2" -o /tmp/dashboard.js
@@ -97,4 +103,6 @@ jobs:
             code=$(curl -sS -o /dev/null -w "%{http_code}" -X POST --max-time 25 -H "Content-Type: application/json" --data "{\"action\":\"$action\"}" "$url")
             test "$code" = "401"
           done
+          code=$(curl -sS -o /dev/null -w "%{http_code}" -X POST --max-time 25 -H "Content-Type: application/json" --data '{"action":"importPricesExcel","rows":[]}' "$url")
+          test "$code" = "400"
           echo "Módulos públicos disponibles; administración completa protegida."

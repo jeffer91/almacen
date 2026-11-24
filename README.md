@@ -17,10 +17,16 @@ Gloria, Edgar, Ventas, Catálogo Excel y Sincronización se abren sin PIN. Cualq
 
 ## Panel de administración comercial
 
-- https://jeffer91.github.io/almacen/administrador/ — público, solo consulta.
+- https://jeffer91.github.io/almacen/administrador/ — público; indicadores de consulta y módulo de carga masiva.
 - Indicadores reales, filtros, evolución, pagos, cantidades por unidad y ranking exportable.
 - Catálogo oficial: productos por categoría, presentaciones, marcas, cobertura de fotografías/precios oficiales/costos, pendientes de calidad, SKU, detalle y exportaciones CSV. Archivo Excel histórico separado. Ventas por categoría por coincidencia de nombre (no por ID histórico).
 - No estima utilidad ni existencias: faltan costos históricos por venta e inventario.
+
+## Cargas masivas Excel
+
+- https://jeffer91.github.io/almacen/administrador/cargas/ — descargar/cargar plantillas .xlsx de productos y precios (500 filas, 5 MB por archivo).
+- Productos: revisión previa y lote mediante importExcel; precios: plantilla precargada por categoría/lote con ID de presentación, columnas de precio nuevo y validación del precio anterior. Solo modifica family_prices del precio oficial Jefferson. No se cambian ventas históricas.
+- Sin PIN, como los demás módulos web. El usuario confirma antes de guardar; la confirmación no autentica. La comparación previa reduce conflictos, pero no garantiza bloqueo transaccional entre lectura y escritura.
 
 ## Catálogo Excel completo (23-11-2026)
 
