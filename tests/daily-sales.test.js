@@ -8,19 +8,20 @@ const read = (p) => readFileSync(join(__dirname, "..", p), "utf8");
 test("El registro de ventas es independiente del catálogo público", () => {
   const html = read("web/ventas/index.html");
   const js = read("web/ventas/sales.js");
-  assert.match(html, /id="loginForm"/);
+  assert.doesNotMatch(html, /id="loginForm"/);
   assert.match(html, /id="saleForm"/);
   assert.match(html, /id="saleDate"/);
-  assert.match(js, /api\("login"/);
+  assert.doesNotMatch(js, /api\("login"/);
   assert.match(js, /api\("listSales"/);
   assert.match(js, /api\("addSale"/);
   assert.match(js, /api\("voidSale"/);
-  assert.match(js, /"x-almacen-key"/);
+  assert.doesNotMatch(js, /"x-almacen-key"/);
   assert.doesNotMatch(js, /localStorage\.|sessionStorage\./);
 });
 
-test("La API exige administración para registrar y ver ventas", () => {
+test("La API limita las operaciones públicas a una lista explícita", () => {
   const ts = read("supabase/functions/catalog-api/index.ts");
+  assert.match(ts, /const publicWeb = !authenticatedRole && new Set\(\["listSales", "addSale", "voidSale", "exportSalesBackup", "syncSnapshot", "importExcel"\]\)\.has\(action\)/);
   for (const action of ["listSales", "addSale", "voidSale"]) {
     const start = ts.indexOf('if (action === "' + action + '")');
     assert.ok(start >= 0, action + " debe existir");

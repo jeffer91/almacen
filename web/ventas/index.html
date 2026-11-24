@@ -7,16 +7,9 @@
 <link rel="icon" href="../assets/nicole-icon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="./sales.css"></head>
 <body>
-<header><a href="../" class="back">← Lista de precios</a><a href="../sincronizar/" class="back">Respaldo / Sheets</a><div class="brand"><img src="../assets/nicole-icon.svg" width="36" height="36" alt=""><div><strong>Nicole Encajes</strong><small>Ventas del día</small></div></div><button id="logout" class="plain" hidden>Cerrar sesión</button></header>
+<header><a href="../" class="back">← Lista de precios</a><a href="../sincronizar/" class="back">Respaldo / Sheets</a><div class="brand"><img src="../assets/nicole-icon.svg" width="36" height="36" alt=""><div><strong>Nicole Encajes</strong><small>Ventas del día</small></div></div></header>
 <main>
-  <section id="loginSection" class="panel login">
-    <h1>Registro de ventas</h1><p>Solo administración. Introduce el PIN de la aplicación para consultar y registrar ventas.</p>
-    <form id="loginForm"><label for="pin">PIN de administración</label><input id="pin" type="password" inputmode="numeric" autocomplete="off" pattern="[0-9]{4,8}" minlength="4" maxlength="8" required>
-      <button type="submit" id="loginSubmit">Entrar a ventas</button></form>
-    <p id="loginError" class="error" role="alert"></p>
-    <small>Tu sesión se mantiene únicamente mientras esta página está abierta.</small>
-  </section>
-  <div id="salesSection" hidden>
+  <div id="salesSection">
     <div class="page-title"><div><h1>Ventas del día</h1><p>Registra cada artículo vendido. Puedes escribir productos que aún no estén en el catálogo.</p></div></div>
     <section class="panel daybar">
       <label for="saleDate">Fecha de la venta</label><input id="saleDate" type="date" required><button id="exportCsv" type="button" class="outline">Descargar Excel (CSV)</button>

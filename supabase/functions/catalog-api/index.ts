@@ -199,7 +199,10 @@ Deno.serve(async (request: Request) => {
   let body: any;
   try { body = await request.json(); } catch { return fail("Solicitud JSON inválida"); }
   const action = txt(body?.action, 50);
-  const role = await getRole(request);
+  const authenticatedRole = await getRole(request);
+  // Acceso público solicitado para los módulos web. Lista cerrada: no concede una sesión administrativa.
+  const publicWeb = !authenticatedRole && new Set(["listSales", "addSale", "voidSale", "exportSalesBackup", "syncSnapshot", "importExcel"]).has(action);
+  const role = authenticatedRole || (publicWeb ? "jefferson" : null);
   if (!role) {
     // Acceso público de la familia: ver precios y subir fotos de productos.
     try {
@@ -219,6 +222,15 @@ Deno.serve(async (request: Request) => {
   try {
     if (action === "catalog") return await publicCatalog();
     if (action === "bootstrap") return await bootstrap(role);
+    if (action === "syncSnapshot") {
+      const [products, presentations, prices] = await Promise.all([
+        listAll("family_products", "id,name,brand,category,active,updated_at"),
+        listAll("family_presentations", "id,product_id,label,quantity,unit,sku,current_cost,updated_at"),
+        listAll("family_prices", "presentation_id,shop,price,updated_at")
+      ]);
+      const { iva_rate } = await storeSettings();
+      return response({ ok: true, products, presentations, prices, settings: { iva_rate } });
+    }
     if (action === "exportSalesBackup") {
       if (role !== "jefferson") return fail("Solo administración puede respaldar ventas", 403);
       const sales = await listAll("family_daily_sales",
@@ -248,7 +260,7 @@ Deno.serve(async (request: Request) => {
       return response({ ok: true, settings: value });
     }
 
-    // Ventas del día: solo usuarios con sesión de administrador.
+    // Ventas del día: acceso público; no se verifica identidad.
     // El nombre del artículo puede ser libre mientras se completa el catálogo.
     if (action === "listSales") {
       if (role !== "jefferson") return fail("Solo administración puede consultar ventas", 403);
@@ -292,7 +304,7 @@ Deno.serve(async (request: Request) => {
         if (existing) return response({ ok: true, sale: existing, duplicate: true });
       }
       if (error) throw error;
-      await audit(role, action, data.id, { product_name: productName, total: data.total });
+      await audit(role, action, data.id, { product_name: productName, total: data.total, access: publicWeb ? "public-web" : "authenticated" });
       return response({ ok: true, sale: data });
     }
     if (action === "voidSale") {
@@ -303,7 +315,7 @@ Deno.serve(async (request: Request) => {
         .eq("id", id).is("voided_at", null).select("id").maybeSingle();
       if (error) throw error;
       if (!data) return fail("Venta no encontrada o ya anulada", 404);
-      await audit(role, action, id);
+      await audit(role, action, id, { access: publicWeb ? "public-web" : "authenticated" });
       return response({ ok: true });
     }
 
@@ -319,6 +331,7 @@ Deno.serve(async (request: Request) => {
       }));
       const { data, error } = await db.rpc("family_import_catalog_v2", { p_rows: rows });
       if (error) throw error;
+      await audit(role, action, "catalog", { access: publicWeb ? "public-web" : "authenticated", rows: rows.length });
       return response({ ok: true, summary: data });
     }
 

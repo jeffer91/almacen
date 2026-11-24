@@ -1,9 +1,8 @@
-/* Nicole Encajes · ventas diarias. La sesión administrativa se guarda solo en memoria. */
+/* Nicole Encajes · ventas diarias. Acceso público sin PIN. */
 "use strict";
 (() => {
   const $ = (id) => document.getElementById(id);
   const url = String(window.ALMACEN_API_URL || "").replace(/\/$/, "");
-  let token = null;
   let sales = [];
   let pendingKey = null;
   const money = (n) => new Intl.NumberFormat("es-EC", {
@@ -19,25 +18,15 @@
   async function api(action, fields = {}) {
     if (!url) throw new Error("La aplicación no está conectada a Supabase");
     const headers = { "content-type": "application/json" };
-    if (token) headers["x-almacen-key"] = token;
     const res = await fetch(url, {
       method: "POST", headers, cache: "no-store",
       body: JSON.stringify({ action, ...fields })
     });
     const body = await res.json().catch(() => ({}));
     if (!res.ok || !body.ok) {
-      if (res.status === 401 && action !== "login" && token) {
-        token = null;
-        showAuthenticated(false);
-      }
       throw new Error(body.error || "No se pudo contactar a Supabase");
     }
     return body;
-  }
-  function showAuthenticated(allowed) {
-    $("loginSection").hidden = allowed;
-    $("salesSection").hidden = !allowed;
-    $("logout").hidden = !allowed;
   }
   function setMessage(id, message, success = false) {
     const el = $(id);
@@ -87,7 +76,6 @@
     }
   }
   async function loadSales() {
-    if (!token) return;
     const day = $("saleDate").value;
     setMessage("listError", "");
     $("reload").disabled = true;
@@ -116,7 +104,6 @@
     } catch { /* siempre se permite escribir el producto manualmente */ }
   }
   async function voidSale(sale) {
-    if (!token) return;
     if (!confirm("¿Anular la venta de " + sale.product_name + " por " + money(sale.total) + "? La operación quedará en el historial de auditoría.")) return;
     try {
       await api("voidSale", { id: sale.id });
@@ -127,7 +114,6 @@
     }
   }
   function exportCsv() {
-    if (!token) return;
     const csvCell = (v) => {
       let s = String(v ?? "");
       if (/^[=+@-]/.test(s)) s = "'" + s;
@@ -149,26 +135,9 @@
     setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
   }
   $("saleDate").value = localDate();
-  $("loginForm").addEventListener("submit", async (event) => {
-    event.preventDefault();
-    $("loginSubmit").disabled = true;
-    setMessage("loginError", "");
-    try {
-      const data = await api("login", { pin: $("pin").value });
-      token = data.token;
-      $("loginForm").reset();
-      showAuthenticated(true);
-      await Promise.all([loadSales(), loadProductNames()]);
-    } catch (error) {
-      setMessage("loginError", error.message);
-    } finally {
-      $("loginSubmit").disabled = false;
-    }
-  });
   $("saleForm").addEventListener("input", () => { pendingKey = null; updatePreview(); });
   $("saleForm").addEventListener("submit", async (event) => {
     event.preventDefault();
-    if (!token) return;
     if (!pendingKey) pendingKey = crypto.randomUUID();
     $("saveSale").disabled = true;
     setMessage("saleMessage", "");
@@ -199,11 +168,6 @@
   $("saleDate").addEventListener("change", () => { pendingKey = null; loadSales(); });
   $("reload").addEventListener("click", loadSales);
   $("exportCsv").addEventListener("click", exportCsv);
-  $("logout").addEventListener("click", async () => {
-    try { await api("logout"); } catch { /* cerrar localmente aunque falle la red */ }
-    token = null; sales = []; pendingKey = null;
-    renderSales();
-    showAuthenticated(false);
-  });
+  Promise.all([loadSales(), loadProductNames()]);
   updatePreview();
 })();

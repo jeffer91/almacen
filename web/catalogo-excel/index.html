@@ -12,7 +12,7 @@
 <body>
 <header class="topbar">
   <div class="brand"><img src="../assets/nicole-icon.svg" alt="" width="42" height="42"><div><strong>Nicole Encajes</strong><span>Catálogo completo del Excel</span></div></div>
-  <nav><a href="../">Lista familiar</a><a href="../edgar/">Panel de Edgar</a><button type="button" id="logout" hidden>Cerrar sesión</button></nav>
+  <nav><a href="../">Lista familiar</a><a href="../edgar/">Panel de Edgar</a></nav>
 </header>
 <main>
   <section class="intro">
@@ -20,8 +20,7 @@
     <p>Todos los valores y encabezados se muestran tal como figuran en las hojas comerciales visibles. Las columnas históricas no se interpretan automáticamente como costos. La consulta es de solo lectura.</p>
     <div id="status" role="status" aria-live="polite">Conectando con Supabase…</div>
   </section>
-  <section id="login-section" class="login-box"><h2>Acceso a precios y costos completos</h2><p>Utiliza el PIN administrativo de Nicole Encajes. Esta información no es pública.</p><form id="login-form"><label>PIN administrativo<input id="pin" type="password" inputmode="numeric" pattern="[0-9]{4,8}" minlength="4" maxlength="8" autocomplete="off" required></label><button type="submit" id="login-button">Entrar al catálogo</button></form><p id="login-error" role="alert"></p></section>
-  <div id="catalog-content" hidden>
+  <div id="catalog-content">
   <section class="controls" aria-label="Filtros del catálogo">
     <label>Hoja del Excel<select id="sheet" disabled><option>Cargando hojas…</option></select></label>
     <label>Buscar en todas las columnas<input type="search" id="search" placeholder="Producto, modelo, referencia, color…" autocomplete="off" disabled></label>

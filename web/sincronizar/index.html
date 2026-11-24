@@ -2,20 +2,14 @@
 <html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="color-scheme" content="light"><meta name="robots" content="noindex,nofollow"><meta name="referrer" content="no-referrer">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' https://*.supabase.co; connect-src 'self' https://*.supabase.co; object-src 'none'; base-uri 'self'; form-action 'self'">
-<title>Nicole Encajes · Sincronización segura</title>
+<title>Nicole Encajes · Sincronización y respaldo</title>
 <link rel="stylesheet" href="../ventas/sales.css"><link rel="stylesheet" href="./sync.css"><link rel="icon" href="../assets/nicole-icon.svg" type="image/svg+xml"></head>
 <body>
 <header><a class="back" href="../">← Catálogo</a>
 <div class="brand"><img src="../assets/nicole-icon.svg" width="36" height="36" alt=""><div><strong>Nicole Encajes</strong><small>Sincronización y respaldo</small></div></div>
-<button id="logout" class="plain" hidden>Cerrar sesión</button></header>
+</header>
 <main>
-<section id="loginSection" class="panel login">
-<h1>Sincronización protegida</h1><p>Supabase es la base principal. Google Sheets se utiliza como respaldo de consulta y para preparar actualizaciones.</p>
-<form id="loginForm"><label for="pin">PIN de administración</label><input id="pin" type="password" inputmode="numeric" autocomplete="off" pattern="[0-9]{4,8}" minlength="4" maxlength="8" required>
-<button type="submit" id="loginButton">Acceder</button></form>
-<p id="loginError" class="error" role="alert"></p><small>La sesión no se guarda en el navegador al cerrar la pestaña.</small>
-</section>
-<div id="syncSection" hidden>
+<div id="syncSection">
 <h1>Supabase ↔ Google Sheets</h1>
 <p><strong>Supabase es la fuente oficial.</strong> Una tabla de Google Sheets no se aplica hasta revisar diferencias y confirmarlas. La hoja es privada: no se abre ni se modifica automáticamente desde esta página.</p>
 <div class="stats">

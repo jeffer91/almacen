@@ -1,4 +1,4 @@
-name: Verificar catálogo Excel protegido
+name: Verificar catálogo Excel público
 on:
   workflow_dispatch:
   push:
@@ -13,26 +13,27 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 4
     steps:
-      - name: Comprobar página, acceso privado y ruta a Supabase
+      - name: Comprobar página, acceso público y ruta a Supabase
         shell: bash
         run: |
           set -euo pipefail
           base="https://jeffer91.github.io/almacen"
           for i in $(seq 1 8); do
             curl -fLsS --max-time 15 "$base/catalogo-excel/" -o /tmp/catalog.html || true
-            if grep -q 'id="login-form"' /tmp/catalog.html 2>/dev/null; then break; fi
+            if grep -q 'id="catalog-content">' /tmp/catalog.html 2>/dev/null; then break; fi
             sleep 4
           done
-          grep -q 'id="login-form"' /tmp/catalog.html
-          grep -q 'id="catalog-content" hidden' /tmp/catalog.html
+          ! grep -q 'id="login-form"' /tmp/catalog.html
+          grep -q 'id="catalog-content">' /tmp/catalog.html
           curl -fLsS --max-time 20 "$base/catalogo-excel/catalogo.js" -o /tmp/catalog.js
           grep -q 'excel-catalog' /tmp/catalog.js
-          grep -q 'x-almacen-key' /tmp/catalog.js
+          ! grep -q 'x-almacen-key' /tmp/catalog.js
           curl -fLsS --max-time 20 "$base/viewer.js" -o /tmp/viewer.js
           grep -q 'catalogo-excel/' /tmp/viewer.js
           code=$(curl -sS -o /tmp/private-result -w "%{http_code}" -X POST --max-time 20 \
             -H "Content-Type: application/json" \
             --data '{"action":"sheets"}' \
             "https://oppaviqjlyrnkpxjsfvo.supabase.co/functions/v1/excel-catalog")
-          test "$code" = "401" || { echo "Sin PIN se obtuvo HTTP $code; esperado 401"; exit 1; }
-          echo "Página publicada y catálogo protegido con sesión administrativa."
+          test "$code" = "200" || { echo "Sin PIN se obtuvo HTTP $code; esperado 200"; exit 1; }
+          grep -q '"ok":true' /tmp/private-result
+          echo "Página publicada y catálogo público sin PIN."

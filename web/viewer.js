@@ -173,7 +173,7 @@
         ${editor ? '<button class="v-mini v-sync-btn" data-act="sync-sheet" title="Respaldar cambios de Supabase en Google Sheets">⟳ Google Sheets</button>' : ""}
         ${editor && state.online ? '<button class="v-btn v-add-product" data-act="new-product">+ Nuevo producto</button>' : ""}
         <a class="v-mini v-ventas" href="./catalogo-excel/" title="Todas las columnas originales del Excel">Catálogo Excel</a>\n        <a class="v-mini v-ventas" href="./ventas/">Ventas</a>
-        <a class="v-mini v-ventas" href="./sincronizar/" title="Respaldo y sincronización con Google Sheets (requiere PIN)">Respaldo</a>
+        <a class="v-mini v-ventas" href="./sincronizar/" title="Respaldo y sincronización con Google Sheets (acceso público)">Respaldo</a>
         <button class="v-mini" data-act="pdf" ${ready ? "" : "disabled"} title="Descargar PDF">PDF</button>
         <button class="v-mini" data-act="xlsx" ${ready ? "" : "disabled"} title="Descargar Excel">Excel</button>
       </div></header>`;

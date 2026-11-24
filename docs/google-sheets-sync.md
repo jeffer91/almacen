@@ -6,14 +6,14 @@ Hoja privada: https://docs.google.com/spreadsheets/d/1cr8mVW4ab6SFY1OJE90TCtHi2i
 ## Funcionamiento publicado
 
 1. Abrir **https://jeffer91.github.io/almacen/sincronizar/**.
-2. Acceder con el PIN de administración. La sesión se mantiene solo en memoria de la pestaña.
+2. Acceso público sin PIN. Cualquier visitante puede usar las operaciones de esta página.
 3. En Google Sheets, hoja `CAMBIOS_PENDIENTES`, preparar cambios con una fila por presentación:
    `Código (SKU) | Producto | Marca | Categoría | Presentación | Cantidad | Unidad | Proveedor | Costo compra USD | Precio CON IVA USD | Precio SIN IVA USD | Aplicar (SI/NO)`.
 4. Cambiar `Aplicar` a `SI` **solo** para filas verificadas. El resto permanece en `NO`.
 5. Copiar el rango **A1:L... incluyendo encabezados** y pegar en la pantalla del sincronizador.
 6. Pulsar **Revisar diferencias con Supabase**: la vista previa distingue nuevo / actualización / sin cambios, detecta duplicación de SKU, errores y conflictos de identidad.
 7. Pulsar **Aplicar cambios autorizados a Supabase** y confirmar. Se consulta Supabase otra vez antes del envío: si cambió, no se escribe el lote. El importe se convierte a neto con el IVA configurado si se usa solo el precio con IVA.
-8. La API valida el PIN y aplica cambios mediante la función SQL existente `family_import_catalog_v2`, que trabaja en una transacción y limita a 500 presentaciones por lote.
+8. La API valida los datos y aplica cambios mediante la función SQL existente `family_import_catalog_v2`, que trabaja en una transacción y limita a 500 presentaciones por lote.
 
 ## Copias de consulta
 
@@ -35,7 +35,7 @@ Hoja privada: https://docs.google.com/spreadsheets/d/1cr8mVW4ab6SFY1OJE90TCtHi2i
 ## Límites y seguridad
 
 - No hay lectura automática de la hoja privada desde el navegador. No se publica ni se elimina la privacidad de Google Sheets.
-- La pestaña `CAMBIOS_PENDIENTES` es solo un **área de preparación**. El botón de importar está protegido con PIN y requiere confirmación.
+- La pestaña `CAMBIOS_PENDIENTES` es solo un **área de preparación**. El botón de importar es público y requiere confirmación; esta confirmación no verifica identidad.
 - Los cambios a Supabase no se intentan automáticamente cada 15 minutos.
 - Se compara la versión consultada contra una nueva lectura antes de importar. Esta precaución reduce conflictos, pero **no proporciona bloqueo transaccional entre lectura y escritura** si otro administrador modifica exactamente a la vez.
 - `importExcel` no sincroniza fotografías ni existencias; la gestión de inventario seguirá siendo un módulo posterior.
@@ -48,7 +48,7 @@ npm ci
 npm test
 ```
 
-GitHub Actions comprueba la publicación de `/sincronizar/` y que `exportSalesBackup` devuelve 401 sin sesión. Los tests comprueban plantilla, IVA, rechazo de columnas erróneas y autorización.
+GitHub Actions comprueba la publicación de `/sincronizar/` y que `syncSnapshot` y `exportSalesBackup` permiten acceso público y `bootstrap` conserva autenticación. Los tests comprueban plantilla, IVA, rechazo de columnas erróneas y autorización.
 
 ## Edgar: botón «⟳ Google Sheets» (Supabase → RESPALDO_EDGAR)
 

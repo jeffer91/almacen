@@ -57,9 +57,9 @@ test("Google Sheets privado no se consulta directamente desde el navegador",()=>
  const ui=fs.readFileSync(path.join(__dirname,"../web/sincronizar/sync.js"),"utf8");
  const html=fs.readFileSync(path.join(__dirname,"../web/sincronizar/index.html"),"utf8");
  const api=fs.readFileSync(path.join(__dirname,"../supabase/functions/catalog-api/index.ts"),"utf8");
- assert.match(html,/id="loginForm"/);
+ assert.doesNotMatch(html,/id="loginForm"/);
  assert.match(html,/id="preview"/);
- assert.match(ui,/api\("bootstrap"\)/);
+ assert.match(ui,/api\("syncSnapshot"\)/);
  assert.match(ui,/api\("importExcel",\{rows\}\)/);
  assert.match(ui,/core\.signature\(latest\)!==baseline/);
  assert.doesNotMatch(ui,/service_role|GOOGLE_API_KEY|localStorage|sessionStorage/);

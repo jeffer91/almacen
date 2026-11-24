@@ -11,33 +11,37 @@ Catálogo y lista de precios de la familia. Un solo proyecto de Supabase sirve d
 La ruta `/gloria/` redirige a la lista familiar. La ruta `/edgar/` permite editar directamente, sin PIN ni código de activación. **Advertencia:** GitHub Pages es pública y el identificador de edición incluido en esta ruta no es autenticación: cualquier persona que visite o inspeccione el enlace de Edgar puede modificar el catálogo. La página de administración (`web/jefferson/`) **no** se publica en internet: solo la abre Electron.
 
 
+## Acceso público a los módulos web (24-11-2026)
+
+Gloria, Edgar, Ventas, Catálogo Excel y Sincronización se abren sin PIN. Cualquier visitante puede consultar los datos y usar las operaciones ofrecidas, incluyendo ediciones, registro/anulación de ventas e importaciones. No se puede verificar su identidad. La administración de Electron conserva PIN y las tablas siguen sin acceso directo. Google Sheets y las credenciales del servidor permanecen privados.
+
 ## Catálogo Excel completo (23-11-2026)
 
 - Consulta administrativa: https://jeffer91.github.io/almacen/catalogo-excel/ (enlace también en Gloria y Edgar).
-- El acceso requiere **el PIN administrativo existente**. El token de sesión permanece solo en memoria.
+- El acceso es público, sin PIN; la consulta sigue siendo de solo lectura.
 - Archivo de procedencia: `ALMACEN 2024(4).xls`; 16 hojas detectadas, de las cuales 2 están ocultas y **excluidas**: `Bordados` y `Pasamaneria`.
 - Se almacenaron **1.801 filas comerciales** de 11 hojas visibles, en **10 bloques**. Se descartaron las hojas sin catálogo de productos (`N, de P.`, `Jeff`, `Falta`) y el marcador aislado de la fila 65536 de Cintas.
 - Todos los encabezados y valores se preservan por columna original, con hoja y fila de procedencia. **No se inventan ni recalculan costos** cuando la naturaleza del valor es ambigua.
-- Datos de archivo originales: `family_excel_catalog_sheets` y `family_excel_catalog_rows`. Ambas tablas tienen RLS y **no admiten lectura directa anon/authenticated**; solo la Edge Function `excel-catalog` sirve datos a una sesión administrativa válida.
+- Datos de archivo originales: `family_excel_catalog_sheets` y `family_excel_catalog_rows`. Ambas tablas tienen RLS y **no admiten lectura directa anon/authenticated**; solo la Edge Function `excel-catalog` sirve los datos de lectura pública.
 - Copia legible en Google Sheets maestro: 11 pestañas `XLS_*`. No se alteraron las 17 pestañas existentes.
 - Los datos originales todavía **no equivalen** a productos normalizados en `family_products` ni a precios oficiales en `family_prices`; la consulta es de solo lectura y conserva la procedencia histórica.
 
 ## Respaldo en Google Sheets y actualización de Supabase
 
 - **Supabase sigue siendo la base oficial.** Google Sheets es un respaldo de consulta y una zona de preparación, no un segundo origen de verdad.
-- Página protegida con PIN: [Sincronización y respaldo](https://jeffer91.github.io/almacen/sincronizar/).
+- Página de acceso público: [Sincronización y respaldo](https://jeffer91.github.io/almacen/sincronizar/).
 - Importar filas aprobadas de la hoja `CAMBIOS_PENDIENTES` con validación y vista previa; recibir CSV/TSV de respaldo de productos y ventas.
 - Edgar dispone de **⟳ Google Sheets** y de la pestaña privada `RESPALDO_EDGAR`. El botón puede copiar/descargar de inmediato la instantánea oficial de Supabase para pegar desde A1. La **sincronización automática por un clic** está implementada, pero aún requiere autorizar una implementación de Google Apps Script y configurar dos secretos privados en Supabase.
 - La hoja no se hace pública; el respaldo no sustituye ni reimporta las pestañas de trabajo.
 - [Procedimiento, controles y limitaciones](docs/google-sheets-sync.md).
 
-## Ventas del día (GitHub Pages con PIN)
+## Ventas del día (GitHub Pages sin PIN)
 
 - Acceso desde **https://jeffer91.github.io/almacen/ventas/** o desde el botón «Ventas» del catálogo público.
-- Solicita el PIN administrativo existente; token solo en memoria de la pestaña, no en almacenamiento persistente.
+- Se abre directamente, sin PIN. Cualquier visitante puede consultar, registrar o anular ventas.
 - Registrar ventas por artículo, incluso cuando todavía no existe en el catálogo; fecha de Ecuador, presentación, cantidad (incluidos metros), unidad, precio, forma de pago y notas.
 - Consultar total e historial por fecha, exportar CSV para Excel y anular registros con auditoría (sin borrado físico).
-- Los registros se guardan en `public.family_daily_sales`, con RLS y sin permisos de consulta pública directa. La Edge Function requiere sesión de administrador para registrar, listar o anular.
+- Los registros se guardan en `public.family_daily_sales`, con RLS y sin permisos de consulta pública directa. La Edge Function permite registrar, listar o anular ventas desde el acceso público.
 - No descuenta inventario (todavía no existe control de existencias) y no genera comprobantes fiscales.
 
 ## Lista de precios familiar (web)
@@ -70,7 +74,7 @@ Entra con **PIN** (se pide una vez por computadora; 5 intentos fallidos bloquean
 - **Precios:** tabla global editable (costo, sin IVA, con IVA), margen y descarga a Excel.
 - **Fotos:** fotos recientes (incluidas las de la familia) y productos sin foto.
 - **Tienda:** nombre, RUC, teléfono, dirección, correo, IVA y validez de cotizaciones; cerrar sesión.
-- **Clientes** y **Ventas** en Electron: próximamente (el registro de ventas ya está disponible en GitHub Pages con PIN).
+- **Clientes** y **Ventas** en Electron: próximamente (el registro de ventas ya está disponible en GitHub Pages sin PIN).
 
 El precio se guarda **sin IVA** (4 decimales) y el precio con IVA se calcula con el IVA de la tienda.
 
@@ -84,7 +88,7 @@ El instalador de Windows se compila y verifica en GitHub Actions (`windows-insta
 ## Seguridad
 
 - Tablas con RLS y sin acceso directo; todo pasa por la Edge Function `catalog-api` (service_role solo en servidor).
-- Sin sesión: solo `catalog` (lista pública con costo y precios, sin proveedores ni rutas internas), `login` y `uploadPhoto` (máx. 2 MB, solo JPG/PNG/WebP, productos existentes, máx. 12 fotos por producto).
+- Sin sesión: módulos web públicos (ventas, respaldo, importación y consulta Excel), `catalog` (lista pública con costo y precios, sin proveedores ni rutas internas), `login` y `uploadPhoto` (máx. 2 MB, solo JPG/PNG/WebP, productos existentes, máx. 12 fotos por producto).
 - La app de administración entra con PIN: el PIN se guarda como hash con sal en `family_admin_auth` (nunca en el repositorio) y la sesión resultante (`family_admin_sessions`, 180 días) se guarda cifrada en Windows.
 - Fotos en un bucket privado; se entregan con URLs firmadas que vencen en 1 hora.
 

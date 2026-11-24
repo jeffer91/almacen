@@ -1,10 +1,10 @@
-/* Nicole Encajes · módulo de sincronización aprobado con PIN. */
+/* Nicole Encajes · módulo de sincronización de acceso público. */
 "use strict";
 (() => {
   const $=id=>document.getElementById(id);
   const core=window.NICOLE_SYNC;
   const url=String(window.ALMACEN_API_URL||"").trim().replace(/\/$/,"");
-  let token=null,current=null,planned=null,baseline=null;
+  let current=null,planned=null,baseline=null;
   const localDate=()=>{
     const parts=new Intl.DateTimeFormat("en-US",{
       year:"numeric",month:"2-digit",day:"2-digit",timeZone:"America/Guayaquil"
@@ -13,11 +13,6 @@
     return get("year")+"-"+get("month")+"-"+get("day");
   };
   const money=n=>new Intl.NumberFormat("es-EC",{style:"currency",currency:"USD"}).format(Number(n)||0);
-  const show=valid=>{
-    $("loginSection").hidden=valid;
-    $("syncSection").hidden=!valid;
-    $("logout").hidden=!valid;
-  };
   const note=(id,value,success=false)=>{
     $(id).textContent=value||"";
     $(id).className=success?"good":"error";
@@ -25,19 +20,15 @@
   async function api(action,fields={}){
     if(!url)throw Error("Falta configurar la API de Supabase");
     const headers={"Content-Type":"application/json"};
-    if(token) headers["x-almacen-key"]=token;
     const res=await fetch(url,{method:"POST",headers,cache:"no-store",body:JSON.stringify({action,...fields})});
     const result=await res.json().catch(()=>({}));
     if(!res.ok||!result.ok){
-      if(res.status===401 && action!=="login") {
-        token=null;current=null;planned=null;baseline=null;show(false);
-      }
       throw Error(result.error||"No fue posible conectar con Supabase");
     }
     return result;
   }
   async function refresh(){
-    current=await api("bootstrap");
+    current=await api("syncSnapshot");
     $("productCount").textContent=String(current.products?.length||0);
     $("presentationCount").textContent=String(current.presentations?.length||0);
     return current;
@@ -45,21 +36,6 @@
   function disabledPreview(){
     planned=null;baseline=null;$("results").hidden=true;$("apply").disabled=true;
   }
-  $("loginForm").addEventListener("submit",async(event)=>{
-    event.preventDefault();
-    $("loginButton").disabled=true;note("loginError","");
-    try {
-      const login=await api("login",{pin:$("pin").value});
-      token=login.token;$("loginForm").reset();
-      await refresh();
-      show(true);
-    }catch(e){note("loginError",e.message);token=null;}
-    finally{$("loginButton").disabled=false;}
-  });
-  $("logout").addEventListener("click",async()=>{
-    try{if(token)await api("logout");}catch{/* Siempre cerrar sesión local. */}
-    token=null;current=null;disabledPreview();$("sheetText").value="";show(false);
-  });
   $("sheetText").addEventListener("input",disabledPreview);
   $("clear").addEventListener("click",()=>{
     $("sheetText").value="";disabledPreview();note("previewError","");note("applyError","");
@@ -110,13 +86,13 @@
     finally{$("preview").disabled=false;}
   });
   $("apply").addEventListener("click",async()=>{
-    if(!token||!planned||planned.errors.length||$("apply").disabled)return;
+    if(!planned||planned.errors.length||$("apply").disabled)return;
     const rows=core.importRows(planned.plan);
     if(!rows.length)return;
     if(!confirm("Se aplicarán "+rows.length+" cambios a Supabase. ¿Confirmas que los datos y precios fueron revisados?"))return;
     $("apply").disabled=true;note("applyError","");
     try{
-      const latest=await api("bootstrap");
+      const latest=await api("syncSnapshot");
       if(core.signature(latest)!==baseline){
         disabledPreview();
         throw Error("Supabase cambió después de la vista previa. No se escribió nada. Vuelve a revisar las diferencias.");
@@ -166,5 +142,6 @@
   $("downloadProducts").addEventListener("click",()=>backUp("productos",false));
   $("copySales").addEventListener("click",()=>backUp("ventas",true));
   $("downloadSales").addEventListener("click",()=>backUp("ventas",false));
+  refresh().catch(e=>note("backupStatus",e.message));
   $("sheetText").placeholder=core.HEADERS.join("\t")+"\n...";
 })();

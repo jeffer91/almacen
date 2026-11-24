@@ -1,4 +1,4 @@
-// Nicole Encajes: lectura de Excel original bajo sesión administrativa.
+// Nicole Encajes: lectura pública de Excel original, sin acceso directo a tablas.
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
@@ -15,22 +15,10 @@ const headers = {
 function send(data: unknown, status = 200): Response {
   return new Response(JSON.stringify(data), { status, headers });
 }
-async function authorized(req: Request): Promise<boolean> {
-  const token = String(req.headers.get("x-almacen-key") || "").toLowerCase();
-  if (!/^[a-f0-9]{64}$/.test(token)) return false;
-  const bytes = new TextEncoder().encode(token);
-  const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", bytes));
-  const hash = [...digest].map(v => v.toString(16).padStart(2, "0")).join("");
-  const { data, error } = await db.from("family_admin_sessions").select("token_hash")
-    .eq("token_hash", hash).gt("expires_at", new Date().toISOString()).maybeSingle();
-  if (error) throw error;
-  return Boolean(data);
-}
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers });
   if (req.method !== "POST") return send({ ok: false, error: "Método no permitido" }, 405);
   try {
-    if (!(await authorized(req))) return send({ ok: false, error: "Sesión administrativa requerida" }, 401);
     const body = await req.json().catch(() => ({}));
     if (body?.action === "sheets") {
       const { data, error } = await db.from("family_excel_catalog_sheets")
@@ -56,6 +44,6 @@ Deno.serve(async (req: Request) => {
     return send({ ok: false, error: "Acción no reconocida" }, 400);
   } catch (e) {
     console.error("excel-catalog:", e);
-    return send({ ok: false, error: "No fue posible consultar el catálogo privado." }, 500);
+    return send({ ok: false, error: "No fue posible consultar el catálogo." }, 500);
   }
 });

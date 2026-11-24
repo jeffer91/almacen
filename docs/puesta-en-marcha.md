@@ -16,8 +16,8 @@ supabase functions deploy catalog-api --no-verify-jwt
 
 La verificación JWT de Supabase va desactivada porque la función hace su propia comprobación:
 
-- **Sin sesión (público):** `catalog`, `login` y `uploadPhoto` (con `by` = `edgar` o `gloria`).
-- **Con sesión de PIN (`x-almacen-key`):** todo lo demás (`bootstrap`, productos, presentaciones, precios, costos, proveedores, Excel, fotos, `saveSettings`, `logout`).
+- **Sin sesión (público):** `catalog`, `login`, `listSales`, `addSale`, `voidSale`, `exportSalesBackup`, `syncSnapshot`, `importExcel` y `uploadPhoto` (con `by` = `edgar` o `gloria`).
+- **Con sesión de PIN (`x-almacen-key`):** administración completa (`bootstrap`, productos, presentaciones, precios, costos, proveedores, fotos, `saveSettings`, `logout`); el catálogo Excel histórico se consulta públicamente en `excel-catalog`.
 
 ## 3. PIN de administración
 

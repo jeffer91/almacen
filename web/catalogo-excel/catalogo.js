@@ -3,9 +3,7 @@
 (() => {
   const $ = (id) => document.getElementById(id);
   const apiOrigin = new URL(String(window.ALMACEN_API_URL)).origin;
-  const catalogApi = String(window.ALMACEN_API_URL || "");
-  const privateApi = `${apiOrigin}/functions/v1/excel-catalog`;
-  let token = null; // solo en memoria; no localStorage ni cookies
+  const excelApi = `${apiOrigin}/functions/v1/excel-catalog`;
   const ROWS_PER_PAGE = 70;
   const FETCH_LIMIT = 500;
   const state = { sheets: [], rows: [], selected: "", query: "", page: 0 };
@@ -15,44 +13,25 @@
     typeof value === "number" ? new Intl.NumberFormat("es-EC", { maximumFractionDigits: 6 }).format(value) : String(value);
   const status = (message) => { $("status").textContent = message; };
   const collator = new Intl.Collator("es", { numeric: true, sensitivity: "base" });
-  function showAuthorized(ready) {
-    $("login-section").hidden = ready;
-    $("catalog-content").hidden = !ready;
-    $("logout").hidden = !ready;
-  }
-  async function privateQuery(action, fields = {}) {
-    if (!token) throw Error("Sesión administrativa requerida");
-    const response = await fetch(privateApi, {
-      method: "POST", cache: "no-store", headers: { "content-type": "application/json", "x-almacen-key": token },
+  async function excelQuery(action, fields = {}) {
+    const response = await fetch(excelApi, {
+      method: "POST", cache: "no-store", headers: { "content-type": "application/json" },
       body: JSON.stringify({ action, ...fields })
     });
     const data = await response.json().catch(() => ({}));
-    if (response.status === 401) { token = null; showAuthorized(false); }
-    if (!response.ok || !data.ok) throw Error(data.error || "No se pudo consultar el catálogo privado.");
+    if (!response.ok || !data.ok) throw Error(data.error || "No se pudo consultar el catálogo.");
     return data;
-  }
-  async function authenticate(pin) {
-    const response = await fetch(catalogApi, {
-      method: "POST", headers: { "content-type": "application/json" }, cache: "no-store",
-      body: JSON.stringify({ action: "login", pin })
-    });
-    const data = await response.json().catch(() => ({}));
-    if (!response.ok || !data.ok || !/^[a-f0-9]{64}$/i.test(String(data.token || "")))
-      throw Error(data.error || "PIN incorrecto o sesión no disponible.");
-    token = data.token;
-    showAuthorized(true);
-    await load();
   }
   async function load() {
     status("Cargando hojas y columnas originales…");
     $("sheet").disabled = true;
     $("search").disabled = true;
     try {
-      const sheets = (await privateQuery("sheets")).sheets;
+      const sheets = (await excelQuery("sheets")).sheets;
       if (!sheets.length) throw Error("No se encontraron hojas comerciales importadas.");
       const rows = [];
       for (let offset = 0; ; offset += FETCH_LIMIT) {
-        const part = (await privateQuery("rows", { limit: FETCH_LIMIT, offset })).rows;
+        const part = (await excelQuery("rows", { limit: FETCH_LIMIT, offset })).rows;
         rows.push(...part);
         if (part.length < FETCH_LIMIT) break;
       }
@@ -116,22 +95,6 @@
       `<dl class="detail-pair"><dt>${escapeHtml(letter)} · ${escapeHtml(sheet.headers?.[letter] ?? "Sin encabezado")}</dt><dd>${escapeHtml(format(v))}</dd></dl>`).join("");
     $("details").showModal();
   }
-  $("login-form").addEventListener("submit", async (event) => {
-    event.preventDefault();
-    $("login-error").textContent = "";
-    $("login-button").disabled = true;
-    try { await authenticate($("pin").value); $("login-form").reset(); }
-    catch (error) { $("login-error").textContent = String(error.message || error); }
-    finally { $("login-button").disabled = false; }
-  });
-  $("logout").addEventListener("click", async () => {
-    const previous = token;
-    token = null;
-    state.rows = []; state.sheets = [];
-    showAuthorized(false);
-    status("Sesión cerrada. Ingresa el PIN para consultar los datos.");
-    try { if (previous) await fetch(catalogApi, { method:"POST", headers:{ "content-type":"application/json","x-almacen-key":previous }, body:JSON.stringify({action:"logout"}) }); } catch { /* sesión local cerrada */ }
-  });
   $("sheet").addEventListener("change",e => { state.selected = e.target.value;state.page = 0;render(); });
   $("search").addEventListener("input",e => { state.query = e.target.value;state.page = 0;render(); });
   $("reload").addEventListener("click",load);
@@ -140,6 +103,5 @@
   $("close-detail").addEventListener("click",() => $("details").close());
   $("data-table").querySelector("tbody").addEventListener("click",e => { const tr=e.target.closest("tr[data-row]");if(tr)detail(Number(tr.dataset.row)); });
   $("data-table").querySelector("tbody").addEventListener("keydown",e => {if(e.key!=="Enter"&&e.key!==" ")return;const tr=e.target.closest("tr[data-row]");if(tr){e.preventDefault();detail(Number(tr.dataset.row));}});
-  showAuthorized(false);
-  status("El catálogo completo requiere el PIN administrativo.");
+  load();
 })();
