@@ -19,6 +19,7 @@ Gloria, Edgar, Ventas, Catálogo Excel y Sincronización se abren sin PIN. Cualq
 
 - https://jeffer91.github.io/almacen/administrador/ — público, solo consulta.
 - Indicadores reales, filtros, evolución, pagos, cantidades por unidad y ranking exportable.
+- Catálogo oficial: productos por categoría, presentaciones, marcas, cobertura de fotografías/precios oficiales/costos, pendientes de calidad, SKU, detalle y exportaciones CSV. Archivo Excel histórico separado. Ventas por categoría por coincidencia de nombre (no por ID histórico).
 - No estima utilidad ni existencias: faltan costos históricos por venta e inventario.
 
 ## Catálogo Excel completo (23-11-2026)
