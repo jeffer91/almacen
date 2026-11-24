@@ -212,7 +212,7 @@
       const qty = item.quantity == null ? (/^[0-9]+(?:[.,][0-9]+)?\s+.+$/.test(item.label) ? item.label : "—") : [item.quantity,item.unit].filter(Boolean).join(" ");
       return `<tr><th scope="row">${esc(c.name)}${c.brand ? "<small>"+esc(c.brand)+"</small>" : ""}</th>
         <td>${esc(item.label)}</td><td>${esc(item.supplier || "—")}</td><td>${esc(qty)}</td>
-        <td class="money">${item.cost == null ? "—" : V.money(item.cost)}</td>
+        <td class="money">${item.cost == null ? "—" : V.money(item.cost)}${item.costMeter != null ? `<br><small>Costo/m: ${item.costMeter.toFixed(4)}</small>` : ""}${item.wholesale != null ? `<br><small>PXM: ${V.money(item.wholesale)}</small>` : ""}${item.meterPrice != null ? `<br><small>Precio/m: ${item.meterPrice.toFixed(4)}</small>` : ""}</td>
         <td class="money sale">${price == null ? "—" : V.money(price)}${reference ? "<small>Referencia · unidad por confirmar</small>" : ""}${item.net != null ? "<small>Sin IVA: "+V.money(item.net)+"</small>" : ""}</td>
         ${showActions ? `<td class="v-row-actions">
           <button class="v-pencil" data-act="edit-price" ${attrs} aria-label="Editar precio de ${esc(c.name)}, ${esc(item.label)}" title="Editar precio y presentación" ${state.online ? "" : "disabled"}>

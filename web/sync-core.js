@@ -134,7 +134,7 @@
     const take=(arr,fields)=>JSON.stringify((arr||[]).map(x=>fields.map(k=>x[k]??null))
       .sort((a,b)=>JSON.stringify(a).localeCompare(JSON.stringify(b))));
     return [take(data.products,["id","name","brand","category","active","updated_at"]),
-      take(data.presentations,["id","product_id","label","quantity","unit","sku","current_cost","updated_at"]),
+      take(data.presentations,["id","product_id","label","quantity","unit","sku","current_cost","wholesale_price","meter_price","updated_at"]),
       take(data.prices,["presentation_id","shop","price","updated_at"]),Number(data.settings?.iva_rate??15)].join("|");
   }
   function safe(v) {

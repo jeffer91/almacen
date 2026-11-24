@@ -37,7 +37,7 @@
         .map((pr) => {
           const net = priceOf(data.prices, pr.id);
           const cost = pr.current_cost === null || pr.current_cost === undefined ? null : Number(pr.current_cost);
-          return { id: pr.id, label: pr.label, quantity: pr.quantity, unit: pr.unit, sku: pr.sku || "", updated_at: pr.updated_at, net, gross: withIva(net, rate), cost, price: withIva(net, rate) };
+          return { id: pr.id, label: pr.label, quantity: pr.quantity, unit: pr.unit, sku: pr.sku || "", updated_at: pr.updated_at, net, gross: withIva(net, rate), cost, wholesale: pr.wholesale_price == null ? null : Number(pr.wholesale_price), meterPrice: pr.meter_price == null ? null : Number(pr.meter_price), costMeter: cost == null ? null : /^(m|metro|metros)$/i.test(pr.unit) ? cost/Number(pr.quantity) : /^(yd|yarda|yardas)$/i.test(pr.unit) ? cost/(Number(pr.quantity)*0.9144) : null, price: withIva(net, rate) };
         })
         .sort((a, b) => Number(a.quantity) - Number(b.quantity) || String(a.label).localeCompare(String(b.label), "es"));
       const photos = (photosBy.get(p.id) || []).slice()

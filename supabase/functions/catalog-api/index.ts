@@ -149,7 +149,7 @@ async function bootstrap(role: Shop) {
 async function publicCatalog() {
   const [products, presentations, prices, photos] = await Promise.all([
     listAll("family_products", "id,name,category,brand,active,updated_at"),
-    listAll("family_presentations", "id,product_id,label,quantity,unit,sku,current_cost,updated_at"),
+    listAll("family_presentations", "id,product_id,label,quantity,unit,sku,current_cost,wholesale_price,meter_price,updated_at"),
     listAll("family_prices", "presentation_id,shop,price,updated_at"),
     listAll("family_photos", "id,product_id,storage_path,color_label,is_primary,created_by,created_at")
   ]);
@@ -201,7 +201,7 @@ Deno.serve(async (request: Request) => {
   const action = txt(body?.action, 50);
   const authenticatedRole = await getRole(request);
   // Acceso público solicitado para los módulos web. Lista cerrada: no concede una sesión administrativa.
-  const publicWeb = !authenticatedRole && new Set(["listSales", "addSale", "voidSale", "exportSalesBackup", "syncSnapshot", "importExcel", "importPricesExcel"]).has(action);
+  const publicWeb = !authenticatedRole && new Set(["listSales", "addSale", "voidSale", "exportSalesBackup", "syncSnapshot", "importExcel", "importPricesExcel", "importCommercialExcel"]).has(action);
   const role = authenticatedRole || (publicWeb ? "jefferson" : null);
   if (!role) {
     // Acceso público de la familia: ver precios y subir fotos de productos.
@@ -225,7 +225,7 @@ Deno.serve(async (request: Request) => {
     if (action === "syncSnapshot") {
       const [products, presentations, prices] = await Promise.all([
         listAll("family_products", "id,name,brand,category,active,updated_at"),
-        listAll("family_presentations", "id,product_id,label,quantity,unit,sku,current_cost,updated_at"),
+        listAll("family_presentations", "id,product_id,label,quantity,unit,sku,current_cost,wholesale_price,meter_price,updated_at"),
         listAll("family_prices", "presentation_id,shop,price,updated_at")
       ]);
       const { iva_rate } = await storeSettings();
@@ -319,6 +319,13 @@ Deno.serve(async (request: Request) => {
       return response({ ok: true });
     }
 
+    if (action === "importCommercialExcel") {
+      if (role !== "jefferson") return fail("Solo administración puede importar",403);
+      if (!Array.isArray(body.rows) || body.rows.length < 1 || body.rows.length > 500 || !["products","prices"].includes(body.mode)) return fail("Lote inválido");
+      const {data,error}=await db.rpc("family_import_commercial",{p_rows:body.rows,p_mode:body.mode});
+      if(error) return fail(error.message,400);
+      return response({ok:true,summary:data});
+    }
     if (action === "importPricesExcel") {
       if (role !== "jefferson") return fail("Solo administración puede importar precios", 403);
       if (!Array.isArray(body.rows) || body.rows.length < 1 || body.rows.length > 500)

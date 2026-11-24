@@ -22,6 +22,10 @@ Gloria, Edgar, Ventas, Catálogo Excel y Sincronización se abren sin PIN. Cualq
 - Catálogo oficial: productos por categoría, presentaciones, marcas, cobertura de fotografías/precios oficiales/costos, pendientes de calidad, SKU, detalle y exportaciones CSV. Archivo Excel histórico separado. Ventas por categoría por coincidencia de nombre (no por ID histórico).
 - No estima utilidad ni existencias: faltan costos históricos por venta e inventario.
 
+## Precios comerciales y longitud
+
+Las nuevas plantillas web usan Costo, Precio final, PXM opcional y Precio por metro opcional. El precio debe superar costo; PXM debe superar costo y no superar precio. Para metros y yardas se calcula costo por metro, sin inventar costos faltantes. El IVA interno se mantiene para compatibilidad. SKU opcional. El módulo comercial usa una función transaccional; otros módulos históricos conservan sus reglas.
+
 ## Cargas masivas Excel
 
 - https://jeffer91.github.io/almacen/administrador/cargas/ — descargar/cargar plantillas .xlsx de productos y precios (500 filas, 5 MB por archivo).
