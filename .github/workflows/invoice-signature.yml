@@ -1,0 +1,24 @@
+name: XAdES laboratory
+on:
+  push:
+    branches: [main, edgar-firma-laboratorio]
+    paths:
+      - 'server/facturacion/**'
+      - 'tests/*xades*'
+      - 'tests/invoice_xsd_fixtures.js'
+      - 'vendor/sri/xsd/**'
+      - 'web/edgar/facturacion/xml-test.js'
+      - '.github/workflows/invoice-signature.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - name: Install isolated laboratory dependencies
+        run: python3 -m venv /tmp/nicole-lab && /tmp/nicole-lab/bin/pip install -r server/facturacion/requirements-lab.txt
+      - name: Test synthetic XAdES and reference XSD
+        run: /tmp/nicole-lab/bin/python tests/test_xades_lab.py
