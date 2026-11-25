@@ -50,7 +50,7 @@ jobs:
           curl -fLsS --retry 3 --max-time 25 "$base/sincronizar/?v=20261124-publico-2" -o /tmp/sync.html
           ! grep -q 'id="loginForm"' /tmp/sync.html
           grep -q 'id="syncSection">' /tmp/sync.html
-          grep -q 'sync.js?v=20261125-sync-1' /tmp/sync.html
+          grep -q 'sync.js?v=20261125-sync-2' /tmp/sync.html
           curl -fLsS --retry 3 --max-time 25 "$base/catalogo-excel/?v=20261124-publico-2" -o /tmp/excel.html
           ! grep -q 'id="login-form"' /tmp/excel.html
           grep -q 'id="catalog-content">' /tmp/excel.html
@@ -102,7 +102,7 @@ jobs:
             code=$(curl -sS -o /dev/null -w "%{http_code}" -X POST --max-time 25 -H "Content-Type: application/json" --data "$payload" "$url")
             test "$code" = "200"
           done
-          for action in bootstrap saveSettings archiveProduct sheetStatus sheetSearch refreshSheetStagingManual importExcel importPricesExcel; do
+          for action in bootstrap saveSettings archiveProduct sheetStatus sheetSearch refreshSheetStagingManual refreshSheetStaging readSheetChanges importExcel importPricesExcel; do
             code=$(curl -sS -o /dev/null -w "%{http_code}" -X POST --max-time 25 -H "Content-Type: application/json" --data "{\"action\":\"$action\"}" "$url")
             test "$code" = "401"
           done
