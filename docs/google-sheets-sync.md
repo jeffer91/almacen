@@ -90,3 +90,12 @@ La función `sync-sheets` verifica la existencia del dispositivo Edgar, pero **e
 - Para habilitar ambos botones directos, seguir los pasos de autorización del Apps Script anteriores y actualizar la implementación a la versión de Code.gs que admite readMaster y readChanges. La hoja se conserva privada; no compartir secretos por chat ni en GitHub.
 - Si el puente no está configurado, usar la carga manual de ambas tablas en el módulo o la conexión autorizada de ChatGPT con Google Drive. No se deben marcar precios ambiguos como aprobados.
 - No se promueven automáticamente los registros de referencia al catálogo comercial. Se conserva la carga aprobada de CAMBIOS_PENDIENTES y el importador comercial Excel con su límite de 500 presentaciones por lote.
+
+## Configuración simplificada del puente privado (versión actual)
+
+1. Abre la hoja maestra → Extensiones → Apps Script. Copia el Code.gs de este repositorio en el proyecto vinculado (si hay código ajeno a Almacén, conservarlo).
+2. Implementa o actualiza una aplicación web con ejecución como propietario y acceso "Cualquier persona", autoriza los permisos de Google. No publiques ni cambies los permisos de la hoja. El endpoint verifica el secreto antes de leer o escribir.
+3. Recarga la hoja y usa el menú Almacén → Preparar conexión privada. Copia la URL /exec y el secreto privado.
+4. En /sincronizar/#google-bridge, pega ambos datos en el formulario y pulsa Autorizar y comprobar conexión. Ingresa el PIN administrativo en el diálogo de Almacén. El servidor comprueba el ID de la hoja y su acceso antes de guardar la configuración privada en Supabase. No se requiere introducir secretos en el chat ni en el panel de Supabase.
+5. Usa Sincronizar desde Google Sheets y verifica el resultado; el mismo puente sirve para el respaldo de Edgar. No se modifican automáticamente precios oficiales.
+6. La aplicación consulta las 92 referencias que antes residían en sheet-catalog.json desde Supabase; el archivo queda como archivo histórico, no como fuente operativa. La navegación Referencias de precios abre la consulta privada de las 40 categorías y las filas sincronizadas, separada de la lista comercial.
