@@ -20,7 +20,7 @@
   async function api(action,fields={}){
     if(!url)throw Error("Falta configurar la API de Supabase");
     const headers={"Content-Type":"application/json"};
-    const protectedAction=new Set(["importExcel","importPricesExcel","importCommercialExcel","sheetStatus","sheetSearch","refreshSheetStagingManual","refreshSheetStaging","readSheetChanges","configureSheetBridge","probeSheetBridge"]).has(action);
+    const protectedAction=new Set(["importExcel","importPricesExcel","importCommercialExcel","sheetStatus","sheetSearch","sheetProductGroups","sheetProductDetails","refreshSheetStagingManual","refreshSheetStaging","readSheetChanges","configureSheetBridge","probeSheetBridge"]).has(action);
     if(protectedAction)headers["x-almacen-key"]=await window.NICOLE_ADMIN.getToken();
     const res=await fetch(url,{method:"POST",headers,cache:"no-store",body:JSON.stringify({action,...fields})});
     const result=await res.json().catch(()=>({}));
@@ -158,13 +158,71 @@
     select.value=data.categories.some(x=>x.name===old)?old:"";
     $("sheet-review").hidden=false;reviewPage=0;await searchSheet();
   }
+
+  let currentDraft=null;
+  function rowDetails(x,withDraft=true){
+    const v=x.raw_values||[], box=document.createElement("div");
+    const heading=document.createElement("p");heading.textContent=[x.product_name,v[5],v[4]?"Proveedor "+v[4]:"",x.review_status].filter(Boolean).join(" · ");box.append(heading);
+    for(const [label,i] of [["Nombre original",3],["Cantidad original",5],["Unidad",7],["Costo/base",15],["Neto original",9],["PxM original",10],["pxm original",11],["Tarifa adicional",20],["2026 (1)",37],["2026 (2)",38],["2025",39],["Actual",40],["Observaciones",17],["Origen",23],["Código original",35]]){
+      if(v[i]!==""&&v[i]!=null){const p=document.createElement("p");p.textContent=label+": "+v[i];box.append(p)}
+    }
+    if(withDraft&&x.review_status!=="Sin precio válido"){const b=document.createElement("button");b.type="button";b.textContent="Preparar ficha comercial";b.onclick=()=>openDraft(x);box.append(b)}
+    return box;
+  }
+  function openDraft(x){
+    currentDraft=x;const v=x.raw_values||[];
+    $("draft-source").textContent="Referencia: "+x.product_name+" · "+x.review_status+" · Neto: "+String(v[9]||"—")+" · PxM: "+String(v[10]||"—")+" · pxm: "+String(v[11]||"—");
+    $("draft-name").value=x.product_name;$("draft-brand").value="";
+    const cats=$("draft-category");cats.replaceChildren(...Array.from($("sheet-category").options).filter(o=>o.value).map(o=>new Option(o.text,o.value)));cats.value=x.category;
+    $("draft-label").value=String(v[5]||"").slice(0,80);$("draft-quantity").value=typeof v[6]==="number"&&v[6]>0?v[6]:"";
+    $("draft-unit").value=String(v[7]||"");$("draft-supplier").value="";
+    $("draft-cost").value="";$("draft-price").value="";$("draft-result").textContent="";
+    $("reference-draft").showModal();
+  }
+  $("draft-cancel").onclick=()=>$("reference-draft").close();
+  $("reference-draft-form").onsubmit=async e=>{
+    e.preventDefault();if(!currentDraft)return;
+    $("draft-save").disabled=true;$("draft-result").textContent="Validando contra Supabase…";
+    try{
+      const fresh=await api("syncSnapshot"),raw={_fila:currentDraft.sheet_row,codigo:"",producto:$("draft-name").value,marca:$("draft-brand").value,categoria:$("draft-category").value,presentacion:$("draft-label").value,cantidad:$("draft-quantity").value,unidad:$("draft-unit").value,proveedor:$("draft-supplier").value,costo:$("draft-cost").value,precio:$("draft-price").value,pxm:"",precio_metro:""};
+      if(!raw.costo&&!raw.precio)throw Error("Ingresa un costo confirmado o un precio confirmado.");
+      const result=window.NICOLE_BULK.productPlan([raw],fresh,core);
+      if(result.errors.length)throw Error(result.errors.join(" "));
+      const plan=result.plan[0];if(!plan||plan.operation==="SIN CAMBIOS")throw Error("No hay cambios comerciales para guardar.");
+      if(!plan.payload.codigo)plan.payload.codigo="REF-"+currentDraft.source_key;
+      if(plan.payload.codigo.length>40)throw Error("Código de referencia fuera de límite.");
+      if(!confirm(plan.operation+": "+plan.name+" / "+plan.label+" · Costo "+refMoney(plan.cost)+" · Precio "+refMoney(plan.price)+". ¿Confirmas los datos?"))return;
+      const check=await api("syncSnapshot");if(core.signature(check)!==core.signature(fresh))throw Error("Los datos cambiaron. Revisa de nuevo.");
+      await api("importCommercialExcel",{mode:"products",rows:[plan.payload]});
+      $("reference-draft").close();await showSheetStatus();$("sheet-info").textContent+=" · Ficha comercial guardada.";
+      await refresh();
+    }catch(e){$("draft-result").textContent=e.message}finally{$("draft-save").disabled=false}
+  };
+  async function loadGroupDetails(x,box,page=0){
+    box.textContent="Cargando presentaciones…";
+    try{
+      const d=await api("sheetProductDetails",{reference_id:x.reference_id,page});
+      box.replaceChildren();for(const r of d.rows)box.append(rowDetails(r));
+      if(page>0){const b=document.createElement("button");b.type="button";b.textContent="Anteriores";b.onclick=()=>loadGroupDetails(x,box,page-1);box.append(b)}
+      if((page+1)*50<d.total){const b=document.createElement("button");b.type="button";b.textContent="Más presentaciones";b.onclick=()=>loadGroupDetails(x,box,page+1);box.append(b)}
+    }catch(e){box.textContent=e.message;}
+  }
   async function searchSheet(){
-    const gen=++reviewGeneration;
-    const data=await api("sheetSearch",{query:$("sheet-query").value,category:$("sheet-category").value,page:reviewPage});
+    const gen=++reviewGeneration,grouped=$("sheet-view").value==="products";
+    const data=await api(grouped?"sheetProductGroups":"sheetSearch",{query:$("sheet-query").value,category:$("sheet-category").value,page:reviewPage});
     if(gen!==reviewGeneration)return;
-    $("sheet-rows").replaceChildren();
-    for(const x of data.rows){const tr=document.createElement("tr");const v=x.raw_values||[];const values=[x.product_name,x.category,refMoney(v[12]),refMoney(v[13]),x.review_status+(x.decision&&x.decision!=="Pendiente"?" · "+x.decision:"")];for(const value of values){const td=document.createElement("td");td.textContent=value;tr.append(td)}const details=document.createElement("details");const summary=document.createElement("summary");summary.textContent="Ver datos de referencia";details.append(summary);for(const [label,i] of [["Nombre original",3],["Proveedor",4],["Cantidad",5],["Unidad",7],["Costo/base",15],["Neto original",9],["PxM original",10],["pxm original",11],["Tarifa adicional",20],["2026 (1)",37],["2026 (2)",38],["2025",39],["Actual",40],["Observaciones",17],["Origen",23],["Código original",35]]){if(v[i]!==""&&v[i]!=null){const p=document.createElement("p");p.textContent=label+": "+v[i];details.append(p)}}tr.cells[0].append(details);$("sheet-rows").append(tr)}
-    $("sheet-result").textContent=data.total+" resultados · página "+(data.page+1);
+    const table=$("sheet-rows");table.replaceChildren();
+    $("sheet-table-head").replaceChildren(...(grouped?["Producto","Categoría","Registros","Preliminares","Estado"]:["Producto","Categoría","Costo ref.","Precio ref.","Estado"]).map(value=>{const th=document.createElement("th");th.textContent=value;return th}));
+    for(const x of data.rows){
+      const tr=document.createElement("tr"),v=x.raw_values||[];
+      const values=grouped?[x.product_name,x.category,x.presentation_records,x.preliminary_records,x.conflicts?x.conflicts+" conflictos":x.no_price_records===x.presentation_records?"Sin precio":"Referencia"]: [x.product_name,x.category,refMoney(v[12]),refMoney(v[13]),x.review_status];
+      for(const value of values){const td=document.createElement("td");td.textContent=value;tr.append(td)}
+      const details=document.createElement("details"),summary=document.createElement("summary");summary.textContent=grouped?"Ver presentaciones":"Ver datos de referencia";details.append(summary);
+      if(grouped){const box=document.createElement("div");details.append(box);let loaded=false;details.addEventListener("toggle",()=>{if(details.open&&!loaded){loaded=true;loadGroupDetails(x,box)}})}
+      else details.append(rowDetails(x));
+      tr.cells[0].append(details);table.append(tr);
+    }
+    $("sheet-result").textContent=data.total+(grouped?" grupos de referencia":" registros")+" · página "+(data.page+1);
     $("sheet-prev").disabled=data.page===0;$("sheet-next").disabled=(data.page+1)*50>=data.total;
   }
   function reviewError(e){$("sheet-info").textContent=e.message;}
@@ -187,6 +245,7 @@
   $("sheet-status").onclick=()=>showSheetStatus().catch(reviewError);
   $("sheet-search").onclick=()=>{reviewPage=0;searchSheet().catch(reviewError)};
   $("sheet-category").onchange=()=>{reviewPage=0;searchSheet().catch(reviewError)};
+  $("sheet-view").onchange=()=>{reviewPage=0;searchSheet().catch(reviewError)};
   $("sheet-prev").onclick=()=>{reviewPage=Math.max(0,reviewPage-1);searchSheet().catch(reviewError)};
   $("sheet-next").onclick=()=>{reviewPage++;searchSheet().catch(reviewError)};
   $("sheet-direct").onclick=async()=>{
