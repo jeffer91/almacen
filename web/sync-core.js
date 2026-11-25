@@ -51,7 +51,8 @@
     const delim=firstLine.includes("\t")?"\t":firstLine.includes(";")?";":",";
     const parsed=parseDelimited(text,delim);
     if(!parsed.length) throw Error("Pega primero la tabla CAMBIOS_PENDIENTES, incluidos sus encabezados");
-    if(HEADERS.some((h,i)=>normalize(parsed[0][i])!==normalize(h)))
+    const aliases=["SKU","Producto","Marca","Categoría","Presentación","Cantidad","Unidad","Proveedor","Costo","Precio c/IVA","Precio s/IVA","Aplicar"];
+    if(HEADERS.some((h,i)=>normalize(parsed[0][i])!==normalize(h)&&normalize(parsed[0][i])!==normalize(aliases[i])))
       throw Error("Los encabezados no coinciden con CAMBIOS_PENDIENTES. Copia desde la columna A hasta L, incluyendo la fila 1.");
     const rate=Number(iva), errors=[], rows=[];let ignored=0;
     if(!Number.isFinite(rate)||rate<0||rate>50) throw Error("IVA inválido en Supabase");
