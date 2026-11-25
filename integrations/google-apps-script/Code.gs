@@ -74,12 +74,22 @@ function doPost(e) {
     if(expected.length<32 || typeof request.secret!=="string" || request.secret!==expected)
       return reply_({ok:false,error:"Acceso denegado"});
     // Lectura de la hoja privada: exclusivamente por el puente autenticado del servidor.
+    if(request.action==="probe"){
+      const book=SpreadsheetApp.openById(SPREADSHEET_ID);
+      const source=book.getSheetByName("PRECIOS_LOTE_251126"), categories=book.getSheetByName("CATEGORIAS");
+      if(!source||!categories)throw Error("Faltan pestañas maestras");
+      return reply_({ok:true,spreadsheet_id:book.getId(),rows:source.getLastRow()-1,categories:categories.getLastRow()-1});
+    }
     if(request.action==="readMaster" || request.action==="readChanges"){
       const book=SpreadsheetApp.openById(SPREADSHEET_ID);
       const read=(name,width)=>{
         const sheet=book.getSheetByName(name);
         if(!sheet || sheet.getLastRow()<1 || sheet.getLastRow()>20001)throw Error("Pestaña ausente o fuera de límite");
-        return sheet.getRange(1,1,sheet.getLastRow(),width).getValues();
+        return sheet.getRange(1,1,sheet.getLastRow(),width).getValues().map(row=>row.map(value=>{
+          if(!(value instanceof Date))return value;
+          const p=Utilities.formatDate(value,book.getSpreadsheetTimeZone(),"yyyy-MM-dd'T'HH:mm:ss.SSS");
+          return (Date.parse(p+"Z")-Date.UTC(1899,11,30))/86400000;
+        }));
       };
       if(request.action==="readChanges")return reply_({ok:true,rows:read("CAMBIOS_PENDIENTES",12)});
       return reply_({ok:true,rows:read("PRECIOS_LOTE_251126",43),categories:read("CATEGORIAS",2)});
@@ -106,4 +116,19 @@ function doPost(e) {
     console.error(error);
     return reply_({ok:false,error:"No se pudo actualizar la hoja"});
   }finally{try{lock.releaseLock()}catch(_){}}
+}
+
+/** Ejecutar desde la hoja vinculada; el secreto nunca se escribe en celdas ni en registros. */
+function onOpen(){SpreadsheetApp.getUi().createMenu("Almacén").addItem("Preparar conexión privada","prepararConexion").addToUi();}
+function prepararConexion(){
+  const props=PropertiesService.getScriptProperties();
+  let secret=props.getProperty("SYNC_SECRET");
+  if(!secret||secret.length<32){
+    secret=Utilities.getUuid().replace(/-/g,"")+Utilities.getUuid().replace(/-/g,"");
+    props.setProperty("SYNC_SECRET",secret);
+  }
+  const esc=v=>String(v||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+  const url=ScriptApp.getService().getUrl()||"";
+  const html=HtmlService.createHtmlOutput('<h3>Conexión privada con Almacén</h3><p>Implementa este script como aplicación web, ejecutar como propietario, acceso Cualquier persona. Copia la URL /exec de la implementación.</p><p>URL actual:</p><textarea readonly rows="2" style="width:95%">'+esc(url)+'</textarea><p>Secreto privado (cópialo directamente al formulario de Almacén, no al chat):</p><textarea readonly rows="3" style="width:95%">'+esc(secret)+'</textarea><p><a target="_blank" rel="noopener noreferrer" href="https://jeffer91.github.io/almacen/sincronizar/#google-bridge">Abrir configuración en Almacén</a></p><p>La hoja conserva sus permisos privados.</p>').setWidth(510).setHeight(380);
+  SpreadsheetApp.getUi().showModalDialog(html,"Autorizar conexión");
 }
