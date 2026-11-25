@@ -5,10 +5,10 @@ Catálogo y lista de precios de la familia. Un solo proyecto de Supabase sirve d
 | Para quién | Qué es | Dónde |
 | --- | --- | --- |
 | **Gloria** | Lista familiar de precios (consulta) y fotos | https://jeffer91.github.io/almacen/ |
-| **Edgar** | Tabla de precios, edición de productos existentes, nueva presentación y alta de productos | https://jeffer91.github.io/almacen/edgar/ |
+| **Edgar** | Panel comercial modular: consulta de precios, edición de productos y ventas | https://jeffer91.github.io/almacen/edgar/ |
 | **Jefferson** | Administración: productos, precios, costos, proveedores y fotos | App de escritorio Electron (Windows) |
 
-La ruta `/gloria/` redirige a la lista familiar. La ruta `/edgar/` permite editar directamente, sin PIN ni código de activación. **Advertencia:** GitHub Pages es pública y el identificador de edición incluido en esta ruta no es autenticación: cualquier persona que visite o inspeccione el enlace de Edgar puede modificar el catálogo. La página de administración (`web/jefferson/`) **no** se publica en internet: solo la abre Electron.
+La ruta `/gloria/` redirige a la lista familiar. La ruta `/edgar/` abre el panel comercial; `/edgar/productos/` conserva la edición directa, sin PIN ni código de activación. **Advertencia:** GitHub Pages es pública y el identificador de edición incluido en esta ruta no es autenticación: cualquier persona que visite o inspeccione el enlace de Edgar puede modificar el catálogo. La página de administración (`web/jefferson/`) **no** se publica en internet: solo la abre Electron.
 
 
 ## Acceso público a los módulos web (24-11-2026)
@@ -70,9 +70,18 @@ Las nuevas plantillas web usan Costo, Precio final, PXM opcional y Precio por me
 - Gloria puede consultar el catálogo, sin herramientas de edición. Edgar ve una tabla editable sin vincular el dispositivo; puede modificar precio CON IVA, costo, cantidad, unidad, presentación y proveedor de filas oficiales, añadir opciones por proveedor o presentación y crear productos con su categoría. Las operaciones se guardan en Supabase.
 - El precio que se muestra es el «precio Jefferson» de cada presentación (si falta, el último registrado).
 
+## Panel comercial de Edgar (bloque 1)
+
+- `/edgar/`: inicio y menú superior estático, sin dependencia de JavaScript o de Supabase.
+- `/edgar/precios/`: consulta del catálogo familiar; `/edgar/productos/`: editor existente, con los mismos formularios y API.
+- `/ventas/`: módulo de ventas existente, con navegación hacia el panel. Se conserva su URL original.
+- `/edgar/clientes/`, `/edgar/pedidos/` y `/edgar/facturacion/`: páginas de preparación, sin formularios ni almacenamiento hasta completar los módulos y proteger su acceso.
+- El menú usa CSS compartido y enlaces HTML. Precios y Productos todavía comparten `viewer.js` y `viewer-core.js`; la separación de esa lógica corresponde a la siguiente etapa.
+- Este bloque no modifica Supabase ni los datos de Google Sheets; el acceso de escritura público preexistente no se ha protegido todavía.
+
 ## Edición de Edgar desde el navegador
 
-1. Abrir [Panel de Edgar](https://jeffer91.github.io/almacen/edgar/) sin ingresar códigos ni PIN.
+1. Abrir [Productos de Edgar](https://jeffer91.github.io/almacen/edgar/productos/) desde el menú del panel, sin ingresar códigos ni PIN.
 2. Pulsar el botón de **lápiz** en cualquier fila para abrir el formulario emergente, editar precio CON IVA, costo, cantidad, unidad, presentación y proveedor, y guardar.
 3. Pulsar **+ Opción** para agregar una presentación o un proveedor alternativo para un producto existente.
 4. Pulsar **+ Nuevo producto** para dar de alta un producto oficial con categoría, presentación y precio.
