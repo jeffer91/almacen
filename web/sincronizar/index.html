@@ -16,6 +16,27 @@
 <div class="stat"><span>Productos en Supabase</span><strong id="productCount">—</strong></div>
 <div class="stat"><span>Presentaciones en Supabase</span><strong id="presentationCount">—</strong></div>
 </div>
+
+<section class="panel">
+<h2>Base de referencia sincronizada</h2>
+<p>Consulta los registros de Google Sheets guardados en Supabase. Los costos y precios de referencia no se convierten automáticamente en precios oficiales.</p>
+<button type="button" class="primary" id="sheet-status">Consultar datos sincronizados</button>
+<p id="sheet-info" role="status"></p>
+<div id="sheet-review" hidden>
+<label>Buscar producto <input id="sheet-query" type="search" placeholder="Ej. fleco, cascabel"></label>
+<label>Categoría <select id="sheet-category"><option value="">Todas</option></select></label>
+<button type="button" id="sheet-search">Buscar</button>
+<p id="sheet-result" role="status"></p>
+<div class="table-wrap"><table><thead><tr><th>Producto</th><th>Categoría</th><th>Costo ref.</th><th>Precio ref.</th><th>Estado</th></tr></thead><tbody id="sheet-rows"></tbody></table></div>
+<div class="buttonrow"><button type="button" id="sheet-prev" disabled>Anterior</button><button type="button" id="sheet-next" disabled>Siguiente</button></div>
+</div>
+<details><summary>Actualizar copia desde Google Sheets</summary>
+<p>Copia la tabla completa PRECIOS_LOTE_251126 (A:AQ, incluyendo encabezados) y CATEGORIAS (A:B, incluyendo encabezados). La carga reemplaza la vista de referencia de forma transaccional; no modifica el catálogo comercial.</p>
+<label>Precios de referencia<textarea id="sheet-source" rows="4" spellcheck="false"></textarea></label>
+<label>Categorías<textarea id="sheet-categories" rows="3" spellcheck="false"></textarea></label>
+<button type="button" id="sheet-stage">Sincronizar copia autorizada</button>
+</details>
+</section>
 <section class="panel">
 <h2>1. Consultar y respaldar Supabase</h2>
 <p>Genera una copia de los datos actuales y pégala en las pestañas <code>RESPALDO_PRODUCTOS</code> o <code>RESPALDO_VENTAS</code> del Google Sheets.</p>
@@ -53,8 +74,8 @@
 <p class="notice">Antes de aplicar se vuelve a consultar Supabase. Si los datos cambiaron desde la vista previa, la operación se bloquea.</p>
 </section>
 <section class="panel"><h2>Reglas de seguridad</h2>
-<p>El módulo web permite cambios públicos sin PIN; no se usan credenciales privadas en GitHub Pages. La operación requiere aprobación expresa. Las copias de Google Sheets son instantáneas y no sustituyen un respaldo integral de Postgres ni de fotografías.</p></section>
+<p>Las cargas y cambios comerciales requieren PIN administrativo; no se usan credenciales privadas en GitHub Pages. Las copias de Google Sheets son instantáneas y no sustituyen un respaldo integral de Postgres ni de fotografías.</p></section>
 </div>
 </main>
-<script src="../config.js?v=20261124-publico-2"></script><script src="../sync-core.js?v=20261124-publico-2"></script><script src="./sync.js?v=20261124-publico-2"></script>
+<script src="../config.js?v=20261124-publico-2"></script><script src="../admin-session.js?v=1"></script><script src="../sync-core.js?v=20261125-sync-1"></script><script src="./sync.js?v=20261125-sync-1"></script>
 </body></html>
