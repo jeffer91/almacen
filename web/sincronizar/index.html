@@ -25,9 +25,10 @@
 <div id="sheet-review" hidden>
 <label>Buscar producto <input id="sheet-query" type="search" placeholder="Ej. fleco, cascabel"></label>
 <label>Categoría <select id="sheet-category"><option value="">Todas</option></select></label>
+<label>Vista <select id="sheet-view"><option value="products">Productos agrupados</option><option value="rows">Todos los registros originales</option></select></label>
 <button type="button" id="sheet-search">Buscar</button>
 <p id="sheet-result" role="status"></p>
-<div class="table-wrap"><table><thead><tr><th>Producto</th><th>Categoría</th><th>Costo ref.</th><th>Precio ref.</th><th>Estado</th></tr></thead><tbody id="sheet-rows"></tbody></table></div>
+<div class="table-wrap"><table><thead><tr id="sheet-table-head"><th>Producto</th><th>Categoría</th><th>Presentaciones</th><th>Preliminares</th><th>Estado</th></tr></thead><tbody id="sheet-rows"></tbody></table></div>
 <div class="buttonrow"><button type="button" id="sheet-prev" disabled>Anterior</button><button type="button" id="sheet-next" disabled>Siguiente</button></div>
 </div>
 <details id="google-bridge"><summary>Configurar conexión privada con Google (una sola vez)</summary>
@@ -84,6 +85,18 @@
 <section class="panel"><h2>Reglas de seguridad</h2>
 <p>Las cargas y cambios comerciales requieren PIN administrativo; no se usan credenciales privadas en GitHub Pages. Las copias de Google Sheets son instantáneas y no sustituyen un respaldo integral de Postgres ni de fotografías.</p></section>
 </div>
+<dialog id="reference-draft"><form id="reference-draft-form">
+<h2>Preparar ficha comercial</h2><p id="draft-source"></p><p>Introduce únicamente valores cuya vigencia y unidad hayas verificado. Un importe es suficiente. El precio de venta se introduce con IVA.</p>
+<label>Producto<input id="draft-name" required maxlength="180"></label><label>Marca<input id="draft-brand" maxlength="100"></label>
+<label>Categoría<select id="draft-category" required></select></label>
+<label>Presentación<input id="draft-label" required maxlength="80"></label>
+<label>Cantidad<input id="draft-quantity" type="number" min="0.001" step="0.001" required></label>
+<label>Unidad<input id="draft-unit" required maxlength="40"></label>
+<label>Proveedor confirmado<input id="draft-supplier" maxlength="160"></label>
+<label>Costo confirmado USD<input id="draft-cost" type="number" min="0" step="0.0001"></label>
+<label>Precio final confirmado USD (con IVA)<input id="draft-price" type="number" min="0.01" step="0.01"></label>
+<p id="draft-result" role="status"></p><div class="buttonrow"><button type="submit" id="draft-save">Revisar y guardar</button><button type="button" id="draft-cancel">Cancelar</button></div>
+</form></dialog>
 </main>
-<script src="../config.js?v=20261124-publico-2"></script><script src="../admin-session.js?v=1"></script><script src="../sync-core.js?v=20261125-sync-1"></script><script src="./sync.js?v=20261125-sync-3"></script>
+<script src="../config.js?v=20261124-publico-2"></script><script src="../admin-session.js?v=1"></script><script src="../sync-core.js?v=20261125-sync-1"></script><script src="../administrador/cargas/bulk-core.js?v=4"></script><script src="./sync.js?v=20261125-sync-4"></script>
 </body></html>
