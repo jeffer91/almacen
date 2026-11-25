@@ -113,6 +113,48 @@ async function ownPresentation(role: Shop, id: string) {
   if (!data) throw new Error("Presentación no encontrada");
   await ownProduct(role, data.product_id);
 }
+
+async function sheetStatus() {
+  const [total,categories,last]=await Promise.all([
+    db.from("family_sheet_staging").select("source_key",{count:"exact",head:true}).eq("active",true),
+    db.from("family_categories").select("name,subfamilies").order("name"),
+    db.from("family_sync_runs").select("started_at,source,total_rows,new_rows,changed_rows,unchanged_rows,missing_rows,category_count").order("started_at",{ascending:false}).limit(1).maybeSingle()
+  ]);
+  if(total.error||categories.error||last.error)throw new Error("No se pudo consultar el estado de sincronización");
+  return response({ok:true,total:total.count??0,categories:categories.data||[],last:last.data});
+}
+async function sheetSearch(body:any) {
+  const page=Math.max(0,Math.min(399,Math.floor(Number(body.page)||0)));
+  let query=db.from("family_sheet_staging").select("source_key,sheet_row,category,product_name,review_status,decision,raw_values",{count:"exact"}).eq("active",true);
+  const cat=txt(body.category,100), search=txt(body.query,100);
+  if(cat)query=query.eq("category",cat);
+  if(search)query=query.ilike("product_name","%"+search.replace(/[%_]/g,"")+"%");
+  const {data,error,count}=await query.order("product_name").order("source_key").range(page*50,page*50+49);
+  if(error)throw error;
+  return response({ok:true,total:count??0,page,rows:data||[]});
+}
+async function refreshSheetStagingManual(body:any) {
+  if(!Array.isArray(body.rows)||!Array.isArray(body.categories)||body.rows.length<2||body.rows.length>20001||body.categories.length<2||body.categories.length>1001)
+    return fail("Carga completa requerida: precios y categorías");
+  const norm=(v:unknown)=>String(v??"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().trim();
+  const h=body.rows[0],ch=body.categories[0];
+  if(!Array.isArray(h)||h.length!==43||norm(h[1])!=="categoría propuesta".normalize("NFD").replace(/[\u0300-\u036f]/g,"")||norm(h[2])!=="nombre normalizado"||norm(h[23])!=="bloque de origen"||norm(h[42])!=="hoja de referencia existente"||norm(ch?.[0])!=="familia"||norm(ch?.[1])!=="subfamilias")
+    return fail("Encabezados incompatibles: copia PRECIOS_LOTE_251126 A:AQ y CATEGORIAS A:B.");
+  const numeric=new Set([0,6,8,12,13,14,15,22,25,27]);
+  const rows=body.rows.slice(1).filter((r:any)=>Array.isArray(r)&&r.some((v:any)=>v!==""&&v!=null)).map((r:any)=>Array.from({length:43},(_,i)=>{
+    const v=r[i]??"";
+    return numeric.has(i)&&typeof v==="string"&&/^\d+(?:[.,]\d+)?$/.test(v.trim())?Number(v.replace(",",".")):v;
+  }));
+  const categories=body.categories.slice(1).filter((r:any)=>Array.isArray(r)&&String(r[0]||"").trim()).map((r:any)=>[String(r[0]).trim(),String(r[1]||"")]);
+  if(!rows.length||!categories.length||rows.some((r:any)=>!String(r[1]||"").trim()||!String(r[2]||"").trim()||!String(r[23]||"").trim()))return fail("Faltan categoría, producto u origen.");
+  const {count,error:checkError}=await db.from("family_sheet_staging").select("source_key",{count:"exact",head:true}).eq("active",true);
+  if(checkError)throw checkError;
+  if(rows.length<(count??0)&&body.allowSmaller!==true)return fail("La carga tiene menos registros que la anterior; revisa que esté completa.");
+  const {data,error}=await db.rpc("family_refresh_sheet_staging",{p_rows:rows,p_categories:categories,p_source:"Google Sheets: copia autorizada"});
+  if(error)throw error;
+  return response({ok:true,summary:data});
+}
+
 async function listAll(table: string, columns: string) {
   const rows: Record<string,unknown>[] = [];
   let offset = 0;
@@ -201,7 +243,7 @@ Deno.serve(async (request: Request) => {
   const action = txt(body?.action, 50);
   const authenticatedRole = await getRole(request);
   // Acceso público solicitado para los módulos web. Lista cerrada: no concede una sesión administrativa.
-  const publicWeb = !authenticatedRole && new Set(["listSales", "addSale", "voidSale", "exportSalesBackup", "syncSnapshot", "importExcel", "importPricesExcel", "importCommercialExcel"]).has(action);
+  const publicWeb = !authenticatedRole && new Set(["listSales", "addSale", "voidSale", "exportSalesBackup", "syncSnapshot"]).has(action);
   const role = authenticatedRole || (publicWeb ? "jefferson" : null);
   if (!role) {
     // Acceso público de la familia: ver precios y subir fotos de productos.
@@ -222,6 +264,12 @@ Deno.serve(async (request: Request) => {
   try {
     if (action === "catalog") return await publicCatalog();
     if (action === "bootstrap") return await bootstrap(role);
+    if (action === "sheetStatus" || action === "sheetSearch" || action === "refreshSheetStagingManual") {
+      if (authenticatedRole !== "jefferson") return fail("Solo administración puede sincronizar Google Sheets",403);
+      if(action==="sheetStatus")return await sheetStatus();
+      if(action==="sheetSearch")return await sheetSearch(body);
+      return await refreshSheetStagingManual(body);
+    }
     if (action === "syncSnapshot") {
       const [products, presentations, prices] = await Promise.all([
         listAll("family_products", "id,name,brand,category,active,updated_at"),
