@@ -53,10 +53,13 @@
  $("i-xml").onclick=async()=>{if(!previewed||busy)return;const btn=$("i-xml");btn.disabled=true;try{
   const d=await rpc("edgar_invoice_draft_get",{p_id:previewed.id});if(d.updated_at!==previewed.updated_at)throw Error("El borrador cambió. Vuelve a abrir la vista previa.");
   if(!issuer)issuer=await rpc("edgar_invoice_issuer");
-  const result=window.NICOLE_XML.build(d,issuer);
+  window.NICOLE_XML.build(d,issuer); // Validar antes de reservar.
+  const n=await rpc("edgar_invoice_test_number",{p_id:d.id,p_updated_at:d.updated_at});
+  if(n?.environment!=="1"||n.scope!=="laboratory_only")throw Error("Numeración de laboratorio inválida.");
+  const result=window.NICOLE_XML.build(d,issuer,{sequence:n.sequence,code:n.code});
   const parsed=new DOMParser().parseFromString(result.xml,"application/xml");if(parsed.querySelector("parsererror"))throw Error("XML mal formado.");
-  const url=URL.createObjectURL(new Blob([result.xml],{type:"application/xml;charset=utf-8"}));const a=document.createElement("a");a.href=url;a.download="PRUEBA_LOCAL_NO_TRANSMITIR_"+d.id+".xml";document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),3000);
-  say("i-xml-status","XML local sin firma, ambiente 1, secuencial de ejemplo no reservado. Validación interna correcta; XSD oficial pendiente. No enviar al SRI.");
+  const url=URL.createObjectURL(new Blob([result.xml],{type:"application/xml;charset=utf-8"}));const a=document.createElement("a");a.href=url;a.download="PRUEBA_LOCAL_NO_TRANSMITIR_"+result.sequence+".xml";document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),3000);
+  say("i-xml-status","XML de laboratorio "+result.sequence+" (ambiente 1). Número reservado solo para esta versión del borrador; sin firma ni transmisión. Validación interna correcta; no implica validación XSD de este archivo ni autorización SRI.");
  }catch(e){say("i-xml-status",e.message)}finally{btn.disabled=false}};
  $("i-csearch").oninput=()=>debounce("c",()=>customers());$("i-psearch").oninput=()=>debounce("p",products);$("i-osearch").oninput=()=>debounce("o",orders);$("i-product").onchange=suggest;$("i-rate").onchange=suggest;$("i-add").onclick=add;$("i-import").onclick=importOrder;
  $("i-lines").onclick=e=>{const b=e.target.closest("[data-line]");if(b&&!busy){lines.splice(Number(b.dataset.line),1);renderLines()}};
