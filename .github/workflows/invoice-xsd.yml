@@ -1,0 +1,22 @@
+name: Invoice XSD laboratory
+on:
+  push:
+    branches: [main, edgar-xsd-secuenciales-prueba]
+    paths:
+      - 'web/edgar/facturacion/**'
+      - 'vendor/sri/xsd/**'
+      - 'tests/*invoice*xsd*'
+      - '.github/workflows/invoice-xsd.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - name: Install local XML validator
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq python3-lxml
+      - name: Validate synthetic invoices (no SRI connection)
+        run: /usr/bin/python3 tests/validate_invoice_xsd.py
