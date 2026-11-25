@@ -166,6 +166,26 @@ async function sheetStatus() {
   const bridge=await getSheetBridge();
   return response({ok:true,total:total.count??0,categories:categories.data||[],last:last.data,bridgeConfigured:validBridge(bridge.webhook,bridge.secret)});
 }
+
+async function sheetProductGroups(body:any){
+  const page=Math.max(0,Math.min(399,Math.floor(Number(body.page)||0)));
+  let query=db.from("family_reference_products").select("reference_id,category,product_name,presentation_records,preliminary_records,conflicts,no_price_records",{count:"exact"});
+  const cat=txt(body.category,100),search=txt(body.query,100);
+  if(cat)query=query.eq("category",cat);
+  if(search)query=query.ilike("search_text","%"+search.replace(/[%_]/g,"")+"%");
+  const {data,error,count}=await query.order("product_name").order("reference_id").range(page*50,page*50+49);
+  if(error)throw error;
+  return response({ok:true,total:count??0,page,rows:data||[]});
+}
+async function sheetProductDetails(body:any){
+  const id=String(body.reference_id||"");
+  if(!/^[0-9a-f]{32}$/.test(id))return fail("Referencia inválida");
+  const page=Math.max(0,Math.min(399,Math.floor(Number(body.page)||0)));
+  const {data,error,count}=await db.rpc("family_reference_detail",{p_reference_id:id},{count:"exact"}).range(page*50,page*50+49);
+  if(error)throw error;
+  return response({ok:true,total:count??data?.length??0,page,rows:data||[]});
+}
+
 async function sheetSearch(body:any) {
   const page=Math.max(0,Math.min(399,Math.floor(Number(body.page)||0)));
   let query=db.from("family_sheet_staging").select("source_key,sheet_row,category,product_name,review_status,decision,raw_values",{count:"exact"}).eq("active",true);
@@ -311,12 +331,14 @@ Deno.serve(async (request: Request) => {
   try {
     if (action === "catalog") return await publicCatalog();
     if (action === "bootstrap") return await bootstrap(role);
-    if (["sheetStatus","sheetSearch","refreshSheetStagingManual","refreshSheetStaging","readSheetChanges","configureSheetBridge","probeSheetBridge"].includes(action)) {
+    if (["sheetStatus","sheetSearch","sheetProductGroups","sheetProductDetails","refreshSheetStagingManual","refreshSheetStaging","readSheetChanges","configureSheetBridge","probeSheetBridge"].includes(action)) {
       if (authenticatedRole !== "jefferson") return fail("Solo administración puede sincronizar Google Sheets",403);
       if(action==="sheetStatus")return await sheetStatus();
       if(action==="configureSheetBridge")return await configureSheetBridge(body);
       if(action==="probeSheetBridge")return await probeSheetBridge();
       if(action==="sheetSearch")return await sheetSearch(body);
+      if(action==="sheetProductGroups")return await sheetProductGroups(body);
+      if(action==="sheetProductDetails")return await sheetProductDetails(body);
       if(action==="readSheetChanges"){const values=await readGoogleMaster("readChanges");return response({ok:true,values:values.rows});}
       if(action==="refreshSheetStaging"){const values=await readGoogleMaster("readMaster");return await refreshSheetStagingManual(values,"Google Sheets: lectura directa");}
       return await refreshSheetStagingManual(body);
