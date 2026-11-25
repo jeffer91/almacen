@@ -9,7 +9,7 @@
  }
  function say(id,s){$(id).textContent=s}
  function setBusy(v){busy=v;for(const id of ["i-save","i-new","i-cancel","i-import","i-add"])$(id).disabled=v}
- function today(){return new Intl.DateTimeFormat("en-CA",{timeZone:"America/Guayaquil",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date())}
+ function today(){return new Intl.DateTimeFormat("sv-SE",{timeZone:"America/Guayaquil",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date())}
  function debounce(key,fn){clearTimeout(timers[key]);revisions[key]=(revisions[key]||0)+1;timers[key]=setTimeout(fn,300)}
  async function load(){
   const rev=++version;say("i-status","Consultando borradores…");
