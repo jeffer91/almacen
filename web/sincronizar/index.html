@@ -17,7 +17,7 @@
 <div class="stat"><span>Presentaciones en Supabase</span><strong id="presentationCount">—</strong></div>
 </div>
 
-<section class="panel">
+<section class="panel" id="referencias">
 <h2>Base de referencia sincronizada</h2>
 <p>Consulta los registros de Google Sheets guardados en Supabase. Los costos y precios de referencia no se convierten automáticamente en precios oficiales.</p>
 <div class="buttonrow"><button type="button" class="primary" id="sheet-direct">Sincronizar desde Google Sheets</button><button type="button" class="outline" id="sheet-status">Consultar datos sincronizados</button></div>
@@ -30,6 +30,13 @@
 <div class="table-wrap"><table><thead><tr><th>Producto</th><th>Categoría</th><th>Costo ref.</th><th>Precio ref.</th><th>Estado</th></tr></thead><tbody id="sheet-rows"></tbody></table></div>
 <div class="buttonrow"><button type="button" id="sheet-prev" disabled>Anterior</button><button type="button" id="sheet-next" disabled>Siguiente</button></div>
 </div>
+<details id="google-bridge"><summary>Configurar conexión privada con Google (una sola vez)</summary>
+<p>En la hoja maestra, abre Extensiones → Apps Script. Usa el <a href="https://github.com/jeffer91/almacen/blob/main/integrations/google-apps-script/Code.gs" target="_blank" rel="noopener noreferrer">código de integración</a>, implementa la aplicación web y utiliza el menú Almacén → Preparar conexión privada. No compartas el secreto por chat.</p>
+<label>URL de la implementación de Google Apps Script<input id="bridge-url" type="url" autocomplete="off" placeholder="https://script.google.com/macros/s/…/exec"></label>
+<label>Secreto privado<input id="bridge-secret" type="password" autocomplete="off" placeholder="Secreto de la ventana de Google Sheets"></label>
+<div class="buttonrow"><button type="button" id="bridge-save">Autorizar y comprobar conexión</button><button type="button" id="bridge-test" class="outline">Probar conexión existente</button></div>
+<p id="bridge-result" role="status"></p>
+</details>
 <details><summary>Actualizar copia desde Google Sheets</summary>
 <p>Copia la tabla completa PRECIOS_LOTE_251126 (A:AQ, incluyendo encabezados) y CATEGORIAS (A:B, incluyendo encabezados). La carga reemplaza la vista de referencia de forma transaccional; no modifica el catálogo comercial.</p>
 <label>Precios de referencia<textarea id="sheet-source" rows="4" spellcheck="false"></textarea></label>
@@ -78,5 +85,5 @@
 <p>Las cargas y cambios comerciales requieren PIN administrativo; no se usan credenciales privadas en GitHub Pages. Las copias de Google Sheets son instantáneas y no sustituyen un respaldo integral de Postgres ni de fotografías.</p></section>
 </div>
 </main>
-<script src="../config.js?v=20261124-publico-2"></script><script src="../admin-session.js?v=1"></script><script src="../sync-core.js?v=20261125-sync-1"></script><script src="./sync.js?v=20261125-sync-2"></script>
+<script src="../config.js?v=20261124-publico-2"></script><script src="../admin-session.js?v=1"></script><script src="../sync-core.js?v=20261125-sync-1"></script><script src="./sync.js?v=20261125-sync-3"></script>
 </body></html>
