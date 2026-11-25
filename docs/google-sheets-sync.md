@@ -6,7 +6,7 @@ Hoja privada: https://docs.google.com/spreadsheets/d/1cr8mVW4ab6SFY1OJE90TCtHi2i
 ## Funcionamiento publicado
 
 1. Abrir **https://jeffer91.github.io/almacen/sincronizar/**.
-2. Acceso público sin PIN. Cualquier visitante puede usar las operaciones de esta página.
+2. La consulta de respaldo conserva el acceso existente; las importaciones y la consulta de referencia privada requieren PIN administrativo.
 3. En Google Sheets, hoja `CAMBIOS_PENDIENTES`, preparar cambios con una fila por presentación:
    `Código (SKU) | Producto | Marca | Categoría | Presentación | Cantidad | Unidad | Proveedor | Costo compra USD | Precio CON IVA USD | Precio SIN IVA USD | Aplicar (SI/NO)`.
 4. Cambiar `Aplicar` a `SI` **solo** para filas verificadas. El resto permanece en `NO`.
@@ -34,8 +34,8 @@ Hoja privada: https://docs.google.com/spreadsheets/d/1cr8mVW4ab6SFY1OJE90TCtHi2i
 
 ## Límites y seguridad
 
-- No hay lectura automática de la hoja privada desde el navegador. No se publica ni se elimina la privacidad de Google Sheets.
-- La pestaña `CAMBIOS_PENDIENTES` es solo un **área de preparación**. El botón de importar es público y requiere confirmación; esta confirmación no verifica identidad.
+- La lectura directa se realiza únicamente en el servidor mediante el puente privado de Apps Script, tras autorizarlo. No se publica ni se elimina la privacidad de Google Sheets.
+- La pestaña `CAMBIOS_PENDIENTES` es solo un **área de preparación**. El botón de importar requiere PIN administrativo y confirmación.
 - Los cambios a Supabase no se intentan automáticamente cada 15 minutos.
 - Se compara la versión consultada contra una nueva lectura antes de importar. Esta precaución reduce conflictos, pero **no proporciona bloqueo transaccional entre lectura y escritura** si otro administrador modifica exactamente a la vez.
 - `importExcel` no sincroniza fotografías ni existencias; la gestión de inventario seguirá siendo un módulo posterior.
@@ -81,3 +81,12 @@ La función `sync-sheets` verifica la existencia del dispositivo Edgar, pero **e
 - **Edgar → Supabase → Google Sheets**. Nunca importar valores de `RESPALDO_EDGAR` a Supabase. La pestaña de respaldo es exclusivamente de salida.
 - Si Google falla, Supabase conserva el cambio y la interfaz muestra un error explícito. No se marca sincronización completa ni se duplican filas al reintentar: el receptor reemplaza el contenido de `RESPALDO_EDGAR` por la instantánea confirmada.
 - El botón no sincroniza ventas ni imágenes, ni edita las demás pestañas de trabajo.
+
+## Noviembre 2026: sincronización de la base de referencia
+
+- Se incorporaron 1600 registros de PRECIOS_LOTE_251126 y 40 categorías a Supabase (family_sheet_staging y family_categories). La operación SQL es transaccional e idempotente y registra el resultado en family_sync_runs. Los registros que desaparezcan quedan inactivos; una carga más pequeña se bloquea por defecto.
+- En /sincronizar/, **Consultar datos sincronizados** permite buscar por nombre y categoría con páginas de 50 filas. Se requiere el PIN administrativo.
+- **Sincronizar desde Google Sheets** lee PRECIOS_LOTE_251126 A:AQ y CATEGORIAS A:B mediante el puente existente, si se encuentra autorizado. **Leer cambios desde Google Sheets** lee CAMBIOS_PENDIENTES A:L y abre la vista previa; solo las filas SI se consideran.
+- Para habilitar ambos botones directos, seguir los pasos de autorización del Apps Script anteriores y actualizar la implementación a la versión de Code.gs que admite readMaster y readChanges. La hoja se conserva privada; no compartir secretos por chat ni en GitHub.
+- Si el puente no está configurado, usar la carga manual de ambas tablas en el módulo o la conexión autorizada de ChatGPT con Google Drive. No se deben marcar precios ambiguos como aprobados.
+- No se promueven automáticamente los registros de referencia al catálogo comercial. Se conserva la carga aprobada de CAMBIOS_PENDIENTES y el importador comercial Excel con su límite de 500 presentaciones por lote.
