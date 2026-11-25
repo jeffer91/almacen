@@ -1,7 +1,7 @@
 "use strict";
 (()=>{
  const $=id=>document.getElementById(id), fmt=v=>"$"+Number(v||0).toFixed(2), round=v=>Math.round((v+Number.EPSILON)*100)/100, esc=v=>String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
- let draft=null,lines=[],catalog=[],issuer=null,orderId=null,offset=0,total=0,busy=false,version=0;const revisions={},timers={};
+ let previewed=null,draft=null,lines=[],catalog=[],issuer=null,orderId=null,offset=0,total=0,busy=false,version=0;const revisions={},timers={};
  async function rpc(name,params={}){
   const token=window.NICOLE_EDGAR_SESSION?.getToken();if(!token)throw Error("Sesión no disponible. Recarga la página.");
   const ctrl=new AbortController(),timer=setTimeout(()=>ctrl.abort(),15000);
@@ -47,9 +47,17 @@
   catch(e){say("i-form-status",e.message)}finally{setBusy(false)}
  }
  async function preview(d){
-  if(!issuer)issuer=await rpc("edgar_invoice_issuer");$("i-ride").innerHTML=window.NICOLE_RIDE.build(d,issuer);$("i-preview").hidden=false;$("i-preview").scrollIntoView({block:"start"})
+  if(!issuer)issuer=await rpc("edgar_invoice_issuer");previewed=d;say("i-xml-status","");$("i-ride").innerHTML=window.NICOLE_RIDE.build(d,issuer);$("i-preview").hidden=false;$("i-preview").scrollIntoView({block:"start"})
  }
  $("i-new").onclick=()=>edit();$("i-cancel").onclick=()=>{if(!busy)$("i-editor").hidden=true};$("i-close-preview").onclick=()=>{$("i-preview").hidden=true};$("i-print").onclick=()=>window.print();
+ $("i-xml").onclick=async()=>{if(!previewed||busy)return;const btn=$("i-xml");btn.disabled=true;try{
+  const d=await rpc("edgar_invoice_draft_get",{p_id:previewed.id});if(d.updated_at!==previewed.updated_at)throw Error("El borrador cambió. Vuelve a abrir la vista previa.");
+  if(!issuer)issuer=await rpc("edgar_invoice_issuer");
+  const result=window.NICOLE_XML.build(d,issuer);
+  const parsed=new DOMParser().parseFromString(result.xml,"application/xml");if(parsed.querySelector("parsererror"))throw Error("XML mal formado.");
+  const url=URL.createObjectURL(new Blob([result.xml],{type:"application/xml;charset=utf-8"}));const a=document.createElement("a");a.href=url;a.download="PRUEBA_LOCAL_NO_TRANSMITIR_"+d.id+".xml";document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),3000);
+  say("i-xml-status","XML local sin firma, ambiente 1, secuencial de ejemplo no reservado. Validación interna correcta; XSD oficial pendiente. No enviar al SRI.");
+ }catch(e){say("i-xml-status",e.message)}finally{btn.disabled=false}};
  $("i-csearch").oninput=()=>debounce("c",()=>customers());$("i-psearch").oninput=()=>debounce("p",products);$("i-osearch").oninput=()=>debounce("o",orders);$("i-product").onchange=suggest;$("i-rate").onchange=suggest;$("i-add").onclick=add;$("i-import").onclick=importOrder;
  $("i-lines").onclick=e=>{const b=e.target.closest("[data-line]");if(b&&!busy){lines.splice(Number(b.dataset.line),1);renderLines()}};
  $("i-form").onsubmit=async e=>{e.preventDefault();if(busy||!draft)return;if(!lines.length||!$("i-customer").value){say("i-form-status","Selecciona cliente y agrega productos.");return}setBusy(true);try{const d=await rpc("edgar_invoice_draft_save",{p_draft:{id:draft.id,updated_at:draft.updated_at,customer_id:$("i-customer").value,issue_date:$("i-date").value,payment_code:$("i-payment").value,order_id:orderId,lines}});draft=d;lines=d.lines;renderLines();say("i-form-status","Borrador guardado. No se ha emitido factura.");offset=0;await load();await preview(d)}catch(e){say("i-form-status",e.message)}finally{setBusy(false)}};
