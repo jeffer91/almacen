@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="light">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob: https://*.supabase.co; connect-src 'self' https://*.supabase.co; object-src 'none'; base-uri 'self'; form-action 'none'">
+<base href="../../"><title>Productos · Nicole Encajes · Edgar</title>
+<link rel="stylesheet" href="./viewer.css?v=sync-20261121"><link rel="icon" href="./assets/nicole-icon.svg" type="image/svg+xml"><link rel="stylesheet" href="./edgar/panel.css?v=1"></head>
+<body data-profile="edgar" class="edgar-panel"><nav class="edgar-nav" aria-label="Menú comercial de Edgar"><div class="edgar-nav-inner"><a href="./edgar/">Inicio</a><a href="./edgar/precios/">Precios</a><a href="./edgar/productos/" aria-current="page">Productos</a><a href="./edgar/facturacion/">Facturación</a><a href="./edgar/clientes/">Clientes</a><a href="./edgar/pedidos/">Pedidos</a><a href="./ventas/">Ventas</a></div></nav><div id="app"><p class="v-empty">Cargando precios…</p></div>
+<dialog id="price-editor" aria-labelledby="edit-title"><form>
+<h2 id="edit-title">Editar opción</h2><p id="edit-product"></p>
+<label>Presentación<input name="label" list="labels" required maxlength="100"></label>
+<datalist id="labels"><option>Pieza</option><option>Docena</option><option>Rollo</option></datalist>
+<label>Proveedor<input name="supplier" list="supplier-list" maxlength="160" autocomplete="off"></label><datalist id="supplier-list"></datalist>
+<label>Cantidad por presentación<input name="quantity" type="number" min="0.001" step="0.001"></label>
+<label>Unidad de la cantidad<input name="unit" maxlength="80" placeholder="Ej. metros"></label>
+<label>Costo de compra ($)<input name="cost" type="number" inputmode="decimal" min="0" step="0.0001"></label>
+<label>Precio de venta con IVA ($)<input name="gross" type="number" inputmode="decimal" min="0" step="0.01"></label>
+<p role="status" id="edit-status"></p><button type="button" id="cancel-edit" class="v-mini">Cancelar</button>
+<button class="v-btn" type="submit">Guardar cambios</button></form></dialog>
+<dialog id="product-editor" aria-labelledby="product-title"><form id="new-product-form">
+<h2 id="product-title">Agregar nuevo producto</h2>
+<p class="v-help">Se guardará en el catálogo oficial y aparecerá también en la lista familiar.</p>
+<label>Nombre del producto<input name="product" required maxlength="180" autocomplete="off" placeholder="Ej.: Elástico para bóxer hombre"></label>
+<label>Marca (opcional)<input name="brand" maxlength="160" autocomplete="off"></label>
+<label>Categoría<input name="category" list="product-categories" required maxlength="100" autocomplete="off"></label><datalist id="product-categories"></datalist>
+<label>Presentación<input name="label" list="product-labels" required maxlength="80" placeholder="Ej.: Rollo, Pieza, Docena"></label>
+<datalist id="product-labels"><option>Unidad</option><option>Pieza</option><option>Docena</option><option>Rollo</option><option>Metro</option></datalist>
+<label>Cantidad por presentación<input name="quantity" type="number" min="0.001" max="999999999" step="0.001" value="1" required></label>
+<label>Unidad de medida<input name="unit" maxlength="40" value="unidad" required placeholder="Ej.: metros"></label>
+<label>Proveedor (opcional)<input name="supplier" list="product-suppliers" maxlength="160" autocomplete="off"></label><datalist id="product-suppliers"></datalist>
+<label>Costo de compra ($, opcional)<input name="cost" type="number" min="0" step="0.0001" inputmode="decimal"></label>
+<label>Precio de venta CON IVA ($)<input name="gross" type="number" min="0" step="0.01" inputmode="decimal" required></label>
+<p role="status" id="product-status"></p>
+<div class="v-dialog-actions"><button type="button" id="cancel-product" class="v-mini">Cancelar</button>
+<button class="v-btn" type="submit">Guardar producto</button></div></form></dialog>
+<dialog id="sheets-sync-dialog" aria-labelledby="sheets-sync-title">
+<h2 id="sheets-sync-title">Sincronizar con Google Sheets</h2>
+<p class="v-help">Primero guardamos los cambios en Supabase. Esta función actualiza únicamente <strong>RESPALDO_EDGAR</strong> de tu Google Sheets, sin modificar PRODUCTOS, PRESENTACIONES ni CAMBIOS_PENDIENTES.</p>
+<p id="sheets-sync-status" role="status">El respaldo contiene solo los registros guardados en Supabase. Los precios de referencia del catálogo web aún no forman parte de la base oficial.</p>
+<div class="v-sheet-sync-actions">
+<button class="v-btn" type="button" id="sheets-sync-now">Sincronizar automáticamente</button>
+<button class="v-mini" type="button" id="sheets-copy">Copiar respaldo de Supabase</button>
+<button class="v-mini" type="button" id="sheets-download">Descargar respaldo TSV</button>
+<a class="v-mini v-ventas" href="https://docs.google.com/spreadsheets/d/1cr8mVW4ab6SFY1OJE90TCtHi2i_TnrM8Q8O1PwqawVE/edit#gid=2024364850" target="_blank" rel="noopener noreferrer">Abrir Google Sheets</a>
+</div>
+<p class="v-help">Si Google no está conectado para sincronización automática, copia el respaldo y pégalo desde A1 en RESPALDO_EDGAR. Antes de pegar nuevamente, limpia los valores anteriores de A:R de esa pestaña, sin tocar otras hojas.</p>
+<button class="v-mini v-sync-close" id="sheets-sync-close" type="button">Cerrar</button>
+</dialog>
+<script src="./config.js?v=20261124-publico-2"></script><script src="./excel.js?v=20261124-publico-2"></script><script src="./viewer-core.js?v=commercial2"></script><script src="./edgar/access.js?v=20261124-publico-2"></script><script src="./sheets-backup-core.js?v=20261124-publico-2"></script><script src="./viewer.js?v=supabase20261125"></script></body></html>
