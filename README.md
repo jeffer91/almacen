@@ -99,6 +99,13 @@ Las nuevas plantillas web usan Costo, Precio final, PXM opcional y Precio por me
 - No se altera el catálogo, ni se registra automáticamente una venta, factura o inventario. Se pueden editar estado, fecha y observaciones, pero las líneas quedan fijas tras guardar. No se cancela un pedido con abonos; falta el flujo de devolución. Los pedidos entregados o cancelados quedan cerrados para edición.
 - Referencias históricas Excel sin presentación oficial no son seleccionables; precios ausentes requieren indicar el precio acordado.
 
+## Facturación (bloque 6, fase de borradores)
+
+- `/edgar/facturacion/`: alta, edición, búsqueda y vista previa imprimible de borradores. Integra clientes, catálogo y carga de pedidos; los precios sin IVA admiten seis decimales, descuentos y cálculo decimal del servidor. Las tarifas 0 y 15 % y la conversión de pedidos son provisionales y deben verificarse antes de habilitar emisión.
+- Tablas privadas `edgar_private.invoice_drafts` e `invoice_issuer`, con RPC protegidos por sesión PIN. Migraciones aplicadas: `edgar_invoice_drafts_private`, `edgar_invoice_draft_update_fix` y `edgar_invoice_issuer_private`.
+- Plantilla SVG A4 basada en las coordenadas del RIDE entregado (JasperReports, Helvetica); logo extraído de la referencia, diez columnas, totales, campos de autorización y numeración reservados. PDF mediante diálogo de impresión del navegador. El borrador se marca explícitamente sin validez tributaria y no tiene clave, código de barras, secuencial ni autorización.
+- No se publica el PDF original ni información del comprador de la muestra. El RUC y datos del emisor se conservan en la configuración privada de Supabase. No se emite XML, no se firma, no se transmite al SRI, no se envía correo ni se modifica inventario o ventas. Pendientes: XML autorizado de referencia, validación oficial, firma, secuenciales, recepción/autorización, código de barras real y comparación visual final.
+
 ## Edición de Edgar desde el navegador
 
 1. Abrir [Productos de Edgar](https://jeffer91.github.io/almacen/edgar/productos/) desde el menú del panel, tras validar el PIN o recuperar la sesión guardada.
