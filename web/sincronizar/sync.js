@@ -20,7 +20,7 @@
   async function api(action,fields={}){
     if(!url)throw Error("Falta configurar la API de Supabase");
     const headers={"Content-Type":"application/json"};
-    const protectedAction=new Set(["importExcel","importPricesExcel","importCommercialExcel","sheetStatus","sheetSearch","refreshSheetStagingManual"]).has(action);
+    const protectedAction=new Set(["importExcel","importPricesExcel","importCommercialExcel","sheetStatus","sheetSearch","refreshSheetStagingManual","refreshSheetStaging","readSheetChanges"]).has(action);
     if(protectedAction)headers["x-almacen-key"]=await window.NICOLE_ADMIN.getToken();
     const res=await fetch(url,{method:"POST",headers,cache:"no-store",body:JSON.stringify({action,...fields})});
     const result=await res.json().catch(()=>({}));
@@ -163,7 +163,7 @@
     const data=await api("sheetSearch",{query:$("sheet-query").value,category:$("sheet-category").value,page:reviewPage});
     if(gen!==reviewGeneration)return;
     $("sheet-rows").replaceChildren();
-    for(const x of data.rows){const tr=document.createElement("tr");const values=[x.product_name,x.category,refMoney(x.raw_values?.[12]),refMoney(x.raw_values?.[13]),x.review_status+(x.decision&&x.decision!=="Pendiente"?" · "+x.decision:"")];for(const v of values){const td=document.createElement("td");td.textContent=v;tr.append(td)}$("sheet-rows").append(tr)}
+    for(const x of data.rows){const tr=document.createElement("tr");const v=x.raw_values||[];const values=[x.product_name,x.category,refMoney(v[12]),refMoney(v[13]),x.review_status+(x.decision&&x.decision!=="Pendiente"?" · "+x.decision:"")];for(const value of values){const td=document.createElement("td");td.textContent=value;tr.append(td)}const details=document.createElement("details");const summary=document.createElement("summary");summary.textContent="Ver datos de referencia";details.append(summary);for(const [label,i] of [["Nombre original",3],["Proveedor",4],["Cantidad",5],["Unidad",7],["Costo/base",15],["Neto original",9],["PxM original",10],["pxm original",11],["Tarifa adicional",20],["2026 (1)",37],["2026 (2)",38],["2025",39],["Actual",40],["Observaciones",17],["Origen",23],["Código original",35]]){if(v[i]!==""&&v[i]!=null){const p=document.createElement("p");p.textContent=label+": "+v[i];details.append(p)}}tr.cells[0].append(details);$("sheet-rows").append(tr)}
     $("sheet-result").textContent=data.total+" resultados · página "+(data.page+1);
     $("sheet-prev").disabled=data.page===0;$("sheet-next").disabled=(data.page+1)*50>=data.total;
   }
@@ -173,6 +173,26 @@
   $("sheet-category").onchange=()=>{reviewPage=0;searchSheet().catch(reviewError)};
   $("sheet-prev").onclick=()=>{reviewPage=Math.max(0,reviewPage-1);searchSheet().catch(reviewError)};
   $("sheet-next").onclick=()=>{reviewPage++;searchSheet().catch(reviewError)};
+  $("sheet-direct").onclick=async()=>{
+    if(reviewBusy)return;
+    if(!confirm("¿Sincronizar la hoja privada completa con Supabase? No se modifican los precios oficiales."))return;
+    reviewBusy=true;$("sheet-direct").disabled=true;$("sheet-stage").disabled=true;
+    try{
+      $("sheet-info").textContent="Leyendo Google Sheets…";
+      const r=await api("refreshSheetStaging");
+      await showSheetStatus();
+      $("sheet-info").textContent+=" · Nuevos: "+r.summary.new+" · Actualizados: "+r.summary.changed+" · Sin cambios: "+r.summary.unchanged;
+    }catch(e){reviewError(e)}finally{reviewBusy=false;$("sheet-direct").disabled=false;$("sheet-stage").disabled=false}
+  };
+  $("sheet-read-changes").onclick=async()=>{
+    $("sheet-read-changes").disabled=true;note("previewError","");
+    try{
+      const r=await api("readSheetChanges");
+      const quote=v=>'"'+String(v??"").replace(/"/g,'""')+'"';
+      $("sheetText").value=r.values.map(row=>Array.from({length:12},(_,i)=>quote(row[i])).join("\t")).join("\n");
+      disabledPreview();$("preview").click();
+    }catch(e){note("previewError",e.message)}finally{$("sheet-read-changes").disabled=false}
+  };
   $("sheet-stage").onclick=async()=>{
     if(reviewBusy)return;
     try{
