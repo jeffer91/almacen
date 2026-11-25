@@ -22,8 +22,10 @@ Deno.serve(async(request:Request)=>{
       .eq("fingerprint",await digest(device)).eq("invitation",false).maybeSingle();
     if(accessError)throw accessError;
     if(!access)return reply({ok:false,error:"Acceso denegado"},403);
-    const webhook=Deno.env.get("EDGAR_SHEETS_WEBHOOK_URL")||"";
-    const secret=Deno.env.get("EDGAR_SHEETS_SYNC_SECRET")||"";
+    const {data:bridge,error:bridgeError}=await db.from("family_sheet_bridge").select("webhook,secret").eq("id",1).maybeSingle();
+    if(bridgeError)throw bridgeError;
+    const webhook=bridge?.webhook||Deno.env.get("EDGAR_SHEETS_WEBHOOK_URL")||"";
+    const secret=bridge?.secret||Deno.env.get("EDGAR_SHEETS_SYNC_SECRET")||"";
     if(!/^https:\/\/script\.google\.com\/macros\/s\/[\w-]+\/exec$/.test(webhook) || secret.length<32)
       return reply({ok:false,code:"GOOGLE_NOT_CONNECTED",error:"Google Sheets no está autorizado para sincronización automática.",needs_setup:true},503);
     const {data:last}=await db.from("family_audit").select("at").eq("actor","edgar")
@@ -31,12 +33,13 @@ Deno.serve(async(request:Request)=>{
     if(last?.at && Date.now()-Date.parse(last.at)<25000)
       return reply({ok:false,error:"Sincronización reciente. Revisa Google Sheets y vuelve a intentar después."},429);
     const resp=await fetch(webhook,{method:"POST",headers:{"content-type":"application/json"},
-      body:JSON.stringify({secret,device}),redirect:"follow"});
+      body:JSON.stringify({secret,device}),redirect:"follow",signal:AbortSignal.timeout(45000)});
     const data=await resp.json().catch(()=>null);
     if(!resp.ok || !data?.ok || !Number.isInteger(data?.rows))
       return reply({ok:false,error:"Google Sheets no confirmó el respaldo. Supabase no se modificó."},502);
-    await db.from("family_audit").insert({actor:"edgar",action:"syncGoogleSheets",
+    const {error:auditError}=await db.from("family_audit").insert({actor:"edgar",action:"syncGoogleSheets",
       target_id:"RESPALDO_EDGAR",details:{rows:data.rows,synced_at:new Date().toISOString()}});
+    if(auditError)console.warn("No se registró auditoría del respaldo");
     return reply({ok:true,rows:data.rows,synced_at:new Date().toISOString()});
   }catch(error){console.error("syncSheets",error);return reply({ok:false,error:"No se pudo sincronizar con Google Sheets; Supabase conserva los datos."},500)}
 });
