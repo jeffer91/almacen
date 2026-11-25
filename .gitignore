@@ -40,3 +40,18 @@ Thumbs.db
 
 # Pruebas
 coverage/
+
+# Certificados y claves de facturación: nunca subir al repositorio
+*.p12
+*.pfx
+*.pem
+*.key
+*.jks
+*.keystore
+*.der
+*.cer
+*.crt
+.venv/
+__pycache__/
+secrets/
+private-invoices/
