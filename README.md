@@ -76,7 +76,7 @@ Las nuevas plantillas web usan Costo, Precio final, PXM opcional y Precio por me
 - `/edgar/precios/`: consulta del catálogo familiar; `/edgar/productos/`: editor existente, con los mismos formularios y API.
 - `/ventas/`: módulo de ventas existente, con navegación hacia el panel. Se conserva su URL original.
 - `/edgar/clientes/`, `/edgar/pedidos/` y `/edgar/facturacion/`: páginas de preparación, sin formularios ni almacenamiento hasta completar los módulos y proteger su acceso.
-- El menú usa CSS compartido y enlaces HTML. Precios y Productos todavía comparten `viewer.js` y `viewer-core.js`; la separación de esa lógica corresponde a la siguiente etapa.
+- El menú usa CSS compartido y enlaces HTML. Bloque 2: Precios carga `edgar/precios/prices.js`, de solo consulta, y Productos carga `edgar/productos/products.js`, con el editor existente. Comparten únicamente utilidades puras del catálogo (`viewer-core.js`), exportación Excel, configuración y estilos base; la lista familiar conserva `viewer.js`. Precios dispone de caché propia y muestra el catálogo oficial aunque falle la consulta de opciones adicionales. Los servicios de Supabase siguen siendo compartidos; el acceso público de escritura aún requiere protección.
 - Este bloque no modifica Supabase ni los datos de Google Sheets; el acceso de escritura público preexistente no se ha protegido todavía.
 
 ## Edición de Edgar desde el navegador
