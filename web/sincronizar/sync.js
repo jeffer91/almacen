@@ -20,9 +20,12 @@
   async function api(action,fields={}){
     if(!url)throw Error("Falta configurar la API de Supabase");
     const headers={"Content-Type":"application/json"};
+    const protectedAction=new Set(["importExcel","importPricesExcel","importCommercialExcel","sheetStatus","sheetSearch","refreshSheetStagingManual"]).has(action);
+    if(protectedAction)headers["x-almacen-key"]=await window.NICOLE_ADMIN.getToken();
     const res=await fetch(url,{method:"POST",headers,cache:"no-store",body:JSON.stringify({action,...fields})});
     const result=await res.json().catch(()=>({}));
     if(!res.ok||!result.ok){
+      if(protectedAction && (res.status===401||res.status===403))window.NICOLE_ADMIN.clear();
       throw Error(result.error||"No fue posible conectar con Supabase");
     }
     return result;
@@ -142,6 +145,47 @@
   $("downloadProducts").addEventListener("click",()=>backUp("productos",false));
   $("copySales").addEventListener("click",()=>backUp("ventas",true));
   $("downloadSales").addEventListener("click",()=>backUp("ventas",false));
+
+  let reviewPage=0,reviewBusy=false,reviewGeneration=0;
+  const refMoney=v=>typeof v==="number"&&Number.isFinite(v)?money(v):"—";
+  async function showSheetStatus(){
+    const info=$("sheet-info");info.textContent="Consultando Supabase…";
+    const data=await api("sheetStatus");
+    const last=data.last;
+    info.textContent=data.total+" registros de referencia · "+data.categories.length+" categorías"+(last?" · Última sincronización: "+new Date(last.started_at).toLocaleString("es-EC"):"");
+    const select=$("sheet-category"),old=select.value;
+    select.replaceChildren(new Option("Todas",""));data.categories.forEach(x=>select.add(new Option(x.name,x.name)));
+    select.value=data.categories.some(x=>x.name===old)?old:"";
+    $("sheet-review").hidden=false;reviewPage=0;await searchSheet();
+  }
+  async function searchSheet(){
+    const gen=++reviewGeneration;
+    const data=await api("sheetSearch",{query:$("sheet-query").value,category:$("sheet-category").value,page:reviewPage});
+    if(gen!==reviewGeneration)return;
+    $("sheet-rows").replaceChildren();
+    for(const x of data.rows){const tr=document.createElement("tr");const values=[x.product_name,x.category,refMoney(x.raw_values?.[12]),refMoney(x.raw_values?.[13]),x.review_status+(x.decision&&x.decision!=="Pendiente"?" · "+x.decision:"")];for(const v of values){const td=document.createElement("td");td.textContent=v;tr.append(td)}$("sheet-rows").append(tr)}
+    $("sheet-result").textContent=data.total+" resultados · página "+(data.page+1);
+    $("sheet-prev").disabled=data.page===0;$("sheet-next").disabled=(data.page+1)*50>=data.total;
+  }
+  function reviewError(e){$("sheet-info").textContent=e.message;}
+  $("sheet-status").onclick=()=>showSheetStatus().catch(reviewError);
+  $("sheet-search").onclick=()=>{reviewPage=0;searchSheet().catch(reviewError)};
+  $("sheet-category").onchange=()=>{reviewPage=0;searchSheet().catch(reviewError)};
+  $("sheet-prev").onclick=()=>{reviewPage=Math.max(0,reviewPage-1);searchSheet().catch(reviewError)};
+  $("sheet-next").onclick=()=>{reviewPage++;searchSheet().catch(reviewError)};
+  $("sheet-stage").onclick=async()=>{
+    if(reviewBusy)return;
+    try{
+      const rows=core.parseDelimited($("sheet-source").value,"\t"),categories=core.parseDelimited($("sheet-categories").value,"\t");
+      if(rows.length<2||categories.length<2)throw Error("Pega las dos tablas completas con encabezados.");
+      if(!confirm("¿Actualizar "+(rows.length-1)+" registros de referencia en Supabase? No se modifican precios comerciales."))return;
+      reviewBusy=true;$("sheet-stage").disabled=true;
+      const r=await api("refreshSheetStagingManual",{rows,categories});
+      $("sheet-source").value="";$("sheet-categories").value="";
+      await showSheetStatus();$("sheet-info").textContent+=" · Nuevos: "+r.summary.new+" · Actualizados: "+r.summary.changed+" · Sin cambios: "+r.summary.unchanged;
+    }catch(e){reviewError(e)}finally{reviewBusy=false;$("sheet-stage").disabled=false;}
+  };
+
   refresh().catch(e=>note("backupStatus",e.message));
   $("sheetText").placeholder=core.HEADERS.join("\t")+"\n...";
 })();
