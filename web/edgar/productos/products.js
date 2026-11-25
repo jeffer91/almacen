@@ -161,7 +161,7 @@
       <div class="v-actions">
         ${editor ? '<button class="v-mini v-sync-btn" data-act="sync-sheet" title="Respaldar cambios de Supabase en Google Sheets">⟳ Google Sheets</button>' : ""}
         ${editor && state.online ? '<button class="v-btn v-add-product" data-act="new-product">+ Nuevo producto</button>' : ""}
-        <a class="v-mini v-ventas" href="./catalogo-excel/" title="Todas las columnas originales del Excel">Catálogo Excel</a>\n        <a class="v-mini v-ventas" href="./ventas/">Ventas</a>
+        <a class="v-mini v-ventas" href="./catalogo-excel/" title="Todas las columnas originales del Excel">Catálogo Excel</a>\n        <a class="v-mini v-ventas" href="./edgar/ventas/">Ventas</a>
         <a class="v-mini v-ventas" href="./administrador/">Administrador</a>
         <a class="v-mini v-ventas" href="./sincronizar/#referencias" title="Consultar el catálogo completo de referencias en Supabase">Referencias de precios</a>
         <a class="v-mini v-ventas" href="./sincronizar/" title="Respaldo y sincronización con Google Sheets">Sincronizar</a>
