@@ -114,6 +114,23 @@ async function ownPresentation(role: Shop, id: string) {
   await ownProduct(role, data.product_id);
 }
 
+
+async function readGoogleMaster(action:"readMaster"|"readChanges") {
+  const webhook=Deno.env.get("EDGAR_SHEETS_WEBHOOK_URL")||"";
+  const secret=Deno.env.get("EDGAR_SHEETS_SYNC_SECRET")||"";
+  if(!/^https:\/\/script\.google\.com\/macros\/s\/[\w-]+\/exec$/.test(webhook)||secret.length<32)
+    throw new Error("Google Sheets no está autorizado. Configura el puente privado de Apps Script o usa la copia manual.");
+  let data:any;
+  try {
+    const response=await fetch(webhook,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({secret,action}),redirect:"follow",signal:AbortSignal.timeout(45000)});
+    if(!response.ok)throw new Error("Google no confirmó la lectura");
+    data=await response.json();
+  }catch(_){throw new Error("Google Sheets no respondió. Verifica la implementación y autorización de Apps Script.");}
+  if(data?.ok!==true||!Array.isArray(data.rows)||(action==="readMaster"&&!Array.isArray(data.categories)))
+    throw new Error("El puente de Google Sheets no confirmó las tablas. Actualiza la implementación de Apps Script.");
+  return data;
+}
+
 async function sheetStatus() {
   const [total,categories,last]=await Promise.all([
     db.from("family_sheet_staging").select("source_key",{count:"exact",head:true}).eq("active",true),
@@ -133,12 +150,13 @@ async function sheetSearch(body:any) {
   if(error)throw error;
   return response({ok:true,total:count??0,page,rows:data||[]});
 }
-async function refreshSheetStagingManual(body:any) {
+async function refreshSheetStagingManual(body:any,source="Google Sheets: copia autorizada") {
   if(!Array.isArray(body.rows)||!Array.isArray(body.categories)||body.rows.length<2||body.rows.length>20001||body.categories.length<2||body.categories.length>1001)
     return fail("Carga completa requerida: precios y categorías");
   const norm=(v:unknown)=>String(v??"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().trim();
   const h=body.rows[0],ch=body.categories[0];
-  if(!Array.isArray(h)||h.length!==43||norm(h[1])!=="categoría propuesta".normalize("NFD").replace(/[\u0300-\u036f]/g,"")||norm(h[2])!=="nombre normalizado"||norm(h[23])!=="bloque de origen"||norm(h[42])!=="hoja de referencia existente"||norm(ch?.[0])!=="familia"||norm(ch?.[1])!=="subfamilias")
+  const expected=["Línea fuente","Categoría propuesta","Nombre normalizado","Nombre original","Proveedor (código)","Cantidad original","Cantidad","Unidad original interpretada","Base normalizada (m / u / kg / par)","Neto original","PxM original","pxm original","Costo neto informado","PxM informado","pxm informado","Costo/base (provisional)","Estado","Observaciones","Referencia catálogo","Decisión","Unid. / tarifa adicional original","Última columna original","Línea fuente ampliada","Bloque de origen","Encabezados aplicables","Tarifa adicional numérica","Fecha literal (sin inferir hoy)","Última tarifa numérica (por validar)","P/Fin original (sin interpretar)","Nuevo / alternativo original","Abril / alternativo original","Elidar original","Oct-25 original","Presentación / sección fuente","Columna de origen","Código de fabricante / referencia fuente","Fila fuente literal (todas las columnas)","2026 primera columna original","2026 segunda columna original","2025 / histórico original","ACTUAL original","Columna posterior a ACTUAL (sin título)","Hoja de referencia existente"];
+  if(!Array.isArray(h)||h.length!==43||expected.some((v,i)=>norm(v)!==norm(h[i]))||norm(ch?.[0])!=="familia"||norm(ch?.[1])!=="subfamilias")
     return fail("Encabezados incompatibles: copia PRECIOS_LOTE_251126 A:AQ y CATEGORIAS A:B.");
   const numeric=new Set([0,6,8,12,13,14,15,22,25,27]);
   const rows=body.rows.slice(1).filter((r:any)=>Array.isArray(r)&&r.some((v:any)=>v!==""&&v!=null)).map((r:any)=>Array.from({length:43},(_,i)=>{
@@ -150,7 +168,7 @@ async function refreshSheetStagingManual(body:any) {
   const {count,error:checkError}=await db.from("family_sheet_staging").select("source_key",{count:"exact",head:true}).eq("active",true);
   if(checkError)throw checkError;
   if(rows.length<(count??0)&&body.allowSmaller!==true)return fail("La carga tiene menos registros que la anterior; revisa que esté completa.");
-  const {data,error}=await db.rpc("family_refresh_sheet_staging",{p_rows:rows,p_categories:categories,p_source:"Google Sheets: copia autorizada"});
+  const {data,error}=await db.rpc("family_refresh_sheet_staging",{p_rows:rows,p_categories:categories,p_source:source});
   if(error)throw error;
   return response({ok:true,summary:data});
 }
@@ -264,10 +282,12 @@ Deno.serve(async (request: Request) => {
   try {
     if (action === "catalog") return await publicCatalog();
     if (action === "bootstrap") return await bootstrap(role);
-    if (action === "sheetStatus" || action === "sheetSearch" || action === "refreshSheetStagingManual") {
+    if (["sheetStatus","sheetSearch","refreshSheetStagingManual","refreshSheetStaging","readSheetChanges"].includes(action)) {
       if (authenticatedRole !== "jefferson") return fail("Solo administración puede sincronizar Google Sheets",403);
       if(action==="sheetStatus")return await sheetStatus();
       if(action==="sheetSearch")return await sheetSearch(body);
+      if(action==="readSheetChanges"){const values=await readGoogleMaster("readChanges");return response({ok:true,values:values.rows});}
+      if(action==="refreshSheetStaging"){const values=await readGoogleMaster("readMaster");return await refreshSheetStagingManual(values,"Google Sheets: lectura directa");}
       return await refreshSheetStagingManual(body);
     }
     if (action === "syncSnapshot") {
