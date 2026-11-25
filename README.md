@@ -114,6 +114,12 @@ Las nuevas plantillas web usan Costo, Precio final, PXM opcional y Precio por me
 - La prueba automatizada `tests/validate_invoice_xsd.py` usa lxml con datos sintéticos, sin red ni entidades externas para los comprobantes. El flujo GitHub Actions valida la salida del generador frente a la copia y comprueba el rechazo de estructuras inválidas. Esto no valida automáticamente cada XML descargado ni sustituye la validación tributaria del SRI.
 - Para validar un archivo local: `python3 tests/validate_invoice_xsd.py ruta/al/archivo.xml` (requiere Python, lxml y el XSD local). No subir XML reales al repositorio público. Antes de firmar o transmitir se necesita validar contra el ZIP oficial, confirmar configuración fiscal, numeración de producción, seguridad de firma y ambiente SRI.
 
+## Firma electrónica (fase 6.9, laboratorio)
+
+- Prototipo de firmador XAdES-BES 1.3.2 en `server/facturacion/xades_lab.py`, fuera del sitio web. Cubre comprobante, SignedProperties y KeyInfo. Genera una identidad autofirmada temporal y prueba PKCS#12 en memoria; acepta exclusivamente datos sintéticos de laboratorio.
+- Pruebas automatizadas en `tests/test_xades_lab.py` y workflow `invoice-signature.yml`. No se habilita un endpoint de firma real ni se conecta a SRI. El PIN por sí solo no concede autorización para firmar fiscalmente.
+- Pendientes: ejecución CI integral con XSD de referencia, verificación independiente y esquema oficial, servicio privado desplegado, certificado real instalado por su titular directamente en almacén de secretos, comprobación de cadena/vigencia/revocación y controles de autorización de firma. Véase `server/facturacion/README.md`.
+
 ## Edición de Edgar desde el navegador
 
 1. Abrir [Productos de Edgar](https://jeffer91.github.io/almacen/edgar/productos/) desde el menú del panel, tras validar el PIN o recuperar la sesión guardada.
