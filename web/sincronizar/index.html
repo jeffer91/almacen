@@ -11,7 +11,7 @@
 <main>
 <div id="syncSection">
 <h1>Supabase ↔ Google Sheets</h1>
-<p><strong>Supabase es la fuente oficial.</strong> Una tabla de Google Sheets no se aplica hasta revisar diferencias y confirmarlas. La hoja es privada: no se abre ni se modifica automáticamente desde esta página.</p>
+<p><strong>Supabase es la fuente oficial.</strong> Una tabla de Google Sheets no se aplica hasta revisar diferencias y confirmarlas. La hoja permanece privada; la lectura directa requiere autorizar el puente de Google una sola vez.</p>
 <div class="stats">
 <div class="stat"><span>Productos en Supabase</span><strong id="productCount">—</strong></div>
 <div class="stat"><span>Presentaciones en Supabase</span><strong id="presentationCount">—</strong></div>
@@ -20,7 +20,7 @@
 <section class="panel">
 <h2>Base de referencia sincronizada</h2>
 <p>Consulta los registros de Google Sheets guardados en Supabase. Los costos y precios de referencia no se convierten automáticamente en precios oficiales.</p>
-<button type="button" class="primary" id="sheet-status">Consultar datos sincronizados</button>
+<div class="buttonrow"><button type="button" class="primary" id="sheet-direct">Sincronizar desde Google Sheets</button><button type="button" class="outline" id="sheet-status">Consultar datos sincronizados</button></div>
 <p id="sheet-info" role="status"></p>
 <div id="sheet-review" hidden>
 <label>Buscar producto <input id="sheet-query" type="search" placeholder="Ej. fleco, cascabel"></label>
@@ -57,6 +57,7 @@
 <li>Copia desde <strong>A1 hasta L</strong> (incluye encabezados), pega aquí y revisa antes de actualizar.</li>
 </ol>
 <p class="notice"><strong>Precio CON IVA</strong>: usa el precio final de venta. Si lo introduces aquí, se convertirá automáticamente al precio sin IVA configurado en Supabase. No completes ambas columnas de precio con valores incompatibles.</p>
+<button type="button" id="sheet-read-changes" class="outline">Leer cambios desde Google Sheets</button>
 <label for="sheetText">Datos de CAMBIOS_PENDIENTES</label>
 <textarea id="sheetText" rows="7" spellcheck="false" placeholder="Pega aquí la tabla de Google Sheets, desde A1 hasta L..."></textarea>
 <div class="buttonrow">
@@ -77,5 +78,5 @@
 <p>Las cargas y cambios comerciales requieren PIN administrativo; no se usan credenciales privadas en GitHub Pages. Las copias de Google Sheets son instantáneas y no sustituyen un respaldo integral de Postgres ni de fotografías.</p></section>
 </div>
 </main>
-<script src="../config.js?v=20261124-publico-2"></script><script src="../admin-session.js?v=1"></script><script src="../sync-core.js?v=20261125-sync-1"></script><script src="./sync.js?v=20261125-sync-1"></script>
+<script src="../config.js?v=20261124-publico-2"></script><script src="../admin-session.js?v=1"></script><script src="../sync-core.js?v=20261125-sync-1"></script><script src="./sync.js?v=20261125-sync-2"></script>
 </body></html>
