@@ -57,6 +57,7 @@
     );
   }
   function setData(data) {
+    if(Array.isArray(data.legacy_references))sheetRows=data.legacy_references;
     state.data = data;
     state.cards = V.buildCards(data).filter(hasAmount);
     const existing = new Map(state.cards.filter(c => !c.brand).map(c => [c.name.trim().toLowerCase(), c]));
@@ -105,31 +106,19 @@
     if (Array.isArray(cached)) sheetRows = cached;
   } catch { /* Se recupera la copia en línea. */ }
 
-  async function refreshSheet() {
-    const response = await fetch("./sheet-catalog.json", { cache: "no-cache" });
-    if (!response.ok) throw new Error("No se pudo leer el catálogo de Sheets");
-    const rows = await response.json();
-    if (!Array.isArray(rows) || !rows.every(row => row && typeof row.name === "string" && typeof row.label === "string")) {
-      throw new Error("Formato de catálogo inválido");
-    }
-    const serialized = JSON.stringify(rows);
-    if (serialized === JSON.stringify(sheetRows)) return false;
-    sheetRows = rows;
-    store.set(sheetCache, serialized);
-    return true;
-  }
   async function load() {
     if (reading) return;
     reading = true;
     if (!state.data) render();
     try {
-      const [, catalog, variants] = await Promise.allSettled([refreshSheet(), call("catalog"),
+      const [catalog, variants] = await Promise.allSettled([call("catalog"),
         rpc("family_option_list", { device: editor ? String(window.EDGAR_EDIT_DEVICE || "") : "" })]);
       if (variants.status === "rejected") throw variants.reason;
       options = variants.value;
       store.set("nicole-option-cache", JSON.stringify({ ...options, suppliers: null }));
       if (catalog.status === "rejected") throw catalog.reason;
       const data = catalog.value;
+      if(Array.isArray(data.legacy_references)){sheetRows=data.legacy_references;store.set(sheetCache,JSON.stringify(sheetRows));}
       setData(data);
       state.online = true;
       state.error = "";
@@ -174,7 +163,8 @@
         ${editor && state.online ? '<button class="v-btn v-add-product" data-act="new-product">+ Nuevo producto</button>' : ""}
         <a class="v-mini v-ventas" href="./catalogo-excel/" title="Todas las columnas originales del Excel">Catálogo Excel</a>\n        <a class="v-mini v-ventas" href="./ventas/">Ventas</a>
         <a class="v-mini v-ventas" href="./administrador/">Administrador</a>
-        <a class="v-mini v-ventas" href="./sincronizar/" title="Respaldo y sincronización con Google Sheets (acceso público)">Respaldo</a>
+        <a class="v-mini v-ventas" href="./sincronizar/#referencias" title="Consultar el catálogo completo de referencias en Supabase">Referencias de precios</a>
+        <a class="v-mini v-ventas" href="./sincronizar/" title="Respaldo y sincronización con Google Sheets">Sincronizar</a>
         <button class="v-mini" data-act="pdf" ${ready ? "" : "disabled"} title="Descargar PDF">PDF</button>
         <button class="v-mini" data-act="xlsx" ${ready ? "" : "disabled"} title="Descargar Excel">Excel</button>
       </div></header>`;
