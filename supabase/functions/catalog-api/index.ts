@@ -115,20 +115,45 @@ async function ownPresentation(role: Shop, id: string) {
 }
 
 
-async function readGoogleMaster(action:"readMaster"|"readChanges") {
-  const webhook=Deno.env.get("EDGAR_SHEETS_WEBHOOK_URL")||"";
-  const secret=Deno.env.get("EDGAR_SHEETS_SYNC_SECRET")||"";
-  if(!/^https:\/\/script\.google\.com\/macros\/s\/[\w-]+\/exec$/.test(webhook)||secret.length<32)
-    throw new Error("Google Sheets no está autorizado. Configura el puente privado de Apps Script o usa la copia manual.");
-  let data:any;
+async function getSheetBridge() {
+  const {data,error}=await db.from("family_sheet_bridge").select("webhook,secret").eq("id",1).maybeSingle();
+  if(error)throw new Error("No se pudo consultar la configuración de Google");
+  return data || {webhook:Deno.env.get("EDGAR_SHEETS_WEBHOOK_URL")||"",secret:Deno.env.get("EDGAR_SHEETS_SYNC_SECRET")||""};
+}
+const validBridge=(webhook:unknown,secret:unknown)=>typeof webhook==="string"&&/^https:\/\/script\.google\.com\/macros\/s\/[\w-]+\/exec$/.test(webhook)&&typeof secret==="string"&&secret.length>=32&&secret.length<=512;
+async function callSheetBridge(webhook:string,secret:string,action:string) {
+  if(!validBridge(webhook,secret))throw new Error("Google Sheets no está autorizado. Configura el puente privado o usa la copia manual.");
   try {
     const response=await fetch(webhook,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({secret,action}),redirect:"follow",signal:AbortSignal.timeout(45000)});
-    if(!response.ok)throw new Error("Google no confirmó la lectura");
-    data=await response.json();
-  }catch(_){throw new Error("Google Sheets no respondió. Verifica la implementación y autorización de Apps Script.");}
-  if(data?.ok!==true||!Array.isArray(data.rows)||(action==="readMaster"&&!Array.isArray(data.categories)))
-    throw new Error("El puente de Google Sheets no confirmó las tablas. Actualiza la implementación de Apps Script.");
+    if(!response.ok)throw new Error("Google no confirmó la solicitud");
+    const data=await response.json();
+    if(data?.ok!==true)throw new Error("Google rechazó la solicitud");
+    return data;
+  }catch(_){throw new Error("Google Sheets no confirmó la conexión. Verifica la implementación de Apps Script y el secreto.");}
+}
+async function configureSheetBridge(body:any) {
+  const webhook=String(body.webhook||"").trim(),secret=String(body.secret||"").trim();
+  if(!validBridge(webhook,secret))return fail("Ingresa una URL de Apps Script /exec y el secreto privado.");
+  const probe=await callSheetBridge(webhook,secret,"probe");
+  if(probe.spreadsheet_id!=="1cr8mVW4ab6SFY1OJE90TCtHi2i_TnrM8Q8O1PwqawVE"||!Number.isInteger(probe.rows)||!Number.isInteger(probe.categories)||probe.rows<1||probe.categories<1)
+    return fail("El puente no corresponde al Google Sheets maestro.");
+  const {error}=await db.from("family_sheet_bridge").upsert({id:1,webhook,secret,updated_at:new Date().toISOString()},{onConflict:"id"});
+  if(error)throw new Error("No fue posible guardar la configuración privada");
+  await audit("jefferson","configureSheetBridge","Google Sheets",{rows:probe.rows,categories:probe.categories});
+  return response({ok:true,rows:probe.rows,categories:probe.categories});
+}
+async function readGoogleMaster(action:"readMaster"|"readChanges") {
+  const {webhook,secret}=await getSheetBridge();
+  const data=await callSheetBridge(webhook,secret,action);
+  if(!Array.isArray(data.rows)||(action==="readMaster"&&!Array.isArray(data.categories)))
+    throw new Error("El puente no confirmó las tablas. Actualiza la implementación de Apps Script.");
   return data;
+}
+async function probeSheetBridge() {
+  const {webhook,secret}=await getSheetBridge();
+  const data=await callSheetBridge(webhook,secret,"probe");
+  if(data.spreadsheet_id!=="1cr8mVW4ab6SFY1OJE90TCtHi2i_TnrM8Q8O1PwqawVE")return fail("El puente no corresponde al Google Sheets maestro.");
+  return response({ok:true,rows:data.rows,categories:data.categories});
 }
 
 async function sheetStatus() {
@@ -138,14 +163,15 @@ async function sheetStatus() {
     db.from("family_sync_runs").select("started_at,source,total_rows,new_rows,changed_rows,unchanged_rows,missing_rows,category_count").order("started_at",{ascending:false}).limit(1).maybeSingle()
   ]);
   if(total.error||categories.error||last.error)throw new Error("No se pudo consultar el estado de sincronización");
-  return response({ok:true,total:total.count??0,categories:categories.data||[],last:last.data});
+  const bridge=await getSheetBridge();
+  return response({ok:true,total:total.count??0,categories:categories.data||[],last:last.data,bridgeConfigured:validBridge(bridge.webhook,bridge.secret)});
 }
 async function sheetSearch(body:any) {
   const page=Math.max(0,Math.min(399,Math.floor(Number(body.page)||0)));
   let query=db.from("family_sheet_staging").select("source_key,sheet_row,category,product_name,review_status,decision,raw_values",{count:"exact"}).eq("active",true);
   const cat=txt(body.category,100), search=txt(body.query,100);
   if(cat)query=query.eq("category",cat);
-  if(search)query=query.ilike("product_name","%"+search.replace(/[%_]/g,"")+"%");
+  if(search)query=query.ilike("search_text","%"+search.replace(/[%_]/g,"")+"%");
   const {data,error,count}=await query.order("product_name").order("source_key").range(page*50,page*50+49);
   if(error)throw error;
   return response({ok:true,total:count??0,page,rows:data||[]});
@@ -177,7 +203,9 @@ async function listAll(table: string, columns: string) {
   const rows: Record<string,unknown>[] = [];
   let offset = 0;
   while (true) {
-    const { data, error } = await db.from(table).select(columns).range(offset, offset + 999);
+    let query=db.from(table).select(columns);
+    query=table==="family_prices"?query.order("presentation_id").order("shop"):query.order("id");
+    const { data, error } = await query.range(offset, offset + 999);
     if (error) throw error;
     rows.push(...(data || []));
     if (!data || data.length < 1000) break;
@@ -207,11 +235,12 @@ async function bootstrap(role: Shop) {
 }
 // Lista pública: costo y precio por presentación (decisión del dueño), sin proveedores ni historial; solo productos activos.
 async function publicCatalog() {
-  const [products, presentations, prices, photos] = await Promise.all([
+  const [products, presentations, prices, photos, legacy] = await Promise.all([
     listAll("family_products", "id,name,category,brand,active,updated_at"),
     listAll("family_presentations", "id,product_id,label,quantity,unit,sku,current_cost,wholesale_price,meter_price,updated_at"),
     listAll("family_prices", "presentation_id,shop,price,updated_at"),
-    listAll("family_photos", "id,product_id,storage_path,color_label,is_primary,created_by,created_at")
+    listAll("family_photos", "id,product_id,storage_path,color_label,is_primary,created_by,created_at"),
+    listAll("family_legacy_references","id,name,category,label,amount,cost,referencePrice")
   ]);
   const active = products.filter((p) => p.active !== false);
   const ids = new Set(active.map((p) => p.id));
@@ -221,7 +250,7 @@ async function publicCatalog() {
   const { iva_rate } = await storeSettings();
   return response({ ok: true, role: "familia", iva_rate, products: active,
     presentations: presentations.filter((p) => ids.has(p.product_id)), prices,
-    photos: visiblePhotos, server_time: new Date().toISOString() });
+    photos: visiblePhotos, legacy_references: legacy, server_time: new Date().toISOString() });
 }
 async function uploadPhoto(role: Shop, body: any, limitPerProduct = 0) {
   const product_id = requiredId(body.product_id);
@@ -282,9 +311,11 @@ Deno.serve(async (request: Request) => {
   try {
     if (action === "catalog") return await publicCatalog();
     if (action === "bootstrap") return await bootstrap(role);
-    if (["sheetStatus","sheetSearch","refreshSheetStagingManual","refreshSheetStaging","readSheetChanges"].includes(action)) {
+    if (["sheetStatus","sheetSearch","refreshSheetStagingManual","refreshSheetStaging","readSheetChanges","configureSheetBridge","probeSheetBridge"].includes(action)) {
       if (authenticatedRole !== "jefferson") return fail("Solo administración puede sincronizar Google Sheets",403);
       if(action==="sheetStatus")return await sheetStatus();
+      if(action==="configureSheetBridge")return await configureSheetBridge(body);
+      if(action==="probeSheetBridge")return await probeSheetBridge();
       if(action==="sheetSearch")return await sheetSearch(body);
       if(action==="readSheetChanges"){const values=await readGoogleMaster("readChanges");return response({ok:true,values:values.rows});}
       if(action==="refreshSheetStaging"){const values=await readGoogleMaster("readMaster");return await refreshSheetStagingManual(values,"Google Sheets: lectura directa");}
