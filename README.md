@@ -92,6 +92,13 @@ Las nuevas plantillas web usan Costo, Precio final, PXM opcional y Precio por me
 - Datos privados en `edgar_private.customers`, con RLS, sin permisos de acceso directo para roles públicos. Los RPC `edgar_customer_list`, `edgar_customer_save` y `edgar_customer_set_active` requieren un token PIN válido; control de duplicados y de concurrencia mediante fecha de actualización.
 - Migración aplicada en Supabase: `edgar_customers_private`. No se guardan clientes en localStorage ni Google Sheets. Archivo lógico para preservar identificadores de futuros pedidos y facturas.
 
+## Pedidos (bloque 5)
+
+- `/edgar/pedidos/`: pedidos con cliente activo y productos oficiales (presentaciones y opciones). Búsqueda, fecha de entrega, observaciones, estado y abonos sucesivos. Precio de venta sugerido, editable; el servidor conserva el precio acordado y calcula los totales.
+- Tablas privadas `edgar_private.orders`, `order_items`, `order_payments` y RPC que validan el token de sesión en cada operación. Migración aplicada: `edgar_orders_private`.
+- No se altera el catálogo, ni se registra automáticamente una venta, factura o inventario. Se pueden editar estado, fecha y observaciones, pero las líneas quedan fijas tras guardar. No se cancela un pedido con abonos; falta el flujo de devolución. Los pedidos entregados o cancelados quedan cerrados para edición.
+- Referencias históricas Excel sin presentación oficial no son seleccionables; precios ausentes requieren indicar el precio acordado.
+
 ## Edición de Edgar desde el navegador
 
 1. Abrir [Productos de Edgar](https://jeffer91.github.io/almacen/edgar/productos/) desde el menú del panel, tras validar el PIN o recuperar la sesión guardada.
