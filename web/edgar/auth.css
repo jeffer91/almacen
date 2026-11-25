@@ -1,0 +1,8 @@
+#edgar-protected[hidden],#edgar-login[hidden],#edgar-pin-form[hidden]{display:none!important}
+body{margin:0}.edgar-login{min-height:100vh;display:grid;place-items:center;padding:20px;background:#f5f3fa;color:#292439;font:17px/1.5 system-ui,sans-serif;box-sizing:border-box}
+.edgar-login *{box-sizing:border-box}.edgar-login-card{width:min(100%,410px);padding:32px;background:#fff;border:1px solid #e1dcec;border-radius:18px;box-shadow:0 12px 45px #30216614}
+.edgar-login-card img{display:block;margin-bottom:15px}.edgar-login-card h1{font-size:26px;line-height:1.2;margin:0 0 10px}.edgar-login-card p{color:#625b73}
+.edgar-login-card label{display:block;font-weight:650;margin:16px 0 6px}.edgar-login-card input{width:100%;min-height:54px;font:26px system-ui,sans-serif;letter-spacing:6px;padding:10px 12px;border:1px solid #bcb2d3;border-radius:10px;text-align:center}
+.edgar-login-card button,.edgar-logout{border:0;background:#5533bd;color:white;font:600 16px/1.4 system-ui,sans-serif;border-radius:9px;min-height:46px;cursor:pointer;padding:10px 15px}
+.edgar-login-card button{width:100%;margin-top:14px}.edgar-login-card button:disabled{opacity:.55}.edgar-login-card input:focus-visible,.edgar-login-card button:focus-visible,.edgar-logout:focus-visible{outline:3px solid #ac9af2;outline-offset:2px}
+#edgar-login-status{min-height:24px;font-size:14px;color:#8a341c}.edgar-logout{flex:none;margin-left:auto;background:#49377f;white-space:nowrap;font-size:14px}.edgar-auth-error{padding:15px;color:#a23036}
