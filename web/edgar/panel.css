@@ -1,0 +1,22 @@
+/* Menú comercial: estático, sin depender de JavaScript ni de Supabase. */
+.edgar-nav{position:sticky;top:0;z-index:20;background:#302166;color:#fff;border-bottom:1px solid #4d3a91;box-shadow:0 2px 8px #17122d22}
+.edgar-nav-inner{display:flex;gap:5px;max-width:1100px;margin:auto;padding:8px 12px;overflow-x:auto;overscroll-behavior-x:contain;scrollbar-width:thin}
+.edgar-nav a{flex:0 0 auto;display:block;padding:11px 14px;min-height:44px;border-radius:8px;color:#fff;text-decoration:none;font:600 15px/22px system-ui,sans-serif;white-space:nowrap}
+.edgar-nav a:hover,.edgar-nav a[aria-current=page]{background:#fff;color:#302166}
+.edgar-nav a:focus-visible,.edgar-card:focus-visible{outline:3px solid #c7b8ff;outline-offset:2px}
+.edgar-panel .v-top{position:static}
+.edgar-home{margin:0;background:#f8f7fc;color:#292439;font:17px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif;min-height:100vh}
+.edgar-home *{box-sizing:border-box}
+.edgar-home .edgar-main{max-width:1000px;margin:0 auto;padding:28px 18px 50px}
+.edgar-home h1{font-size:clamp(27px,4vw,38px);line-height:1.18;margin:10px 0}
+.edgar-home p{color:#625b73;margin:8px 0 20px}
+.edgar-home .edgar-brand{display:flex;gap:12px;align-items:center;font-weight:700;color:#302166}
+.edgar-home .edgar-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(245px,100%),1fr));gap:14px}
+.edgar-home .edgar-card{display:block;background:#fff;padding:22px;border:1px solid #e1dcec;border-radius:14px;text-decoration:none;color:#292439;min-height:132px}
+.edgar-home .edgar-card:hover{border-color:#5533bd;box-shadow:0 3px 14px #30216612}
+.edgar-home .edgar-card strong{display:block;font-size:21px;color:#44269b}
+.edgar-home .edgar-card span{display:block;color:#625b73;font-size:15px;margin-top:8px}
+.edgar-home .edgar-card small{display:inline-block;font-size:12px;color:#725317;background:#fff3d7;padding:3px 8px;border-radius:6px;margin-top:9px}
+.edgar-home .edgar-notice{padding:20px;border:1px solid #e1dcec;border-radius:14px;background:white}
+.edgar-home .edgar-back{display:inline-block;color:#44269b;font-weight:700;padding:12px 0}
+@media(max-width:600px){.edgar-nav-inner{padding:6px 8px}.edgar-nav a{padding:10px 12px}.edgar-home .edgar-main{padding:20px 14px 40px}.edgar-home .edgar-card{min-height:auto;padding:17px}}
