@@ -52,7 +52,7 @@ jobs:
           curl -fLsS --retry 3 --max-time 25 "$base/sincronizar/?v=20261124-publico-2" -o /tmp/sync.html
           ! grep -q 'id="loginForm"' /tmp/sync.html
           grep -q 'id="syncSection">' /tmp/sync.html
-          grep -q 'sync.js?v=20261125-sync-3' /tmp/sync.html
+          grep -q 'sync.js?v=20261125-sync-4' /tmp/sync.html
           curl -fLsS --retry 3 --max-time 25 "$base/catalogo-excel/?v=20261124-publico-2" -o /tmp/excel.html
           ! grep -q 'id="login-form"' /tmp/excel.html
           grep -q 'id="catalog-content">' /tmp/excel.html
@@ -78,7 +78,7 @@ jobs:
           grep -q 'exportSalesBackup' /tmp/dashboard.js
           curl -fLsS --max-time 25 "$base/sync-core.js" -o /tmp/sync-core.js
           grep -q 'parsePending' /tmp/sync-core.js
-          curl -fLsS --max-time 25 "$base/sincronizar/sync.js?v=20261125-sync-3" -o /tmp/sync.js
+          curl -fLsS --max-time 25 "$base/sincronizar/sync.js?v=20261125-sync-4" -o /tmp/sync.js
           grep -q 'importExcel' /tmp/sync.js
           ! grep -q 'loginForm' /tmp/sync.js
           curl -fLsS --max-time 25 "$base/ventas/sales.js?v=20261124-publico-2" -o /tmp/sales.js
@@ -106,7 +106,7 @@ jobs:
             code=$(curl -sS -o /dev/null -w "%{http_code}" -X POST --max-time 25 -H "Content-Type: application/json" --data "$payload" "$url")
             test "$code" = "200"
           done
-          for action in bootstrap saveSettings archiveProduct sheetStatus sheetSearch refreshSheetStagingManual refreshSheetStaging readSheetChanges configureSheetBridge probeSheetBridge importExcel importPricesExcel; do
+          for action in bootstrap saveSettings archiveProduct sheetStatus sheetSearch sheetProductGroups sheetProductDetails refreshSheetStagingManual refreshSheetStaging readSheetChanges configureSheetBridge probeSheetBridge importExcel importPricesExcel; do
             code=$(curl -sS -o /dev/null -w "%{http_code}" -X POST --max-time 25 -H "Content-Type: application/json" --data "{\"action\":\"$action\"}" "$url")
             test "$code" = "401"
           done
