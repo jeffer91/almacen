@@ -86,6 +86,12 @@ Las nuevas plantillas web usan Costo, Precio final, PXM opcional y Precio por me
 - Las API históricas de escritura de catálogo, ventas e importación siguen públicas. El PIN protege la navegación, no sustituye autorización de esas API. Los futuros módulos privados deben validar el token en servidor antes de cada operación.
 - El PIN se configuró fuera del repositorio. El esquema de sesiones se aplicó en Supabase como `edgar_pin_sessions`.
 
+## Clientes (bloque 4)
+
+- `/edgar/clientes/`: registro, búsqueda paginada, edición y archivo/restauración. El nombre es obligatorio; identificación, teléfono, correo, dirección y notas son opcionales. Se verifica formato de cédula/RUC, no su validez ante el SRI.
+- Datos privados en `edgar_private.customers`, con RLS, sin permisos de acceso directo para roles públicos. Los RPC `edgar_customer_list`, `edgar_customer_save` y `edgar_customer_set_active` requieren un token PIN válido; control de duplicados y de concurrencia mediante fecha de actualización.
+- Migración aplicada en Supabase: `edgar_customers_private`. No se guardan clientes en localStorage ni Google Sheets. Archivo lógico para preservar identificadores de futuros pedidos y facturas.
+
 ## Edición de Edgar desde el navegador
 
 1. Abrir [Productos de Edgar](https://jeffer91.github.io/almacen/edgar/productos/) desde el menú del panel, tras validar el PIN o recuperar la sesión guardada.
