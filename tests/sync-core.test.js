@@ -66,3 +66,17 @@ test("Google Sheets privado no se consulta directamente desde el navegador",()=>
  assert.match(api,/action === "exportSalesBackup"/);
  assert.match(api,/role !== "jefferson"\) return fail\("Solo administración puede respaldar ventas"/);
 });
+
+test("Acepta encabezados reales de CAMBIOS_PENDIENTES",()=>{
+ const h=["SKU","Producto","Marca","Categoría","Presentación","Cantidad","Unidad","Proveedor","Costo","Precio c/IVA","Precio s/IVA","Aplicar"].join("\t");
+ const parsed=sync.parsePending(h+"\n"+approved().join("\t"),15);
+ assert.equal(parsed.errors.length,0);assert.equal(parsed.rows.length,1);
+});
+test("Carga de referencia y escrituras administrativas protegidas",()=>{
+ const ui=fs.readFileSync(path.join(__dirname,"../web/sincronizar/sync.js"),"utf8");
+ const api=fs.readFileSync(path.join(__dirname,"../supabase/functions/catalog-api/index.ts"),"utf8");
+ assert.match(ui,/NICOLE_ADMIN.getToken/);
+ assert.match(ui,/refreshSheetStagingManual/);
+ assert.match(api,/authenticatedRole !== "jefferson"/);
+ assert.match(api,/family_refresh_sheet_staging/);
+});
