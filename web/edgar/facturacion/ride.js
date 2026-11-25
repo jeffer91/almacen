@@ -14,7 +14,7 @@
   if(!d||!issuer||!Array.isArray(d.lines)||!d.lines.length)throw Error("Borrador incompleto");
   const b=d.buyer||{}, cols=[20,60,100,140,250,325,375,425,475,525,575];
   const headers=[["Cod.","Principal"],["Cod.","Auxiliar"],["Cantidad"],["Descripción"],["Detalle Adicional"],["Precio Unitario"],["Subsidio"],["Precio sin","Subsidio"],["Descuento"],["Precio Total"]];
-  const groups=[];let cur=[],height=0;for(const r of d.lines){const h=Math.max(25,8+8*Math.max(wrap(r.description,106).length,wrap(r.extra,71).length,wrap(r.code,36).length,wrap(r.aux,36).length));if(cur.length&&height+h>125){groups.push(cur);cur=[];height=0}cur.push({r,h});height+=h}if(cur.length)groups.push(cur);
+  const groups=[];let cur=[],height=0;for(const r of d.lines){const h=Math.max(25,8+8*Math.max(wrap(r.description,106).length,wrap(r.extra,71).length,wrap(r.code,36).length,wrap(r.aux,36).length));if(cur.length&&height+h>90){groups.push(cur);cur=[];height=0}cur.push({r,h});height+=h}if(cur.length)groups.push(cur);
   return groups.map((items,page)=>{
    let s='<svg class="ride-sheet" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 595 842" role="img" aria-label="Borrador de factura, página '+(page+1)+'" font-family="Helvetica, Arial, sans-serif"><rect width="595" height="842" fill="white"/>';
    s+='<image href="./edgar/facturacion/logo-ride.svg" x="20" y="20" width="230" height="123.05"/>'+rect(20,147,250,206,5)+rect(280,20,295,333,5);
@@ -30,7 +30,7 @@
     const totals=[["SUBTOTAL 15%",sub15],...(sub0?[["SUBTOTAL 0%",sub0]]:[]),["SUBTOTAL NO OBJETO DE IVA",0],["SUBTOTAL EXENTO DE IVA",0],["SUBTOTAL SIN IMPUESTOS",d.subtotal],["TOTAL DESCUENTO",d.discount],["ICE",0],["IVA 15%",d.tax],["IRBPNR",0],["PROPINA",0],["VALOR TOTAL",d.total]];
     totals.forEach(([k,v],i)=>{const yy=y+15*i;s+=rect(375,yy,150,15)+rect(525,yy,50,15)+text(377,yy+10,k,7)+text(573,yy+10,fmt(v),7,"end")});let end=y+totals.length*15+4;s+=rect(375,end,200,46)+text(377,end+10,"VALOR TOTAL SIN SUBSIDIO",7)+text(573,end+10,"0.00",7,"end")+text(377,end+28,"AHORRO POR SUBSIDIO:",7)+text(377,end+36,"(Incluye IVA cuando corresponda)",7)+text(573,end+25,"0.00",7,"end");
    }else{s+=text(575,y+16,"Continúa en la página siguiente",8,"end")}
-   s+=text(297.5,810,"BORRADOR — NO ES COMPROBANTE FISCAL",11,"middle","#a12424")+text(575,826,(page+1)+" / "+groups.length,7,"end")+"</svg>";return s;
+   s+=text(297.5,827,"BORRADOR — NO ES COMPROBANTE FISCAL",11,"middle","#a12424")+text(575,838,(page+1)+" / "+groups.length,7,"end")+"</svg>";return s;
   }).join("");
  }
  scope.NICOLE_RIDE=Object.freeze({build});
