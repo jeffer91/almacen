@@ -79,9 +79,16 @@ Las nuevas plantillas web usan Costo, Precio final, PXM opcional y Precio por me
 - El menú usa CSS compartido y enlaces HTML. Bloque 2: Precios carga `edgar/precios/prices.js`, de solo consulta, y Productos carga `edgar/productos/products.js`, con el editor existente. Comparten únicamente utilidades puras del catálogo (`viewer-core.js`), exportación Excel, configuración y estilos base; la lista familiar conserva `viewer.js`. Precios dispone de caché propia y muestra el catálogo oficial aunque falle la consulta de opciones adicionales. Los servicios de Supabase siguen siendo compartidos; el acceso público de escritura aún requiere protección.
 - Este bloque no modifica Supabase ni los datos de Google Sheets; el acceso de escritura público preexistente no se ha protegido todavía.
 
+## Acceso al panel de Edgar (bloque 3)
+
+- PIN único validado en Supabase, no incluido en los archivos publicados. Cinco intentos fallidos bloquean el acceso globalmente durante 15 minutos. La sesión del navegador dura 180 días, con token aleatorio y hash en servidor; cerrar sesión revoca el token.
+- Las siete rutas de Edgar validan la sesión antes de cargar sus módulos. La ruta histórica `/ventas/` sigue pública por compatibilidad.
+- Las API históricas de escritura de catálogo, ventas e importación siguen públicas. El PIN protege la navegación, no sustituye autorización de esas API. Los futuros módulos privados deben validar el token en servidor antes de cada operación.
+- El PIN se configuró fuera del repositorio. El esquema de sesiones se aplicó en Supabase como `edgar_pin_sessions`.
+
 ## Edición de Edgar desde el navegador
 
-1. Abrir [Productos de Edgar](https://jeffer91.github.io/almacen/edgar/productos/) desde el menú del panel, sin ingresar códigos ni PIN.
+1. Abrir [Productos de Edgar](https://jeffer91.github.io/almacen/edgar/productos/) desde el menú del panel, tras validar el PIN o recuperar la sesión guardada.
 2. Pulsar el botón de **lápiz** en cualquier fila para abrir el formulario emergente, editar precio CON IVA, costo, cantidad, unidad, presentación y proveedor, y guardar.
 3. Pulsar **+ Opción** para agregar una presentación o un proveedor alternativo para un producto existente.
 4. Pulsar **+ Nuevo producto** para dar de alta un producto oficial con categoría, presentación y precio.
