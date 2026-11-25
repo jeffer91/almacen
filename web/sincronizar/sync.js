@@ -20,7 +20,7 @@
   async function api(action,fields={}){
     if(!url)throw Error("Falta configurar la API de Supabase");
     const headers={"Content-Type":"application/json"};
-    const protectedAction=new Set(["importExcel","importPricesExcel","importCommercialExcel","sheetStatus","sheetSearch","refreshSheetStagingManual","refreshSheetStaging","readSheetChanges"]).has(action);
+    const protectedAction=new Set(["importExcel","importPricesExcel","importCommercialExcel","sheetStatus","sheetSearch","refreshSheetStagingManual","refreshSheetStaging","readSheetChanges","configureSheetBridge","probeSheetBridge"]).has(action);
     if(protectedAction)headers["x-almacen-key"]=await window.NICOLE_ADMIN.getToken();
     const res=await fetch(url,{method:"POST",headers,cache:"no-store",body:JSON.stringify({action,...fields})});
     const result=await res.json().catch(()=>({}));
@@ -152,7 +152,7 @@
     const info=$("sheet-info");info.textContent="Consultando Supabase…";
     const data=await api("sheetStatus");
     const last=data.last;
-    info.textContent=data.total+" registros de referencia · "+data.categories.length+" categorías"+(last?" · Última sincronización: "+new Date(last.started_at).toLocaleString("es-EC"):"");
+    info.textContent=data.total+" registros de referencia · "+data.categories.length+" categorías · "+(data.bridgeConfigured?"Puente configurado (probar para verificar)":"Google pendiente de autorizar")+(last?" · Última sincronización: "+new Date(last.started_at).toLocaleString("es-EC"):"");
     const select=$("sheet-category"),old=select.value;
     select.replaceChildren(new Option("Todas",""));data.categories.forEach(x=>select.add(new Option(x.name,x.name)));
     select.value=data.categories.some(x=>x.name===old)?old:"";
@@ -168,6 +168,22 @@
     $("sheet-prev").disabled=data.page===0;$("sheet-next").disabled=(data.page+1)*50>=data.total;
   }
   function reviewError(e){$("sheet-info").textContent=e.message;}
+  const bridgeMessage=v=>$("bridge-result").textContent=v;
+  $("bridge-save").onclick=async()=>{
+    const webhook=$("bridge-url").value.trim(),secret=$("bridge-secret").value.trim();
+    if(!webhook||secret.length<32){bridgeMessage("Completa la URL y el secreto privado.");return;}
+    $("bridge-save").disabled=true;bridgeMessage("Comprobando acceso a la hoja privada…");
+    try{
+      const r=await api("configureSheetBridge",{webhook,secret});
+      $("bridge-secret").value="";bridgeMessage("Conexión verificada: "+r.rows+" registros y "+r.categories+" categorías.");
+    }catch(e){$("bridge-secret").value="";bridgeMessage(e.message)}finally{$("bridge-save").disabled=false}
+  };
+  $("bridge-test").onclick=async()=>{
+    $("bridge-test").disabled=true;bridgeMessage("Comprobando Google Sheets…");
+    try{const r=await api("probeSheetBridge");bridgeMessage("Conexión verificada: "+r.rows+" registros y "+r.categories+" categorías.");}
+    catch(e){bridgeMessage(e.message)}finally{$("bridge-test").disabled=false}
+  };
+  if(location.hash==="#google-bridge")$("google-bridge").open=true;
   $("sheet-status").onclick=()=>showSheetStatus().catch(reviewError);
   $("sheet-search").onclick=()=>{reviewPage=0;searchSheet().catch(reviewError)};
   $("sheet-category").onchange=()=>{reviewPage=0;searchSheet().catch(reviewError)};
