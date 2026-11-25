@@ -21,7 +21,7 @@ test("El registro de ventas es independiente del catálogo público", () => {
 
 test("La API limita las operaciones públicas a una lista explícita", () => {
   const ts = read("supabase/functions/catalog-api/index.ts");
-  assert.match(ts, /const publicWeb = !authenticatedRole && new Set\(\["listSales", "addSale", "voidSale", "exportSalesBackup", "syncSnapshot", "importExcel", "importPricesExcel", "importCommercialExcel"\]\)\.has\(action\)/);
+  assert.match(ts, /const publicWeb = !authenticatedRole && new Set\(\["listSales", "addSale", "voidSale", "exportSalesBackup", "syncSnapshot"\]\)\.has\(action\)/);
   for (const action of ["listSales", "addSale", "voidSale"]) {
     const start = ts.indexOf('if (action === "' + action + '")');
     assert.ok(start >= 0, action + " debe existir");
