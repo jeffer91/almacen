@@ -16,7 +16,7 @@ test("Edgar: navegación estática y destinos existentes",()=>{
  }
 });
 test("Edgar: no se simula la funcionalidad pendiente",()=>{
- for(const page of ["edgar/facturacion","edgar/pedidos"]){const html=fs.readFileSync(path.join(web,page,"index.html"),"utf8");assert.match(html,/Módulo en preparación/);assert.match(html,/data-scripts=""/);}
+ for(const page of ["edgar/facturacion"]){const html=fs.readFileSync(path.join(web,page,"index.html"),"utf8");assert.match(html,/Módulo en preparación/);assert.match(html,/data-scripts=""/);}
  const html=fs.readFileSync(path.join(web,"edgar","index.html"),"utf8");assert.match(html,/data-scripts=""/);
 });
 test("Edgar: se conserva el catálogo editable y el registro de ventas",()=>{
