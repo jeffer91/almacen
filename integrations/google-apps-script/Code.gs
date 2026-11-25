@@ -73,6 +73,17 @@ function doPost(e) {
     const expected=PropertiesService.getScriptProperties().getProperty("SYNC_SECRET")||"";
     if(expected.length<32 || typeof request.secret!=="string" || request.secret!==expected)
       return reply_({ok:false,error:"Acceso denegado"});
+    // Lectura de la hoja privada: exclusivamente por el puente autenticado del servidor.
+    if(request.action==="readMaster" || request.action==="readChanges"){
+      const book=SpreadsheetApp.openById(SPREADSHEET_ID);
+      const read=(name,width)=>{
+        const sheet=book.getSheetByName(name);
+        if(!sheet || sheet.getLastRow()<1 || sheet.getLastRow()>20001)throw Error("Pestaña ausente o fuera de límite");
+        return sheet.getRange(1,1,sheet.getLastRow(),width).getValues();
+      };
+      if(request.action==="readChanges")return reply_({ok:true,rows:read("CAMBIOS_PENDIENTES",12)});
+      return reply_({ok:true,rows:read("PRECIOS_LOTE_251126",43),categories:read("CATEGORIAS",2)});
+    }
     if(!/^[a-f0-9]{64}$/.test(String(request.device||"")))
       return reply_({ok:false,error:"Dispositivo inválido"});
     if(!lock.tryLock(30000))return reply_({ok:false,error:"Ya hay una sincronización en curso"});
