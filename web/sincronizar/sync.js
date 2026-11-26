@@ -20,7 +20,7 @@
   async function api(action,fields={}){
     if(!url)throw Error("Falta configurar la API de Supabase");
     const headers={"Content-Type":"application/json"};
-    const protectedAction=new Set(["importExcel","importPricesExcel","importCommercialExcel","sheetStatus","sheetSearch","sheetProductGroups","sheetProductDetails","refreshSheetStagingManual","refreshSheetStaging","readSheetChanges","configureSheetBridge","probeSheetBridge"]).has(action);
+    const protectedAction=new Set(["exportSalesBackup","importExcel","importPricesExcel","importCommercialExcel","sheetStatus","sheetSearch","sheetProductGroups","sheetProductDetails","refreshSheetStagingManual","refreshSheetStaging","readSheetChanges","configureSheetBridge","probeSheetBridge"]).has(action);
     if(protectedAction)headers["x-almacen-key"]=await window.NICOLE_ADMIN.getToken();
     const res=await fetch(url,{method:"POST",headers,cache:"no-store",body:JSON.stringify({action,...fields})});
     const result=await res.json().catch(()=>({}));
