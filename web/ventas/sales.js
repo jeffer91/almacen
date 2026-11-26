@@ -55,13 +55,14 @@
   function addLine() {
     const row = $("entryRows").insertRow();
     row.dataset.key = crypto.randomUUID();
-    row.innerHTML = '<td></td><td><input class="product" maxlength="180" required placeholder="Producto" aria-label="Producto" autocomplete="off"><div class="product-matches" hidden></div><input class="detail" maxlength="100" placeholder="Detalle opcional" aria-label="Detalle"><select class="variant" aria-label="Presentación" hidden></select></td><td><input class="qty" type="number" min="0.001" max="1000000" step="0.001" value="1" required aria-label="Cantidad"></td><td><select class="unit" aria-label="Unidad"><option value="unidad">Unidad</option><option value="metro">Metro</option><option value="rollo">Rollo</option><option value="yarda">Yarda</option><option value="paquete">Paquete</option><option value="otro">Otro</option></select></td><td class="cost-cell"><span class="cost-value">—</span><small class="cost-basis" hidden></small></td><td><input class="price" type="number" min="0" max="1000000" step="0.0001" required placeholder="0.00" aria-label="Precio unitario"><select class="price-mode" aria-label="Tipo de precio" hidden></select><small class="cost-warning" role="status" hidden></small></td><td class="line-total">$0,00</td><td><select class="payment" aria-label="Pago"><option value="sin_especificar">Sin especificar</option><option value="efectivo">Efectivo</option><option value="transferencia">Transferencia</option><option value="tarjeta">Tarjeta</option><option value="otro">Otro</option></select></td><td><button type="button" class="remove-line">Quitar</button></td>';
+    row.innerHTML = '<td></td><td><input class="product" maxlength="180" required placeholder="Producto" aria-label="Producto" autocomplete="off"><div class="product-matches" hidden></div><input class="detail" maxlength="100" placeholder="Detalle opcional" aria-label="Detalle"></td><td><select class="variety-select" aria-label="Variedad"><option value="">—</option></select></td><td><select class="measure-select" aria-label="Medida"><option value="">—</option></select><select class="variant" aria-label="Presentación exacta" hidden></select></td><td><select class="provider-select" aria-label="Proveedor"><option value="">—</option></select></td><td><input class="qty" type="number" min="0.001" max="1000000" step="0.001" value="1" required aria-label="Cantidad"></td><td><select class="unit" aria-label="Unidad"><option value="unidad">Unidad</option><option value="metro">Metro</option><option value="rollo">Rollo</option><option value="yarda">Yarda</option><option value="paquete">Paquete</option><option value="otro">Otro</option></select></td><td class="cost-cell"><span class="cost-value">—</span><small class="cost-basis" hidden></small></td><td><input class="price" type="number" min="0" max="1000000" step="0.0001" required placeholder="0.00" aria-label="Precio unitario"><select class="price-mode" aria-label="Tipo de precio" hidden></select><small class="cost-warning" role="status" hidden></small></td><td class="line-total">$0,00</td><td><select class="payment" aria-label="Pago"><option value="sin_especificar">Sin especificar</option><option value="efectivo">Efectivo</option><option value="transferencia">Transferencia</option><option value="tarjeta">Tarjeta</option><option value="otro">Otro</option></select></td><td><button type="button" class="remove-line">Quitar</button></td>';
     const product=row.querySelector(".product");
-    product.addEventListener("input",()=>{row.selectedCard=null;matchProduct(row);suggest(row);});
+    product.addEventListener("input",()=>{row.selectedCard=null;row.familyCards=null;row.manualProduct=false;row.selectionSignature=null;matchProduct(row);suggest(row);});
     product.addEventListener("focus",()=>suggest(row));
     product.addEventListener("keydown",e=>{if(e.key==="Escape"){row.querySelector(".product-matches").hidden=true;}if(e.key==="ArrowDown"){const first=row.querySelector(".product-matches button");if(first){e.preventDefault();first.focus();}}});
     row.addEventListener("focusout",e=>{if(!row.contains(e.relatedTarget))row.querySelector(".product-matches").hidden=true;});
     row.querySelector(".variant").addEventListener("change",()=>chooseVariant(row));
+    for(const [cls,level] of [[".variety-select",0],[".measure-select",1],[".provider-select",2]])row.querySelector(cls).addEventListener("change",()=>refreshFacets(row,level));
     row.querySelector(".price-mode").addEventListener("change",()=>choosePrice(row));
     row.querySelector(".unit").addEventListener("change",()=>{const expected=row.expectedUnit;const changed=expected&&expected!==row.querySelector(".unit").value;row.comparableCost=changed?null:row.baseComparableCost;if(changed){row.querySelector(".price").value="";row.querySelector(".price-mode").value="";setMessage("saleMessage","Cambiaste la unidad. Ingresa el precio correspondiente a esa unidad.");}renderCost(row);updatePreview();});
     row.querySelector(".remove-line").addEventListener("click",()=>{if(saving||retryPayload)return;row.remove();if(!rows().length)addLine();updatePreview();});
@@ -135,27 +136,73 @@
   const displayName = c => [c.name,c.brand].filter(Boolean).join(" · ");
   const validPrice = n => n !== null && n !== undefined && n !== "" && Number.isFinite(Number(n)) && Number(n)>=0;
   function option(select,label,value) { const o = document.createElement("option");o.textContent=label;o.value=value;select.append(o);return o; }
+  const choiceCore=()=>window.NICOLE_SALES_CATALOG;
+  const facetFields=["variety","measure","provider"];
+  const facetSelectors=[".variety-select",".measure-select",".provider-select"];
+  function resetItem(row){
+    row.catalogCard=null;row.catalogItem=null;row.exactChoice=null;
+    row.querySelector(".price").value="";
+    const mode=row.querySelector(".price-mode");mode.replaceChildren();mode.hidden=true;
+    row.querySelector(".detail").value="";
+    setCost(row,null,null,null);
+    updatePreview();
+  }
+  function setOptions(select,values,previous,placeholder){
+    select.replaceChildren();option(select,placeholder,"");
+    for(const value of values)option(select,value,value);
+    select.value=values.includes(previous)?previous:values.length===1?values[0]:"";
+    return select.value;
+  }
+  function configureChoices(row,cards,preferred=null){
+    row.choices=choiceCore().saleChoices(cards);
+    row.selectionSignature=preferred||cards;
+    row.querySelector(".detail").hidden=!!row.choices.length;
+    row.querySelector(".detail").readOnly=!!row.choices.length;
+    for(const selector of facetSelectors)row.querySelector(selector).value="";
+    const initial=preferred&&row.choices.length===1?row.choices[0]:null;
+    refreshFacets(row,-1,initial);
+  }
+  function refreshFacets(row,changed=-1,initial=null){
+    const C=choiceCore(),all=row.choices||[];
+    const previous=facetSelectors.map(x=>row.querySelector(x).value);
+    let filters={},available=all;
+    for(let i=0;i<facetFields.length;i++){
+      const select=row.querySelector(facetSelectors[i]),key=facetFields[i];
+      const values=C.facetValues(available,key);
+      const chosen=setOptions(select,values,initial?.[key]||(changed<0||i<=changed?previous[i]:""),["Elegir variedad","Elegir medida","Elegir proveedor"][i]);
+      filters[key]=chosen;
+      if(chosen)available=C.filterChoices(available,{[key]:chosen});
+    }
+    resetItem(row);
+    const variant=row.querySelector(".variant");
+    variant.replaceChildren();option(variant,"Elegir presentación","");
+    const complete=all.length>0&&facetFields.every(k=>filters[k]);
+    if(complete){
+      for(const c of available){
+        const price=c.item.gross??c.item.referencePrice??c.item.meterPrice??c.item.wholesale;
+        const label=[c.card.name,c.item.label,validPrice(price)?unitMoney(price):"Sin precio"].filter(Boolean).join(" · ");
+        option(variant,label,c.key);
+      }
+      if(available.length===1&&!available[0].card.smart?.conflict&&!available[0].card.smart?.needs_review){
+        variant.value=available[0].key;chooseVariant(row);
+      }
+    }
+    variant.hidden=!complete||(available.length===1&&!!row.catalogItem);
+    row.querySelector(".detail").hidden=all.length>0&&!row.catalogItem;
+  }
   function matchProduct(row) {
+    if(row.familyCards||row.manualProduct)return;
     const q=normalize(row.querySelector(".product").value);
     const matches=catalog.filter(c=>normalize(displayName(c))===q || normalize(c.name)===q);
     const card=row.selectedCard||(matches.length===1&&!matches[0].smart?.conflict&&!matches[0].smart?.needs_review?matches[0]:null);
-    if(row.catalogCard===card)return;
-    row.catalogCard=card;row.catalogItem=null;
-    const variant=row.querySelector(".variant"),mode=row.querySelector(".price-mode"),price=row.querySelector(".price");
-    variant.replaceChildren();mode.replaceChildren();variant.hidden=true;mode.hidden=true;
-    price.value="";row.querySelector(".detail").value="";row.querySelector(".detail").hidden=false;row.querySelector(".detail").readOnly=false;setCost(row,null,null,null);
-    if(!card||!card.items.length){updatePreview();return;}
-    row.querySelector(".detail").hidden=true;
-    variant.hidden=false;option(variant,"Elegir presentación","");
-    card.items.forEach((i,n)=>option(variant,[i.label,i.supplier].filter(Boolean).join(" · "),String(n)));
-    if(card.items.length===1){variant.value="0";chooseVariant(row);variant.hidden=true;row.querySelector(".detail").hidden=false;row.querySelector(".detail").readOnly=true;}
-    else updatePreview();
+    if(row.selectionSignature===card&&card)return;
+    configureChoices(row,card?[card]:[],card);
   }
   function suggest(row) {
     const input=row.querySelector(".product"), box=row.querySelector(".product-matches"), C=window.NICOLE_SALES_CATALOG;
     box.replaceChildren();box.hidden=true;
-    if(saving||retryPayload||!input.value.trim()||row.selectedCard)return;
-    let matches=C.rank(catalog,input.value,300);
+    if(saving||retryPayload||!input.value.trim()||row.selectedCard||row.familyCards||row.manualProduct)return;
+    let matches=C.rank(catalog,input.value,catalog.length);
     if(!matches.length)return;
     const q=C.canonical(input.value), categoryKey=x=>C.canonical(x).replace(/(?:es|s)$/,"");
     const exactFamily=[...new Set(matches.map(c=>c.smart?.category||c.category).filter(Boolean))].find(x=>categoryKey(x)===categoryKey(q));
@@ -191,12 +238,20 @@
         info.textContent=[smart?.variety,smart?.provider&&smart.provider!=="Sin especificar"?smart.provider:"",c.items[0]?.label,Number.isFinite(price)?unitMoney(price):"Sin precio",Number.isFinite(cost)?"Costo "+unitMoney(cost):"Sin costo"].filter(Boolean).join(" · ");
         button.append(title,info);
         if(smart?.conflict||smart?.needs_review){const warning=document.createElement("small");warning.className="smart-warning";warning.textContent=smart.conflict?"Varias tarifas: comprobar antes de vender":"Datos por verificar";button.append(warning);}
-        button.addEventListener("click",()=>{if((c.smart?.conflict||c.smart?.needs_review)&&!confirm("Los datos de este producto necesitan revisión. Verifica el costo, el precio y la unidad antes de vender. ¿Continuar?"))return;row.selectedCard=c;input.value=displayName(c);box.hidden=true;matchProduct(row);input.focus();});
+        button.addEventListener("click",()=>{if((c.smart?.conflict||c.smart?.needs_review)&&!confirm("Los datos de este producto necesitan revisión. Verifica el costo, el precio y la unidad antes de vender. ¿Continuar?"))return;row.selectedCard=c;row.reviewConfirmed=c;input.value=displayName(c);box.hidden=true;matchProduct(row);input.focus();});
         results.append(button);
       }
     }
     filters.forEach(({select})=>select.addEventListener("change",draw));sort.addEventListener("change",draw);
-    box.append(controls,infoLine,results);draw();box.hidden=false;
+    const families=document.createElement("div");families.className="family-choices";
+    const grouped=new Map();
+    for(const card of matches){const name=card.smart?.category||card.category;if(!name||!card.items?.length)continue;if(!grouped.has(name))grouped.set(name,[]);grouped.get(name).push(card);}
+    for(const [name,cards] of [...grouped].sort((a,b)=>b[1].length-a[1].length).slice(0,8)){
+      const button=document.createElement("button");button.type="button";button.textContent="Elegir "+name+" ("+cards.length+")";
+      button.addEventListener("click",()=>{row.familyCards=cards;row.selectedCard=null;input.value=name;box.hidden=true;configureChoices(row,cards);row.querySelector(".variety-select").focus();});
+      families.append(button);
+    }
+    box.append(families,controls,infoLine,results);draw();box.hidden=false;
   }
   async function excelReferences(){
     const endpoint=new URL("/functions/v1/excel-catalog",url);
@@ -219,9 +274,14 @@
   }
   function chooseVariant(row) {
     const variant=row.querySelector(".variant"),mode=row.querySelector(".price-mode"),price=row.querySelector(".price");
-    const item=variant.value===""?null:row.catalogCard?.items[Number(variant.value)];
+    const choice=variant.value===""?null:(row.choices||[]).find(c=>c.key===variant.value);
+    if(choice&&(choice.card.smart?.conflict||choice.card.smart?.needs_review)&&row.reviewConfirmed!==choice.card&&!confirm("Este producto requiere revisión. Confirma costo, precio y unidad antes de vender.")){variant.value="";resetItem(row);return;}
+    row.exactChoice=choice;row.catalogCard=choice?.card||null;
+    const item=choice?.item||null;
     row.catalogItem=item;mode.replaceChildren();price.value="";mode.hidden=!item;
     row.querySelector(".detail").value=item?String(item.label||""):"";
+    row.querySelector(".detail").hidden=!item&&!!row.choices?.length;
+    row.querySelector(".detail").readOnly=!!item;
     if(!item){setCost(row,null,null,null);updatePreview();return;}
     option(mode,"Precio manual","");
     for(const [key,label] of [["gross","Normal"],["meterPrice","Por metro"],["wholesale","Mayorista"]]){
@@ -276,7 +336,7 @@
       const names=[...new Set(catalog.flatMap(c=>[displayName(c),normalize(displayName(c))]))].sort((a,b)=>a.localeCompare(b,"es"));
       const list=$("catalogSuggestions");list.replaceChildren();names.forEach(n=>option(list,n,n));
       $("catalogStatus").textContent=commercialCount+" comerciales · "+(excel.status==="fulfilled"?excel.value.cards.length+" productos adicionales"+(excel.value.smart?" · catálogo inteligente":" · modo de respaldo"):"Catálogo adicional no disponible")+(extra.status==="fulfilled"?"":" · opciones adicionales no disponibles");
-      if(!saving&&!retryPayload)rows().forEach(row=>{if(row.querySelector(".product").value&&!row.querySelector(".price").value){matchProduct(row);if(document.activeElement===row.querySelector(".product"))suggest(row);}});
+      if(!saving&&!retryPayload)rows().forEach(row=>{if(row.querySelector(".product").value&&!row.querySelector(".price").value&&!row.familyCards&&!row.selectedCard){matchProduct(row);if(document.activeElement===row.querySelector(".product"))suggest(row);}});
     } catch(error) {if(version===catalogVersion)$("catalogStatus").textContent="Catálogo no disponible: "+error.message+" · puedes registrar precios manualmente";}
   }
   async function voidSale(sale) {
@@ -324,12 +384,12 @@
     if(!retryPayload){
       const alias=$("customerAlias").value.trim();
       if(!alias){setMessage("saleMessage","Indica una referencia de cliente.");return;}
-      if(rows().some(row=>row.catalogCard&&!row.catalogItem)){setMessage("saleMessage","Selecciona la presentación de cada producto.");return;}
+      if(rows().some(row=>(row.familyCards||row.selectedCard||row.choices?.length)&&!row.catalogItem)){setMessage("saleMessage","Selecciona la presentación de cada producto.");return;}
       if(rows().some(row=>!validPrice(row.comparableCost))&&!confirm("Hay productos sin costo comparable. Verifica sus precios y unidades. ¿Guardar de todos modos?"))return;
       if(rows().some(row=>row.classList.contains("below-cost"))&&!confirm("Hay productos con precio de venta menor al costo neto registrado. ¿Guardar de todos modos?"))return;
       retryPayload=rows().map(row=>({
-        sale_date:$("saleDate").value,product_name:row.querySelector(".product").value.trim(),
-        presentation_label:row.querySelector(".detail").value.trim(),quantity:Number(row.querySelector(".qty").value),
+        sale_date:$("saleDate").value,product_name:row.exactChoice?displayName(row.exactChoice.card):row.querySelector(".product").value.trim(),
+        presentation_label:row.exactChoice?[row.exactChoice.variety,row.exactChoice.provider,row.querySelector(".detail").value.trim()].filter(Boolean).join(" · ").slice(0,100):row.querySelector(".detail").value.trim(),quantity:Number(row.querySelector(".qty").value),
         unit:row.querySelector(".unit").value,unit_price:Number(row.querySelector(".price").value),
         payment_method:row.querySelector(".payment").value,notes:"[venta:"+batch+"] "+alias,request_key:row.dataset.key
       }));
