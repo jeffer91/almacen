@@ -396,12 +396,13 @@
     event.preventDefault();
     if(saving)return;
     if(!retryPayload){
-      const alias=$("customerAlias").value.trim();
-      if(!alias){setMessage("saleMessage","Indica una referencia de cliente.");return;}
+      const selectedCustomer=comm.customer();
+      if(!selectedCustomer?.id){setMessage("saleMessage","Selecciona un cliente del buscador o registra uno nuevo.");$("saleCustomerSearch").focus();return;}
+      const alias=selectedCustomer.name;
       if(rows().some(row=>(row.familyCards||row.selectedCard||row.choices?.length)&&!row.catalogItem)){setMessage("saleMessage","Selecciona la presentación de cada producto.");return;}
       if(rows().some(row=>!validPrice(row.comparableCost))&&!confirm("Hay productos sin costo comparable. Verifica sus precios y unidades. ¿Guardar de todos modos?"))return;
       if(rows().some(row=>row.classList.contains("below-cost"))&&!confirm("Hay productos con precio de venta menor al costo neto registrado. ¿Guardar de todos modos?"))return;
-      retryCustomer=comm.customer()?.id||null;retryAlias=alias;retryMode=event.submitter?.dataset.mode||"save";
+      retryCustomer=selectedCustomer.id;retryAlias=alias;retryMode=event.submitter?.dataset.mode||"save";
       if(retryMode==="invoice"&&!retryCustomer){setMessage("saleMessage","Selecciona un cliente registrado para preparar la factura.");return;}
       retryPayload=rows().map(row=>({
         sale_date:$("saleDate").value,product_name:row.exactChoice?displayName(row.exactChoice.card):row.querySelector(".product").value.trim(),
