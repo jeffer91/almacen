@@ -17,7 +17,7 @@ test("Ambas rutas de ventas exigen sesión comercial", () => {
   assert.match(js,/NICOLE_EDGAR_SESSION/);
   assert.match(js,/"x-almacen-key"/);
   assert.match(js,/api\("listSales"/);
-  assert.match(js,/api\("addSalesBatch"/);
+  assert.match(js,/comm\.rpc\("edgar_sale_save"/);
   assert.match(js,/api\("voidSale"/);
 });
 test("La API valida la sesión antes de cualquier operación de ventas", () => {
