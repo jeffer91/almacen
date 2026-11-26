@@ -27,14 +27,20 @@ Deno.serve(async (req: Request) => {
       if (error) throw error;
       return send({ ok: true, sheets: data ?? [] });
     }
-    if (body?.action === "rows") {
+    if (body?.action === "rows" || body?.action === "salesRows") {
       const offset = Number(body.offset);
       const asked = Number(body.limit);
       if (!Number.isInteger(offset) || offset < 0 || offset > 100000)
         return send({ ok: false, error: "Paginación inválida" }, 400);
       const limit = Number.isInteger(asked) ? Math.min(500, Math.max(1, asked)) : 500;
-      const { data, error } = await db.from("family_excel_catalog_rows")
-        .select("sheet_name,sheet_row,display_name,cells,batch_no")
+      let table="family_excel_catalog_rows";
+      if(body.action==="salesRows"){
+        const {count,error}=await db.from("family_excel_live_rows").select("sheet_row",{count:"exact",head:true});
+        if(error)throw error;
+        if(count && count>0)table="family_excel_live_rows";
+      }
+      const { data, error } = await db.from(table)
+        .select("sheet_name,sheet_row,display_name,cells")
         .order("sheet_name", { ascending: true })
         .order("sheet_row", { ascending: true })
         .range(offset, offset + limit - 1);
