@@ -57,7 +57,7 @@
     row.dataset.key = crypto.randomUUID();
     row.innerHTML = '<td></td><td><input class="product" maxlength="180" required placeholder="Producto" aria-label="Producto" autocomplete="off"><div class="product-matches" hidden></div><input class="detail" maxlength="100" placeholder="Detalle opcional" aria-label="Detalle"></td><td><select class="variety-select" aria-label="Variedad"><option value="">—</option></select></td><td><select class="measure-select" aria-label="Medida"><option value="">—</option></select><select class="variant" aria-label="Presentación exacta" hidden></select></td><td><select class="provider-select" aria-label="Proveedor"><option value="">—</option></select></td><td><input class="qty" type="number" min="0.001" max="1000000" step="0.001" value="1" required aria-label="Cantidad"></td><td><select class="unit" aria-label="Unidad"><option value="unidad">Unidad</option><option value="metro">Metro</option><option value="rollo">Rollo</option><option value="yarda">Yarda</option><option value="paquete">Paquete</option><option value="otro">Otro</option></select></td><td class="cost-cell"><span class="cost-value">—</span><small class="cost-basis" hidden></small></td><td><input class="price" type="number" min="0" max="1000000" step="0.0001" required placeholder="0.00" aria-label="Precio unitario"><select class="price-mode" aria-label="Tipo de precio" hidden></select><small class="cost-warning" role="status" hidden></small></td><td class="line-total">$0,00</td><td><select class="payment" aria-label="Pago"><option value="sin_especificar">Sin especificar</option><option value="efectivo">Efectivo</option><option value="transferencia">Transferencia</option><option value="tarjeta">Tarjeta</option><option value="otro">Otro</option></select></td><td><button type="button" class="remove-line">Quitar</button></td>';
     const product=row.querySelector(".product");
-    product.addEventListener("input",()=>{row.selectedCard=null;row.familyCards=null;row.manualProduct=false;row.selectionSignature=null;matchProduct(row);suggest(row);});
+    product.addEventListener("input",()=>{row.selectedCard=null;row.familyCards=null;row.reviewConfirmed=null;row.manualProduct=false;row.selectionSignature=null;matchProduct(row);suggest(row);});
     product.addEventListener("focus",()=>suggest(row));
     product.addEventListener("keydown",e=>{if(e.key==="Escape"){row.querySelector(".product-matches").hidden=true;}if(e.key==="ArrowDown"){const first=row.querySelector(".product-matches button");if(first){e.preventDefault();first.focus();}}});
     row.addEventListener("focusout",e=>{if(!row.contains(e.relatedTarget))row.querySelector(".product-matches").hidden=true;});
@@ -183,7 +183,7 @@
         const label=[c.card.name,c.item.label,validPrice(price)?unitMoney(price):"Sin precio"].filter(Boolean).join(" · ");
         option(variant,label,c.key);
       }
-      if(available.length===1&&!available[0].card.smart?.conflict&&!available[0].card.smart?.needs_review){
+      if(available.length===1&&(row.reviewConfirmed===available[0].card||(!available[0].card.smart?.conflict&&!available[0].card.smart?.needs_review))){
         variant.value=available[0].key;chooseVariant(row);
       }
     }
@@ -248,7 +248,7 @@
     for(const card of matches){const name=card.smart?.category||card.category;if(!name||!card.items?.length)continue;if(!grouped.has(name))grouped.set(name,[]);grouped.get(name).push(card);}
     for(const [name,cards] of [...grouped].sort((a,b)=>b[1].length-a[1].length).slice(0,8)){
       const button=document.createElement("button");button.type="button";button.textContent="Elegir "+name+" ("+cards.length+")";
-      button.addEventListener("click",()=>{row.familyCards=cards;row.selectedCard=null;input.value=name;box.hidden=true;configureChoices(row,cards);row.querySelector(".variety-select").focus();});
+      button.addEventListener("click",()=>{row.familyCards=cards;row.selectedCard=null;row.reviewConfirmed=null;input.value=name;box.hidden=true;configureChoices(row,cards);row.querySelector(".variety-select").focus();});
       families.append(button);
     }
     box.append(families,controls,infoLine,results);draw();box.hidden=false;
