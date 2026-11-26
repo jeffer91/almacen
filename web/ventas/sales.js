@@ -42,38 +42,38 @@
     $("total").textContent = money(sales.reduce((sum, row) => sum + Number(row.total || 0), 0));
     $("empty").hidden = sales.length > 0;
     $("history").replaceChildren();
-    for (const sale of sales) {
-      const entry = document.createElement("div");
-      entry.className = "sale";
-      const info = document.createElement("div");
-      const title = document.createElement("strong");
-      title.textContent = sale.product_name;
-      const details = document.createElement("small");
-      const qty = Number(sale.quantity).toLocaleString("es-EC", { maximumFractionDigits: 3 });
-      details.textContent = qty + " " + sale.unit +
-        (sale.presentation_label ? " · " + sale.presentation_label : "") +
-        " · " + money(sale.unit_price) + " c/u" +
-        (sale.payment_method === "sin_especificar" ? "" : " · " + sale.payment_method);
-      info.append(title, details);
-      if (sale.notes) {
-        const note = document.createElement("small");
-        note.textContent = sale.notes;
-        info.append(note);
+    if (!sales.length) return;
+    const table = document.createElement("table");
+    table.className = "invoice-table";
+    const head = table.createTHead().insertRow();
+    for (const label of ["N.º", "Producto / detalle", "Cantidad", "Unidad", "Precio unitario", "Importe", "Pago", "Acción"]) {
+      const th = document.createElement("th");
+      th.scope = "col"; th.textContent = label; head.append(th);
+    }
+    const body = table.createTBody();
+    sales.forEach((sale, index) => {
+      const row = body.insertRow();
+      row.insertCell().textContent = String(index + 1);
+      const info = row.insertCell();
+      const name = document.createElement("strong"); name.textContent = sale.product_name; info.append(name);
+      for (const detail of [sale.presentation_label, sale.notes]) {
+        if (detail) { const small = document.createElement("small"); small.textContent = detail; info.append(small); }
       }
-      const right = document.createElement("div");
-      right.className = "right";
-      const amt = document.createElement("span");
-      amt.className = "amount";
-      amt.textContent = money(sale.total);
+      row.insertCell().textContent = Number(sale.quantity).toLocaleString("es-EC", { maximumFractionDigits: 3 });
+      row.insertCell().textContent = sale.unit;
+      row.insertCell().textContent = new Intl.NumberFormat("es-EC", {style:"currency",currency:"USD",minimumFractionDigits:2,maximumFractionDigits:4}).format(Number(sale.unit_price));
+      row.insertCell().textContent = money(sale.total);
+      row.insertCell().textContent = sale.payment_method === "sin_especificar" ? "—" : sale.payment_method;
       const remove = document.createElement("button");
-      remove.type = "button";
-      remove.textContent = "Anular";
+      remove.type = "button"; remove.textContent = "Anular";
       remove.setAttribute("aria-label", "Anular venta de " + sale.product_name);
       remove.addEventListener("click", () => voidSale(sale));
-      right.append(amt, remove);
-      entry.append(info, right);
-      $("history").append(entry);
-    }
+      row.insertCell().append(remove);
+    });
+    const foot = table.createTFoot().insertRow();
+    const label = foot.insertCell(); label.colSpan = 5; label.textContent = "TOTAL REGISTRADO";
+    const amount = foot.insertCell(); amount.colSpan = 3; amount.textContent = money(sales.reduce((sum, row) => sum + Number(row.total || 0), 0));
+    $("history").append(table);
   }
   async function loadSales() {
     const day = $("saleDate").value;
