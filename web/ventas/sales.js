@@ -136,7 +136,7 @@
   function matchProduct(row) {
     const q=normalize(row.querySelector(".product").value);
     const matches=catalog.filter(c=>normalize(displayName(c))===q || normalize(c.name)===q);
-    const card=row.selectedCard||(matches.length===1?matches[0]:null);
+    const card=row.selectedCard||(matches.length===1&&!matches[0].smart?.conflict?matches[0]:null);
     if(row.catalogCard===card)return;
     row.catalogCard=card;row.catalogItem=null;
     const variant=row.querySelector(".variant"),mode=row.querySelector(".price-mode"),price=row.querySelector(".price");
@@ -150,37 +150,70 @@
     else updatePreview();
   }
   function suggest(row) {
-    const input=row.querySelector(".product"), box=row.querySelector(".product-matches");
+    const input=row.querySelector(".product"), box=row.querySelector(".product-matches"), C=window.NICOLE_SALES_CATALOG;
     box.replaceChildren();box.hidden=true;
     if(saving||retryPayload||!input.value.trim()||row.selectedCard)return;
-    const matches=window.NICOLE_SALES_CATALOG.rank(catalog,input.value,15);
+    let matches=C.rank(catalog,input.value,300);
     if(!matches.length)return;
-    for(const c of matches){
-      const button=document.createElement("button");button.type="button";
-      const title=document.createElement("strong");title.textContent=displayName(c);
-      const info=document.createElement("small");
-      const prices=c.items.map(i=>i.gross??i.referencePrice??i.meterPrice??i.wholesale).filter(validPrice);
-      const detail=c.items[0]?.label||"";
-      info.textContent=(detail?detail+" · ":"")+(prices.length?unitMoney(Math.min(...prices))+(prices.length>1?" desde":""):"Sin precio")+(c.items.length===1&&validPrice(c.items[0].cost)?" · Costo "+unitMoney(c.items[0].cost):"");
-      button.append(title,info);
-      button.addEventListener("click",()=>{row.selectedCard=c;input.value=displayName(c);box.hidden=true;matchProduct(row);input.focus();});
-      box.append(button);
+    const q=C.canonical(input.value), categoryKey=x=>C.canonical(x).replace(/(?:es|s)$/,"");
+    const exactFamily=[...new Set(matches.map(c=>c.smart?.category||c.category).filter(Boolean))].find(x=>categoryKey(x)===categoryKey(q));
+    if(exactFamily)matches=matches.filter(c=>(c.smart?.category||c.category)===exactFamily);
+    const controls=document.createElement("div");controls.className="smart-filters";
+    const results=document.createElement("div");results.className="smart-results";
+    const infoLine=document.createElement("small");infoLine.className="smart-count";
+    const facets=[
+      ["Familia",c=>c.smart?.category||c.category||"Otros"],
+      ["Variedad",c=>c.smart?.variety||"Sin clasificar"],
+      ["Proveedor",c=>c.smart?.provider||c.items[0]?.supplier||"Sin especificar"]
+    ];
+    const filters=facets.map(([label,get])=>{
+      const select=document.createElement("select");select.setAttribute("aria-label",label);option(select,"Todos · "+label,"");
+      [...new Set(matches.map(get))].sort((a,b)=>a.localeCompare(b,"es")).forEach(v=>option(select,v,v));
+      controls.append(select);return {select,get};
+    });
+    if(exactFamily)filters[0].select.value=exactFamily;
+    const sort=document.createElement("select");sort.setAttribute("aria-label","Ordenar productos");
+    for(const [value,label] of [["size","Medida / nombre"],["price","Menor precio"],["cost","Menor costo"],["match","Coincidencia"]])option(sort,label,value);
+    controls.append(sort);
+    const amount=(c,kind)=>{const values=c.items.map(i=>kind==="cost"?i.cost:i.gross??i.referencePrice??i.meterPrice??i.wholesale).filter(validPrice).map(Number);return values.length?Math.min(...values):Infinity;};
+    function draw(){
+      let filtered=matches.filter(c=>filters.every(({select,get})=>!select.value||get(c)===select.value));
+      if(sort.value==="size")filtered.sort((a,b)=>Number(a.smart?.size_value??Infinity)-Number(b.smart?.size_value??Infinity)||a.name.localeCompare(b.name,"es",{numeric:true}));
+      if(sort.value==="price"||sort.value==="cost")filtered.sort((a,b)=>amount(a,sort.value)-amount(b,sort.value)||a.name.localeCompare(b.name,"es",{numeric:true}));
+      results.replaceChildren();infoLine.textContent=filtered.length+" coincidencias"+(filtered.length>100?" · mostrando 100":"");
+      for(const c of filtered.slice(0,100)){
+        const button=document.createElement("button");button.type="button";
+        const title=document.createElement("strong");title.textContent=displayName(c);
+        const info=document.createElement("small"), smart=c.smart;
+        const price=amount(c,"price"),cost=amount(c,"cost");
+        info.textContent=[smart?.variety,smart?.provider&&smart.provider!=="Sin especificar"?smart.provider:"",c.items[0]?.label,Number.isFinite(price)?unitMoney(price):"Sin precio",Number.isFinite(cost)?"Costo "+unitMoney(cost):"Sin costo"].filter(Boolean).join(" · ");
+        button.append(title,info);
+        if(smart?.conflict||smart?.needs_review){const warning=document.createElement("small");warning.className="smart-warning";warning.textContent=smart.conflict?"Varias tarifas: comprobar antes de vender":"Datos por verificar";button.append(warning);}
+        button.addEventListener("click",()=>{if(c.smart?.conflict&&!confirm("Hay otro registro similar con distinto costo o precio. ¿Usar esta opción en esta venta?"))return;row.selectedCard=c;input.value=displayName(c);box.hidden=true;matchProduct(row);input.focus();});
+        results.append(button);
+      }
     }
-    box.hidden=false;
+    filters.forEach(({select})=>select.addEventListener("change",draw));sort.addEventListener("change",draw);
+    box.append(controls,infoLine,results);draw();box.hidden=false;
   }
   async function excelReferences(){
     const endpoint=new URL("/functions/v1/excel-catalog",url);
     async function query(action,fields={}){
       const res=await fetch(endpoint,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({action,...fields}),cache:"no-store"});
-      const data=await res.json();if(!res.ok||!data.ok)throw Error(data.error||"Excel no disponible");return data;
+      const data=await res.json();if(!res.ok||!data.ok)throw Error(data.error||"Catálogo no disponible");return data;
     }
-    const {sheets}=await query("sheets");
-    const all=[];
-    for(let offset=0;offset<20000;offset+=500){
-      const {rows:part}=await query("salesRows",{offset,limit:500});all.push(...part);
-      if(part.length<500)break;
+    try{
+      const records=[];
+      for(let offset=0;offset<20000;offset+=500){
+        const {rows:part}=await query("smartRows",{offset});records.push(...part);if(part.length<500)break;
+      }
+      if(!records.length)throw Error("Catálogo inteligente vacío");
+      return {cards:window.NICOLE_SALES_CATALOG.smartCards(records),records,smart:true};
+    }catch(error){
+      const {sheets}=await query("sheets");const all=[];
+      for(let offset=0;offset<20000;offset+=500){const {rows:part}=await query("salesRows",{offset,limit:500});all.push(...part);if(part.length<500)break;}
+      return {cards:window.NICOLE_SALES_CATALOG.excelCards(sheets,all),records:[],smart:false};
     }
-    return window.NICOLE_SALES_CATALOG.excelCards(sheets,all);
   }
   function chooseVariant(row) {
     const variant=row.querySelector(".variant"),mode=row.querySelector(".price-mode"),price=row.querySelector(".price");
@@ -236,10 +269,10 @@
       if(main.status!=="fulfilled")throw main.reason;
       catalog=window.NICOLE_SALES_CATALOG.build(main.value,extra.status==="fulfilled"?extra.value:undefined);
       const commercialCount=catalog.length;
-      if(excel.status==="fulfilled")catalog.push(...excel.value);
+      if(excel.status==="fulfilled"){catalog.push(...excel.value.cards);catalog=window.NICOLE_SALES_CATALOG.organize(catalog,excel.value.records);}
       const names=[...new Set(catalog.flatMap(c=>[displayName(c),normalize(displayName(c))]))].sort((a,b)=>a.localeCompare(b,"es"));
       const list=$("catalogSuggestions");list.replaceChildren();names.forEach(n=>option(list,n,n));
-      $("catalogStatus").textContent=commercialCount+" comerciales · "+(excel.status==="fulfilled"?excel.value.length+" productos adicionales":"Catálogo adicional no disponible")+(extra.status==="fulfilled"?"":" · opciones adicionales no disponibles");
+      $("catalogStatus").textContent=commercialCount+" comerciales · "+(excel.status==="fulfilled"?excel.value.cards.length+" productos adicionales"+(excel.value.smart?" · catálogo inteligente":" · modo de respaldo"):"Catálogo adicional no disponible")+(extra.status==="fulfilled"?"":" · opciones adicionales no disponibles");
       if(!saving&&!retryPayload)rows().forEach(row=>{if(row.querySelector(".product").value&&!row.querySelector(".price").value){matchProduct(row);if(document.activeElement===row.querySelector(".product"))suggest(row);}});
     } catch(error) {if(version===catalogVersion)$("catalogStatus").textContent="Catálogo no disponible: "+error.message+" · puedes registrar precios manualmente";}
   }
