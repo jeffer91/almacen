@@ -119,7 +119,7 @@ function doPost(e) {
 }
 
 /** Ejecutar desde la hoja vinculada; el secreto nunca se escribe en celdas ni en registros. */
-function onOpen(){SpreadsheetApp.getUi().createMenu("Almacén").addItem("Preparar conexión privada","prepararConexion").addToUi();}
+function onOpen(){SpreadsheetApp.getUi().createMenu("Almacén").addItem("Preparar conexión privada","prepararConexion").addItem("Activar sincronización cada 15 minutos","activarImportacion").addItem("Importar ahora","importarPreciosAlmacen").addToUi();}
 function prepararConexion(){
   const props=PropertiesService.getScriptProperties();
   let secret=props.getProperty("SYNC_SECRET");
@@ -131,4 +131,44 @@ function prepararConexion(){
   const url=ScriptApp.getService().getUrl()||"";
   const html=HtmlService.createHtmlOutput('<h3>Conexión privada con Almacén</h3><p>Implementa este script como aplicación web, ejecutar como propietario, acceso Cualquier persona. Copia la URL /exec de la implementación.</p><p>URL actual:</p><textarea readonly rows="2" style="width:95%">'+esc(url)+'</textarea><p>Secreto privado (cópialo directamente al formulario de Almacén, no al chat):</p><textarea readonly rows="3" style="width:95%">'+esc(secret)+'</textarea><p><a target="_blank" rel="noopener noreferrer" href="https://jeffer91.github.io/almacen/sincronizar/#google-bridge">Abrir configuración en Almacén</a></p><p>La hoja conserva sus permisos privados.</p>').setWidth(510).setHeight(380);
   SpreadsheetApp.getUi().showModalDialog(html,"Autorizar conexión");
+}
+
+/** Sincronización de las hojas fuente XLS_: no modifica la hoja ni el catálogo oficial. */
+function importarPreciosAlmacen(){
+ const lock=LockService.getScriptLock();if(!lock.tryLock(30000))throw Error("Otra importación está en curso");
+ try{
+  const props=PropertiesService.getScriptProperties(),secret=props.getProperty("SYNC_SECRET");
+  if(!secret||secret.length<32)throw Error("Primero configura la conexión privada con Almacén");
+  const book=SpreadsheetApp.openById(SPREADSHEET_ID);
+  const mapping=[["XLS_Encaje","Encaje",22,97],["XLS_Cintas","Cintas",21,80],["XLS_Humval","Humval",11,159],["XLS_Ideal","Ideal",14,68],["XLS_EPeru","EPerü",6,39],["XLS_Varios","Varios",10,961],["XLS_Navidenos","Navideños",14,58],["XLS_Pasa","Pasa",15,185],["XLS_Flecos","Flecos",11,67],["XLS_Ventas","Ventas",5,50],["XLS_Precios","Precios Produc.",5,37]];
+  const rows=[],headers={};
+  const rawValue=v=>v instanceof Date?(Date.parse(Utilities.formatDate(v,book.getSpreadsheetTimeZone(),"yyyy-MM-dd'T'HH:mm:ss.SSS")+"Z")-Date.UTC(1899,11,30))/86400000:v;
+  for(const [tab,name,width,minimum] of mapping){
+   const sheet=book.getSheetByName(tab);if(!sheet||sheet.getLastRow()<3||sheet.getLastRow()>20002)throw Error("Hoja incompleta: "+tab);
+   const values=sheet.getRange(1,1,sheet.getLastRow(),width+1).getValues().map(r=>r.map(rawValue));
+   if(values[1][0]!=="Fila Excel")throw Error("Encabezado inválido: "+tab);
+   headers[name]=Object.fromEntries(values[1].slice(1).map((v,i)=>[String.fromCharCode(65+i),v]));
+   const seen=new Set();let count=0;
+   for(const row of values.slice(2)){
+    if(!row.slice(1).some(v=>v!==""&&v!=null)&&!row[0])continue;
+    const id=Number(row[0]);if(!Number.isInteger(id)||id<1||id>65536||seen.has(id))throw Error("Identificador de fila inválido: "+tab);
+    if(!row.slice(1).some(v=>v!==""&&v!=null))throw Error("Fila vacía: "+tab);
+    seen.add(id);count++;
+    rows.push({sheet_name:name,sheet_row:id,display_name:String(row[1]??""),cells:Object.fromEntries(row.slice(1).flatMap((v,i)=>v===""||v==null?[]:[[String.fromCharCode(65+i),v]]))});
+   }
+   if(count<minimum)throw Error("Faltan registros: "+tab);
+  }
+  const response=UrlFetchApp.fetch(API_URL,{method:"post",contentType:"application/json",payload:JSON.stringify({action:"pushLiveSheets",secret,headers,rows}),muteHttpExceptions:true});
+  const data=JSON.parse(response.getContentText());
+  if(response.getResponseCode()!==200||!data.ok)throw Error(data.error||"Importación no confirmada");
+  props.setProperty("LAST_LIVE_IMPORT_AT",new Date().toISOString());
+  console.log("Importación confirmada: "+data.total_rows+" filas; "+data.changed_rows+" cambios.");
+  return data;
+ }finally{lock.releaseLock();}
+}
+function activarImportacion(){
+ const data=importarPreciosAlmacen(); // verifica la conexión antes de crear un activador
+ ScriptApp.getProjectTriggers().filter(t=>t.getHandlerFunction()==="importarPreciosAlmacen").forEach(t=>ScriptApp.deleteTrigger(t));
+ ScriptApp.newTrigger("importarPreciosAlmacen").timeBased().everyMinutes(15).create();
+ SpreadsheetApp.getUi().alert("Importación confirmada: "+data.total_rows+" filas. Activador instalado.");
 }
