@@ -70,6 +70,10 @@ jobs:
           curl -fLsS --retry 3 --max-time 25 "$base/administrador/?v=20261124-admin2" -o /tmp/admin.html
           grep -q 'id="report"' /tmp/admin.html
           grep -q 'id="catalog-categories"' /tmp/admin.html
+          grep -q './diagnostico/' /tmp/admin.html
+          curl -fLsS --max-time 25 "$base/administrador/diagnostico/" -o /tmp/diagnostic.html
+          grep -q 'id="check"' /tmp/diagnostic.html
+          grep -q 'diagnostics-core.js' /tmp/diagnostic.html
           curl -fLsS --retry 3 --max-time 25 "$base/administrador/cargas/?v=4" -o /tmp/bulk.html
           grep -q 'id="product-template"' /tmp/bulk.html
           grep -q 'id="price-template"' /tmp/bulk.html
@@ -123,7 +127,7 @@ jobs:
             code=$(curl -sS -o /dev/null -w "%{http_code}" -X POST --max-time 25 -H "Content-Type: application/json" --data "$payload" "$url")
             test "$code" = "200"
           done
-          for action in uploadPhoto listSales addSale addSalesBatch voidSale exportSalesBackup smartCorrect smartCategories bootstrap saveSettings archiveProduct sheetStatus sheetSearch sheetProductGroups sheetProductDetails refreshSheetStagingManual refreshSheetStaging readSheetChanges configureSheetBridge probeSheetBridge importExcel importPricesExcel; do
+          for action in systemDiagnostics uploadPhoto listSales addSale addSalesBatch voidSale exportSalesBackup smartCorrect smartCategories bootstrap saveSettings archiveProduct sheetStatus sheetSearch sheetProductGroups sheetProductDetails refreshSheetStagingManual refreshSheetStaging readSheetChanges configureSheetBridge probeSheetBridge importExcel importPricesExcel; do
             code=$(curl -sS -o /dev/null -w "%{http_code}" -X POST --max-time 25 -H "Content-Type: application/json" --data "{\"action\":\"$action\"}" "$url")
             test "$code" = "401"
           done
