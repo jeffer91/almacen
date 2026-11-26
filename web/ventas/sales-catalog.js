@@ -152,5 +152,23 @@ const V = scope.NICOLE_VIEW;
       return {...c,smart,category:smart.category,haystack:[c.haystack,smart.search_text].filter(Boolean).join(" ")};
     });
   }
-  scope.NICOLE_SALES_CATALOG = {build,rank,excelCards,canonical,smartCards,organize};
+  // Each option preserves its exact source card and tariff. Never merge conflicting prices.
+  function saleChoices(cards){
+    const choices=[];
+    for(const card of cards)for(const [index,item] of (card.items||[]).entries()){
+      const smart=card.smart||{};
+      const variety=String(smart.variety||"Normal").trim()||"Normal";
+      const provider=String(item.supplier||smart.provider||"Sin especificar").trim()||"Sin especificar";
+      const measure=smart.size_value!=null?[smart.size_value,smart.size_unit].filter(Boolean).join(" "):String(item.label||smart.presentation||"Sin medida");
+      choices.push({key:String(choices.length),card,item,index,variety,provider,measure});
+    }
+    return choices;
+  }
+  function filterChoices(choices,filters={}){
+    return choices.filter(c=>["variety","measure","provider"].every(k=>!filters[k]||c[k]===filters[k]));
+  }
+  function facetValues(choices,key){
+    return [...new Set(choices.map(c=>c[key]))].sort((a,b)=>a.localeCompare(b,"es",{numeric:true}));
+  }
+  scope.NICOLE_SALES_CATALOG = {build,rank,excelCards,canonical,smartCards,organize,saleChoices,filterChoices,facetValues};
 })(window);
