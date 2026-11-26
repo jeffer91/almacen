@@ -211,59 +211,23 @@
     configureChoices(row,card?[card]:[],card);
   }
   function suggest(row) {
-    const input=row.querySelector(".product"), box=row.querySelector(".product-matches"), C=window.NICOLE_SALES_CATALOG;
+    const input=row.querySelector(".product"),box=row.querySelector(".product-matches"),C=window.NICOLE_SALES_CATALOG;
     box.replaceChildren();box.hidden=true;
     if(saving||retryPayload||!input.value.trim()||row.selectedCard||row.familyCards||row.manualProduct)return;
-    let matches=C.rank(catalog,input.value,catalog.length);
+    const matches=C.directRank(catalog,input.value,40);
     if(!matches.length)return;
-    const q=C.canonical(input.value), categoryKey=x=>C.canonical(x).replace(/(?:es|s)$/,"");
-    const exactFamily=[...new Set(matches.map(c=>c.smart?.category||c.category).filter(Boolean))].find(x=>categoryKey(x)===categoryKey(q));
-    if(exactFamily)matches=matches.filter(c=>(c.smart?.category||c.category)===exactFamily);
-    const controls=document.createElement("div");controls.className="smart-filters";
-    const results=document.createElement("div");results.className="smart-results";
-    const infoLine=document.createElement("small");infoLine.className="smart-count";
-    const facets=[
-      ["Familia",c=>c.smart?.category||c.category||"Otros"],
-      ["Variedad",c=>c.smart?.variety||"Sin clasificar"],
-      ["Proveedor",c=>c.smart?.provider||c.items[0]?.supplier||"Sin especificar"]
-    ];
-    const filters=facets.map(([label,get])=>{
-      const select=document.createElement("select");select.setAttribute("aria-label",label);option(select,"Todos · "+label,"");
-      [...new Set(matches.map(get))].sort((a,b)=>a.localeCompare(b,"es")).forEach(v=>option(select,v,v));
-      controls.append(select);return {select,get};
-    });
-    if(exactFamily)filters[0].select.value=exactFamily;
-    const sort=document.createElement("select");sort.setAttribute("aria-label","Ordenar productos");
-    for(const [value,label] of [["size","Medida / nombre"],["price","Menor precio"],["cost","Menor costo"],["match","Coincidencia"]])option(sort,label,value);
-    controls.append(sort);
-    const amount=(c,kind)=>{const values=c.items.map(i=>kind==="cost"?i.cost:i.gross??i.referencePrice??i.meterPrice??i.wholesale).filter(validPrice).map(Number);return values.length?Math.min(...values):Infinity;};
-    function draw(){
-      let filtered=matches.filter(c=>filters.every(({select,get})=>!select.value||get(c)===select.value));
-      if(sort.value==="size")filtered.sort((a,b)=>Number(a.smart?.size_value??Infinity)-Number(b.smart?.size_value??Infinity)||a.name.localeCompare(b.name,"es",{numeric:true}));
-      if(sort.value==="price"||sort.value==="cost")filtered.sort((a,b)=>amount(a,sort.value)-amount(b,sort.value)||a.name.localeCompare(b.name,"es",{numeric:true}));
-      results.replaceChildren();infoLine.textContent=filtered.length+" coincidencias"+(filtered.length>100?" · mostrando 100":"");
-      for(const c of filtered.slice(0,100)){
-        const button=document.createElement("button");button.type="button";
-        const title=document.createElement("strong");title.textContent=displayName(c);
-        const info=document.createElement("small"), smart=c.smart;
-        const price=amount(c,"price"),cost=amount(c,"cost");
-        info.textContent=[smart?.variety,smart?.provider&&smart.provider!=="Sin especificar"?smart.provider:"",c.items[0]?.label,Number.isFinite(price)?unitMoney(price):"Sin precio",Number.isFinite(cost)?"Costo "+unitMoney(cost):"Sin costo"].filter(Boolean).join(" · ");
-        button.append(title,info);
-        if(smart?.conflict||smart?.needs_review){const warning=document.createElement("small");warning.className="smart-warning";warning.textContent=smart.conflict?"Varias tarifas: comprobar antes de vender":"Datos por verificar";button.append(warning);}
-        button.addEventListener("click",()=>{if((c.smart?.conflict||c.smart?.needs_review)&&!confirm("Los datos de este producto necesitan revisión. Verifica el costo, el precio y la unidad antes de vender. ¿Continuar?"))return;row.selectedCard=c;row.reviewConfirmed=c;input.value=displayName(c);box.hidden=true;matchProduct(row);input.focus();});
-        results.append(button);
-      }
+    for(const c of matches){
+      const button=document.createElement("button");button.type="button";
+      const title=document.createElement("strong");title.textContent=displayName(c);
+      const info=document.createElement("small");
+      const item=c.items[0],prices=c.items.map(i=>i.gross??i.referencePrice??i.meterPrice??i.wholesale).filter(validPrice).map(Number);
+      info.textContent=[item?.label,prices.length?unitMoney(Math.min(...prices)):"Sin precio"].filter(Boolean).join(" · ");
+      button.append(title,info);
+      if(c.smart?.conflict||c.smart?.needs_review){const warning=document.createElement("small");warning.className="smart-warning";warning.textContent=c.smart.conflict?"Tarifas por verificar":"Datos por verificar";button.append(warning);}
+      button.addEventListener("click",()=>{if((c.smart?.conflict||c.smart?.needs_review)&&!confirm("Los datos de este producto necesitan revisión. Verifica el costo, el precio y la unidad antes de vender. ¿Continuar?"))return;row.selectedCard=c;row.reviewConfirmed=c;input.value=displayName(c);box.hidden=true;matchProduct(row);input.focus();});
+      box.append(button);
     }
-    filters.forEach(({select})=>select.addEventListener("change",draw));sort.addEventListener("change",draw);
-    const families=document.createElement("div");families.className="family-choices";
-    const grouped=new Map();
-    for(const card of matches){const name=card.smart?.category||card.category;if(!name||!card.items?.length)continue;if(!grouped.has(name))grouped.set(name,[]);grouped.get(name).push(card);}
-    for(const [name,cards] of [...grouped].sort((a,b)=>b[1].length-a[1].length).slice(0,8)){
-      const button=document.createElement("button");button.type="button";button.textContent="Elegir "+name+" ("+cards.length+")";
-      button.addEventListener("click",()=>{row.familyCards=cards;row.selectedCard=null;row.reviewConfirmed=null;input.value=name;box.hidden=true;configureChoices(row,cards);row.querySelector(".variety-select").focus();});
-      families.append(button);
-    }
-    box.append(families,controls,infoLine,results);draw();box.hidden=false;
+    box.hidden=false;
   }
   async function excelReferences(){
     const endpoint=new URL("/functions/v1/excel-catalog",url);
