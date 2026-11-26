@@ -63,7 +63,9 @@
  $("i-document-close").onclick=()=>{$("i-document-dialog").close();$("i-document-xml").onclick=null;};
  async function openDraft(id){
   const d=await rpc("edgar_invoice_draft_get",{p_id:id});if(!issuer)issuer=await rpc("edgar_invoice_issuer");
-  previewed=d;say("i-xml-status","");$("i-ride").innerHTML=window.NICOLE_RIDE.build(d,issuer);$("i-preview").hidden=false;$("i-preview").scrollIntoView({block:"start"});
+  previewed=null;$("i-preview").hidden=true;$("i-ride").replaceChildren();
+  window.NICOLE_XML.build(d,issuer); // validate arithmetic, identification and XML fields before displaying the RIDE
+  const markup=window.NICOLE_RIDE.build(d,issuer);$("i-ride").innerHTML=markup;previewed=d;say("i-xml-status","Validación interna superada. Documento de prueba sin autorización.");$("i-preview").hidden=false;$("i-preview").scrollIntoView({block:"start"});
  }
  $("i-close-preview").onclick=()=>{$("i-preview").hidden=true;};
  $("i-print").onclick=()=>{if(previewed&&!$("i-preview").hidden)window.print();};
