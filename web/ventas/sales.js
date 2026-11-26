@@ -47,8 +47,12 @@
   function addLine() {
     const row = $("entryRows").insertRow();
     row.dataset.key = crypto.randomUUID();
-    row.innerHTML = '<td></td><td><input class="product" list="catalogSuggestions" maxlength="180" required placeholder="Producto" aria-label="Producto"><input class="detail" maxlength="100" placeholder="Detalle opcional" aria-label="Detalle"><select class="variant" aria-label="Presentación" hidden></select></td><td><input class="qty" type="number" min="0.001" max="1000000" step="0.001" value="1" required aria-label="Cantidad"></td><td><select class="unit" aria-label="Unidad"><option value="unidad">Unidad</option><option value="metro">Metro</option><option value="rollo">Rollo</option><option value="yarda">Yarda</option><option value="paquete">Paquete</option><option value="otro">Otro</option></select></td><td><input class="price" type="number" min="0" max="1000000" step="0.0001" required placeholder="0.00" aria-label="Precio unitario"><select class="price-mode" aria-label="Tipo de precio" hidden></select></td><td class="line-total">$0,00</td><td><select class="payment" aria-label="Pago"><option value="sin_especificar">Sin especificar</option><option value="efectivo">Efectivo</option><option value="transferencia">Transferencia</option><option value="tarjeta">Tarjeta</option><option value="otro">Otro</option></select></td><td><button type="button" class="remove-line">Quitar</button></td>';
-    row.querySelector(".product").addEventListener("input",()=>matchProduct(row));
+    row.innerHTML = '<td></td><td><input class="product" maxlength="180" required placeholder="Producto" aria-label="Producto" autocomplete="off"><div class="product-matches" hidden></div><input class="detail" maxlength="100" placeholder="Detalle opcional" aria-label="Detalle"><select class="variant" aria-label="Presentación" hidden></select></td><td><input class="qty" type="number" min="0.001" max="1000000" step="0.001" value="1" required aria-label="Cantidad"></td><td><select class="unit" aria-label="Unidad"><option value="unidad">Unidad</option><option value="metro">Metro</option><option value="rollo">Rollo</option><option value="yarda">Yarda</option><option value="paquete">Paquete</option><option value="otro">Otro</option></select></td><td><input class="price" type="number" min="0" max="1000000" step="0.0001" required placeholder="0.00" aria-label="Precio unitario"><select class="price-mode" aria-label="Tipo de precio" hidden></select></td><td class="line-total">$0,00</td><td><select class="payment" aria-label="Pago"><option value="sin_especificar">Sin especificar</option><option value="efectivo">Efectivo</option><option value="transferencia">Transferencia</option><option value="tarjeta">Tarjeta</option><option value="otro">Otro</option></select></td><td><button type="button" class="remove-line">Quitar</button></td>';
+    const product=row.querySelector(".product");
+    product.addEventListener("input",()=>{row.selectedCard=null;matchProduct(row);suggest(row);});
+    product.addEventListener("focus",()=>suggest(row));
+    product.addEventListener("keydown",e=>{if(e.key==="Escape"){row.querySelector(".product-matches").hidden=true;}if(e.key==="ArrowDown"){const first=row.querySelector(".product-matches button");if(first){e.preventDefault();first.focus();}}});
+    row.addEventListener("focusout",e=>{if(!row.contains(e.relatedTarget))row.querySelector(".product-matches").hidden=true;});
     row.querySelector(".variant").addEventListener("change",()=>chooseVariant(row));
     row.querySelector(".price-mode").addEventListener("change",()=>choosePrice(row));
     row.querySelector(".remove-line").addEventListener("click",()=>{if(saving||retryPayload)return;row.remove();if(!rows().length)addLine();updatePreview();});
@@ -125,7 +129,7 @@
   function matchProduct(row) {
     const q=normalize(row.querySelector(".product").value);
     const matches=catalog.filter(c=>normalize(displayName(c))===q || normalize(c.name)===q);
-    const card=matches.length===1?matches[0]:null;
+    const card=row.selectedCard||(matches.length===1?matches[0]:null);
     if(row.catalogCard===card)return;
     row.catalogCard=card;row.catalogItem=null;
     const variant=row.querySelector(".variant"),mode=row.querySelector(".price-mode"),price=row.querySelector(".price");
@@ -136,6 +140,39 @@
     card.items.forEach((i,n)=>option(variant,[i.label,i.supplier].filter(Boolean).join(" · "),String(n)));
     if(card.items.length===1){variant.value="0";chooseVariant(row);}
     else updatePreview();
+  }
+  function suggest(row) {
+    const input=row.querySelector(".product"), box=row.querySelector(".product-matches");
+    box.replaceChildren();box.hidden=true;
+    if(saving||retryPayload||!input.value.trim()||row.selectedCard)return;
+    const matches=window.NICOLE_SALES_CATALOG.rank(catalog,input.value,15);
+    if(!matches.length)return;
+    for(const c of matches){
+      const button=document.createElement("button");button.type="button";
+      const title=document.createElement("strong");title.textContent=displayName(c);
+      const info=document.createElement("small");
+      const prices=c.items.map(i=>i.gross??i.referencePrice??i.meterPrice??i.wholesale).filter(validPrice);
+      const detail=c.items[0]?.label||"";
+      info.textContent=(c.excel?"Excel · referencia":"Catálogo comercial")+(detail?" · "+detail:"")+(prices.length?" · "+money(Math.min(...prices))+(prices.length>1?" desde":""):" · Sin precio confirmado");
+      button.append(title,info);
+      button.addEventListener("click",()=>{row.selectedCard=c;input.value=displayName(c);box.hidden=true;matchProduct(row);input.focus();});
+      box.append(button);
+    }
+    box.hidden=false;
+  }
+  async function excelReferences(){
+    const endpoint=new URL("/functions/v1/excel-catalog",url);
+    async function query(action,fields={}){
+      const res=await fetch(endpoint,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({action,...fields}),cache:"no-store"});
+      const data=await res.json();if(!res.ok||!data.ok)throw Error(data.error||"Excel no disponible");return data;
+    }
+    const {sheets}=await query("sheets");
+    const all=[];
+    for(let offset=0;offset<20000;offset+=500){
+      const {rows:part}=await query("rows",{offset,limit:500});all.push(...part);
+      if(part.length<500)break;
+    }
+    return window.NICOLE_SALES_CATALOG.excelCards(sheets,all);
   }
   function chooseVariant(row) {
     const variant=row.querySelector(".variant"),mode=row.querySelector(".price-mode"),price=row.querySelector(".price");
@@ -167,14 +204,16 @@
     const version=++catalogVersion;
     $("catalogStatus").textContent="Actualizando catálogo…";
     try {
-      const [main,extra]=await Promise.allSettled([api("catalog"),fetch(new URL("/rest/v1/rpc/family_option_list",url),{method:"POST",headers:{apikey:window.ALMACEN_PUBLIC_KEY,"content-type":"application/json"},body:JSON.stringify({device:""}),cache:"no-store"}).then(async r=>{if(!r.ok)throw Error("Opciones no disponibles");const v=await r.json();if(!Array.isArray(v.options)||!v.assigned)throw Error("Opciones inválidas");return v;})]);
+      const [main,extra,excel]=await Promise.allSettled([api("catalog"),fetch(new URL("/rest/v1/rpc/family_option_list",url),{method:"POST",headers:{apikey:window.ALMACEN_PUBLIC_KEY,"content-type":"application/json"},body:JSON.stringify({device:""}),cache:"no-store"}).then(async r=>{if(!r.ok)throw Error("Opciones no disponibles");const v=await r.json();if(!Array.isArray(v.options)||!v.assigned)throw Error("Opciones inválidas");return v;}),excelReferences()]);
       if(version!==catalogVersion)return;
       if(main.status!=="fulfilled")throw main.reason;
       catalog=window.NICOLE_SALES_CATALOG.build(main.value,extra.status==="fulfilled"?extra.value:undefined);
+      const commercialCount=catalog.length;
+      if(excel.status==="fulfilled")catalog.push(...excel.value);
       const names=[...new Set(catalog.flatMap(c=>[displayName(c),normalize(displayName(c))]))].sort((a,b)=>a.localeCompare(b,"es"));
       const list=$("catalogSuggestions");list.replaceChildren();names.forEach(n=>option(list,n,n));
-      $("catalogStatus").textContent=catalog.length+" productos disponibles"+(extra.status==="fulfilled"?"":" · opciones adicionales no disponibles");
-      if(!saving&&!retryPayload)rows().forEach(row=>{if(row.querySelector(".product").value&&!row.querySelector(".price").value)matchProduct(row);});
+      $("catalogStatus").textContent=commercialCount+" comerciales · "+(excel.status==="fulfilled"?excel.value.length+" referencias Excel":"Excel no disponible")+(extra.status==="fulfilled"?"":" · opciones adicionales no disponibles");
+      if(!saving&&!retryPayload)rows().forEach(row=>{if(row.querySelector(".product").value&&!row.querySelector(".price").value){matchProduct(row);if(document.activeElement===row.querySelector(".product"))suggest(row);}});
     } catch(error) {if(version===catalogVersion)$("catalogStatus").textContent="Catálogo no disponible: "+error.message+" · puedes registrar precios manualmente";}
   }
   async function voidSale(sale) {
