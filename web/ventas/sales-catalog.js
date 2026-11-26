@@ -103,7 +103,7 @@ const V = scope.NICOLE_VIEW;
         const qtyCol=cols.find(c=>/^(cant|mts|metros)/.test(V.normalize(h[c])));
         const qty=qtyCol?String(cells[qtyCol]??"").trim():"";
         const items=[];
-        const costCol=cols.find(c=>/^(neto|costo)$/.test(V.normalize(h[c])));
+        const costCol=cols.find(c=>/^(neto|costo)$/.test(V.normalize(h[c]).replace(/\./g,"")));
         const cost=costCol&&typeof cells[costCol]==="number"&&Number.isFinite(cells[costCol])&&cells[costCol]>=0?cells[costCol]:null;
         const qtyMatch=qty.match(/^(\d+(?:[.,]\d+)?)\s*(u\.?|unid(?:ades)?\.?|m\.?|mts\.?|metros?|yd\.?|yardas?)$/i);
         const packCount=qtyMatch?Number(qtyMatch[1].replace(",",".")):null;
