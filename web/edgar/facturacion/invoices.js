@@ -43,9 +43,17 @@
   say("i-signing-state","Proveedor: "+(sign.provider||"Security Data")+" · Firmador: "+(sign.signer_ready?"configurado":"no configurado")+" · SRI: "+(sign.sri_ready?"configurado":"sin conexión de emisión")+" · Vencimiento: "+(sign.valid_until?new Date(sign.valid_until).toLocaleDateString("es-EC"):"sin certificado registrado"));
   say("i-page",total?(offset+1)+"–"+Math.min(offset+50,total)+" de "+total:"0");$("i-prev").disabled=offset===0;$("i-next").disabled=offset+50>=total;
  }
+ async function loadReadiness(rev){
+  const labels={signer_ready:"Servicio privado de firma",certificate_current:"Vigencia del certificado",certificate_trust_verified:"Cadena de confianza",certificate_revocation_verified:"Estado de revocación",issuer_identity_verified:"Identidad del emisor",official_schema_verified:"XSD oficial verificado",provider_rule_verified:"Requisitos del proveedor",sequence_verified:"Secuencial fiscal conciliado",sri_ready:"Conexión con el SRI",certification_authorized:"Autorización en certificación",ride_verified:"PDF definitivo verificado",delivery_verified:"Entrega del comprobante",owner_release_approved:"Aprobación del titular"};
+  try{
+   const r=await rpc("edgar_invoice_readiness");if(rev!==revision)return;
+   kpis("i-release-checks",Object.entries(labels).map(([key,label])=>[label,r[key]===true?"Verificado":"Pendiente"]));
+   say("i-release-banner",r.production_enabled===true?"Requisitos de liberación registrados. La emisión requiere el servicio privado conectado.":"Modo borrador — sin validez tributaria. Emisión productiva bloqueada hasta superar todas las verificaciones.");
+  }catch(e){if(rev!==revision)return;kpis("i-release-checks",[["Estado","No comprobado"]]);say("i-release-banner","No se pudo verificar el estado de producción. No emitir documentos fiscales.");}
+ }
  async function load(){
   const rev=++revision;report=null;$("i-export").disabled=true;say("i-status","Consultando documentos…");
-  try{const data=await rpc("edgar_invoice_management",{p_from:$("i-from").value,p_to:$("i-to").value,p_query:$("i-search").value,p_status:$("i-state").value,p_offset:offset});if(rev!==revision)return;render(data);say("i-status",total+" documento(s) encontrados.");}catch(e){if(rev===revision)say("i-status",e.message);}
+  try{const data=await rpc("edgar_invoice_management",{p_from:$("i-from").value,p_to:$("i-to").value,p_query:$("i-search").value,p_status:$("i-state").value,p_offset:offset});if(rev!==revision)return;render(data);say("i-status",total+" documento(s) encontrados.");await loadReadiness(rev);}catch(e){if(rev===revision)say("i-status",e.message);}
  }
  async function openDocument(id){
   const doc=await rpc("edgar_invoice_document_get",{p_draft_id:id});
