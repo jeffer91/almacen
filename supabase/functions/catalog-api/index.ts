@@ -308,6 +308,25 @@ Deno.serve(async (request: Request) => {
   let body: any;
   try { body = await request.json(); } catch { return fail("Solicitud JSON inválida"); }
   const action = txt(body?.action, 50);
+  // Google Apps Script autorizado por el propietario; no acepta tokens de clientes.
+  if(action==="pushLiveSheets"){
+    try{
+      const bridge=await getSheetBridge();
+      const provided=typeof body.secret==="string"?body.secret:"";
+      if(!validBridge(bridge.webhook,bridge.secret)||provided.length!==bridge.secret.length||!sameText(provided,bridge.secret))return fail("Puente no autorizado",403);
+      if(!Array.isArray(body.rows)||body.rows.length<1000||body.rows.length>20000||!body.headers||typeof body.headers!=="object")return fail("Importación incompleta");
+      const {data:metadata,error:me}=await db.from("family_excel_catalog_sheets").select("sheet_name,headers,max_column");
+      if(me)throw me;
+      const normal=(v:unknown)=>String(v??"").trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/\s+/g," ");
+      for(const sheet of metadata||[]){
+        const headers=body.headers[sheet.sheet_name];if(!headers||typeof headers!=="object")return fail("Falta hoja "+sheet.sheet_name);
+        for(const [k,v] of Object.entries(sheet.headers||{}))if(normal(headers[k])!==normal(v))return fail("Encabezado cambiado: "+sheet.sheet_name+" "+k);
+      }
+      const {data,error}=await db.rpc("family_replace_live_excel",{p_rows:body.rows});
+      if(error)return fail(error.message,400);
+      return response({ok:true,changed_rows:data,total_rows:body.rows.length});
+    }catch(error){console.error("pushLiveSheets: error de importación");return fail("No se pudo importar la hoja",503);}
+  }
   const authenticatedRole = await getRole(request);
   // Acceso público solicitado para los módulos web. Lista cerrada: no concede una sesión administrativa.
   const salesAction = new Set(["listSales","addSale","addSalesBatch","voidSale","exportSalesBackup"]).has(action);
