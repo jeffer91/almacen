@@ -20,6 +20,15 @@ Deno.serve(async (req: Request) => {
   if (req.method !== "POST") return send({ ok: false, error: "Método no permitido" }, 405);
   try {
     const body = await req.json().catch(() => ({}));
+    if (body?.action === "smartRows") {
+      const offset=Number(body.offset??0);
+      if(!Number.isInteger(offset)||offset<0||offset>100000)return send({ok:false,error:"Paginación inválida"},400);
+      const {data,error}=await db.from("family_smart_catalog")
+        .select("source_id,source_kind,canonical_name,category,variety,provider,size_value,size_unit,presentation,cost,tariffs,search_text,conflict,needs_review")
+        .order("source_id").range(offset,offset+499);
+      if(error)throw error;
+      return send({ok:true,rows:data??[]});
+    }
     if (body?.action === "sheets") {
       const { data, error } = await db.from("family_excel_catalog_sheets")
         .select("sheet_name,sheet_order,title,header_row,headers,max_column,row_count")
