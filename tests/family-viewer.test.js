@@ -136,14 +136,15 @@ test("Edgar abre el lápiz directamente sin solicitar código de activación", (
   const access = fs.readFileSync(path.join(web, "edgar", "access.js"), "utf8");
   assert.match(html, /id="price-editor"/);
   assert.match(html, /id="product-editor"/);
-  assert.match(html, /edgar\/access\.js/);
+  assert.doesNotMatch(html, /edgar\/access\.js/);
   assert.doesNotMatch(html, /activation-editor|activation-form|activation-status/);
   assert.match(js, /class="v-pencil"/);
   assert.match(js, /data-act="edit-price"/);
   assert.match(js, /editor\.showModal\(\)/);
   assert.match(js, /productEditor\.showModal\(\)/);
   assert.doesNotMatch(js, /showActivation|pairBrowser|family_pair_editor/);
-  assert.match(js, /window\.EDGAR_EDIT_DEVICE/);
+  assert.match(js, /window\.NICOLE_EDGAR_SESSION\?\.getToken\(\)/);
+  assert.doesNotMatch(js, /EDGAR_EDIT_DEVICE/);
   assert.match(css, /\.v-pencil\s*\{/);
-  assert.match(access, /window\.EDGAR_EDIT_DEVICE/);
+  assert.doesNotMatch(access, /[a-f0-9]{64}|EDGAR_EDIT_DEVICE/);
 });
