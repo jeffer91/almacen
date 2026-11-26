@@ -1,70 +1,75 @@
 "use strict";
 (()=>{
- const $=id=>document.getElementById(id), fmt=v=>"$"+Number(v||0).toFixed(2), round=v=>Math.round((v+Number.EPSILON)*100)/100, esc=v=>String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
- let previewed=null,draft=null,lines=[],catalog=[],issuer=null,orderId=null,offset=0,total=0,busy=false,version=0;const revisions={},timers={};
+ const $=id=>document.getElementById(id),fmt=v=>new Intl.NumberFormat("es-EC",{style:"currency",currency:"USD"}).format(Number(v||0));
+ const states={draft:"Borrador",pending:"Pendiente",submitted:"Transmitida",authorized:"Autorizada",rejected:"Rechazada",cancellation_requested:"Anulación solicitada",cancelled:"Anulada"};
+ const adjustmentStates={requested:"Solicitada",submitted:"Transmitida",authorized:"Autorizada",rejected:"Rechazada"};
+ let offset=0,total=0,revision=0,timer,report=null,previewed=null,issuer=null;
  async function rpc(name,params={}){
   const token=window.NICOLE_EDGAR_SESSION?.getToken();if(!token)throw Error("Sesión no disponible. Recarga la página.");
   const ctrl=new AbortController(),timer=setTimeout(()=>ctrl.abort(),15000);
   try{const r=await fetch(new URL("/rest/v1/rpc/"+name,window.ALMACEN_API_URL),{method:"POST",headers:{apikey:window.ALMACEN_PUBLIC_KEY,"Content-Type":"application/json"},body:JSON.stringify({p_token:token,...params}),cache:"no-store",signal:ctrl.signal});const d=await r.json().catch(()=>null);if(!r.ok)throw Error(d?.message==="SESSION_INVALID"?"Sesión vencida. Recarga la página.":d?.message||"No se pudo completar la operación.");return d}finally{clearTimeout(timer)}
  }
- function say(id,s){$(id).textContent=s}
- function setBusy(v){busy=v;for(const id of ["i-save","i-new","i-cancel","i-import","i-add"])$(id).disabled=v}
- function today(){return new Intl.DateTimeFormat("sv-SE",{timeZone:"America/Guayaquil",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date())}
- function debounce(key,fn){clearTimeout(timers[key]);revisions[key]=(revisions[key]||0)+1;timers[key]=setTimeout(fn,300)}
+ const say=(id,s)=>{$(id).textContent=s;};
+ function panel(name){
+  for(const el of document.querySelectorAll("[id^='panel-']"))el.hidden=el.id!=="panel-"+name;
+  for(const b of document.querySelectorAll("[data-panel]"))b.setAttribute("aria-pressed",String(b.dataset.panel===name));
+  $("i-preview").hidden=true;
+ }
+ function cell(tr,value){const td=tr.insertCell();td.textContent=value??"—";return td;}
+ function empty(tbody,cols,label){const tr=tbody.insertRow(),td=cell(tr,label);td.colSpan=cols;}
+ function kpis(id,items){const el=$(id);el.replaceChildren();for(const [label,value] of items){const box=document.createElement("div");box.className="inv-kpi";const title=document.createElement("small");title.textContent=label;const number=document.createElement("strong");number.textContent=value;box.append(title,number);el.append(box);}}
+ function action(td,label,callback){const b=document.createElement("button");b.type="button";b.textContent=label;b.onclick=async()=>{b.disabled=true;try{await callback()}catch(e){say("i-status",e.message)}finally{b.disabled=false}};td.append(b);}
+ function render(data){
+  total=Number(data.total);report=data;
+  const s=data.summary||{};
+  kpis("i-kpis",[["Autorizadas vigentes",s.authorized||0],["Total autorizado",fmt(s.total)],["Borradores",s.drafts||0],["Pendientes / transmitidas",s.pending||0],["Rechazadas",s.rejected||0],["Anuladas",s.cancelled||0]]);
+  kpis("i-report",[["Subtotal autorizado",fmt(s.subtotal)],["IVA autorizado",fmt(s.tax)],["Total autorizado",fmt(s.total)],["Notas de crédito autorizadas asociadas",fmt(data.credit_total)]]);
+  $("i-export").disabled=false;
+  const list=$("i-list");list.replaceChildren();
+  for(const x of data.items||[]){
+   const tr=list.insertRow();cell(tr,x.fiscal_number||"Borrador "+x.id.slice(0,8));cell(tr,x.issue_date);cell(tr,x.customer);cell(tr,fmt(x.subtotal));cell(tr,fmt(x.tax));cell(tr,fmt(x.total));
+   const st=cell(tr,states[x.status]||"Estado desconocido");st.dataset.state=x.status;
+   const td=tr.insertCell();action(td,x.status==="draft"?"Ver borrador":"Ver datos",async()=>{if(x.status!=="draft"){say("i-status","Estado registrado: "+states[x.status]+". Clave: "+(x.access_key||"no disponible")+". Consulta el SRI para verificar el documento.");return;}await openDraft(x.id);});
+   if(x.sale_id){const a=document.createElement("a");a.href="./edgar/ventas/?date="+encodeURIComponent(x.issue_date);a.textContent="Ventas del día";td.append(" ",a);}
+   if(x.access_key){const a=document.createElement("a");a.href="https://www.sri.gob.ec/";a.target="_blank";a.rel="noopener noreferrer";a.textContent="Portal SRI";td.append(" ",a);}
+  }
+  if(!list.rows.length)empty(list,8,"No hay documentos para los filtros seleccionados.");
+  for(const [id,kind,n] of [["i-cancellations","cancellation",4],["i-credits","credit_note",5]]){
+   const tbody=$(id);tbody.replaceChildren();
+   for(const a of (data.adjustments||[]).filter(x=>x.kind===kind)){const tr=tbody.insertRow();cell(tr,a.fiscal_number);cell(tr,String(a.created_at).slice(0,10));cell(tr,a.reason);if(kind==="credit_note")cell(tr,a.amount==null?"—":fmt(a.amount));cell(tr,adjustmentStates[a.status]||a.status);}
+   if(!tbody.rows.length)empty(tbody,n,"No hay operaciones registradas.");
+  }
+  const sign=data.signing||{};
+  say("i-signing-state","Proveedor: "+(sign.provider||"Security Data")+" · Firmador: "+(sign.signer_ready?"configurado":"no configurado")+" · SRI: "+(sign.sri_ready?"configurado":"sin conexión de emisión")+" · Vencimiento: "+(sign.valid_until?new Date(sign.valid_until).toLocaleDateString("es-EC"):"sin certificado registrado"));
+  say("i-page",total?(offset+1)+"–"+Math.min(offset+50,total)+" de "+total:"0");$("i-prev").disabled=offset===0;$("i-next").disabled=offset+50>=total;
+ }
  async function load(){
-  const rev=++version;say("i-status","Consultando borradores…");
-  try{const r=await rpc("edgar_invoice_draft_list",{p_query:$("i-search").value,p_offset:offset});if(rev!==version)return;total=Number(r.total);if(offset>=total&&offset){offset=Math.max(0,Math.floor((total-1)/50)*50);return load()}
-   $("i-list").innerHTML=r.items.map(x=>'<tr><td>'+esc(x.customer)+'</td><td>'+esc(x.issue_date)+'</td><td>'+fmt(x.total)+'</td><td>Borrador</td><td><button data-edit="'+esc(x.id)+'" type="button">Editar</button> <button data-preview="'+esc(x.id)+'" type="button">Vista previa</button></td></tr>').join("");
-   say("i-status",total?total+" borrador(es).":"No hay borradores.");say("i-page",total?(offset+1)+"–"+Math.min(offset+50,total)+" de "+total:"0");$("i-prev").disabled=offset===0;$("i-next").disabled=offset+50>=total;
-  }catch(e){if(rev===version)say("i-status",e.message)}
+  const rev=++revision;report=null;$("i-export").disabled=true;say("i-status","Consultando documentos…");
+  try{const data=await rpc("edgar_invoice_management",{p_from:$("i-from").value,p_to:$("i-to").value,p_query:$("i-search").value,p_status:$("i-state").value,p_offset:offset});if(rev!==revision)return;render(data);say("i-status",total+" documento(s) encontrados.");}catch(e){if(rev===revision)say("i-status",e.message);}
  }
- async function customers(keep){
-  const rev=revisions.c=(revisions.c||0)+1,select=$("i-customer"),old=keep||select.value;select.disabled=true;
-  try{const r=await rpc("edgar_customer_list",{p_query:$("i-csearch").value,p_offset:0,p_limit:100,p_include_archived:false});if(rev!==revisions.c)return;let opts=r.items;if(draft?.buyer&&old===draft.customer_id&&!opts.some(c=>c.id===old))opts=[...opts,{id:old,name:draft.buyer.name,identification:draft.buyer.identification}];select.innerHTML='<option value="">Seleccionar</option>'+opts.map(c=>'<option value="'+esc(c.id)+'">'+esc(c.name+(c.identification?" · "+c.identification:""))+'</option>').join("");if(opts.some(c=>c.id===old))select.value=old;if(!opts.length)say("i-form-status","Registra un cliente activo primero.")}
-  catch(e){if(rev===revisions.c)say("i-form-status",e.message)}finally{if(rev===revisions.c)select.disabled=false}
+ async function openDraft(id){
+  const d=await rpc("edgar_invoice_draft_get",{p_id:id});if(!issuer)issuer=await rpc("edgar_invoice_issuer");
+  previewed=d;say("i-xml-status","");$("i-ride").innerHTML=window.NICOLE_RIDE.build(d,issuer);$("i-preview").hidden=false;$("i-preview").scrollIntoView({block:"start"});
  }
- async function products(){
-  const rev=revisions.p=(revisions.p||0)+1,select=$("i-product");select.disabled=true;
-  try{const r=await rpc("edgar_order_catalog",{p_query:$("i-psearch").value});if(rev!==revisions.p)return;catalog=r;select.innerHTML='<option value="">Seleccionar</option>'+r.map((p,i)=>'<option value="'+i+'">'+esc(p.product_name+" · "+p.presentation)+'</option>').join("");select.value="";say("i-picker-status",r.length?"Selecciona un producto. Revisa código, precio sin IVA y tarifa.":"No hay coincidencias.")}
-  catch(e){if(rev===revisions.p)say("i-picker-status",e.message)}finally{if(rev===revisions.p)select.disabled=false}
- }
- async function orders(){
-  const rev=revisions.o=(revisions.o||0)+1,select=$("i-order");select.disabled=true;
-  try{const r=await rpc("edgar_order_list",{p_query:$("i-osearch").value,p_status:"",p_offset:0});if(rev!==revisions.o)return;select.innerHTML='<option value="">Seleccionar</option>'+r.items.filter(o=>o.status!=="cancelled").map(o=>'<option value="'+esc(o.id)+'">#'+esc(o.number)+" · "+esc(o.customer_name)+" · "+fmt(o.total)+'</option>').join("");}
-  catch(e){if(rev===revisions.o)say("i-form-status",e.message)}finally{if(rev===revisions.o)select.disabled=false}
- }
- const selected=()=> $("i-product").value===""?null:catalog[Number($("i-product").value)];
- function suggest(){const p=selected();$("i-code").value="";$("i-aux").value="";$("i-extra").value=p?.presentation||"";$("i-description").value=p?.product_name||"";$("i-net").value=p?.unit_price==null?"":String(Math.round(Number(p.unit_price)/(1+Number($("i-rate").value)/100)*1e6)/1e6)}
- const calc=l=>{const base=round(Number(l.quantity)*Number(l.unit_net))-Number(l.discount);return{base:round(base),tax:round(base*Number(l.rate)/100)}};
- function renderLines(){let st=0,tx=0; $("i-lines").innerHTML=lines.map((l,i)=>{const c=calc(l);st+=c.base;tx+=c.tax;return '<tr><td>'+esc(l.description)+'</td><td>'+esc(l.quantity)+'</td><td>'+esc(l.unit_net)+'</td><td>'+fmt(l.discount)+'</td><td>'+esc(l.rate)+' %</td><td>'+fmt(c.base)+'</td><td><button type="button" data-line="'+i+'">Quitar</button></td></tr>'}).join("");say("i-totals","Subtotal "+fmt(st)+" · IVA "+fmt(tx)+" · Total "+fmt(st+tx))}
- function add(){if(busy)return;const p=selected(),qty=Number($("i-qty").value),net=Number($("i-net").value),disc=Number($("i-discount").value||0),desc=$("i-description").value.trim();if(!p||!desc||!(qty>0)||qty>100000||$("i-net").value===""||!Number.isFinite(net)||net<0||net>1000000||disc<0||disc>round(qty*net)||lines.length>=100){say("i-picker-status","Revisa producto, cantidad, precio, descuento y descripción.");return}lines.push({source:p.source,catalog_id:p.catalog_id,code:$("i-code").value.trim(),aux:$("i-aux").value.trim(),description:desc,extra:$("i-extra").value.trim(),quantity:qty,unit_net:net,discount:disc,rate:Number($("i-rate").value)});renderLines();say("i-picker-status","Línea agregada.")}
- async function edit(d=null){
-  if(busy)return;if(d?.sale_id){say("i-status","Borrador vinculado a una venta; consulta su vista previa.");await preview(d);return;}draft=d||{id:crypto.randomUUID()};lines=d?d.lines.map(l=>({...l})):[];orderId=d?.order_id||null;$("i-form").reset();$("i-date").value=d?.issue_date||today();$("i-payment").value=d?.payment_code||"01";$("i-editor").hidden=false;$("i-preview").hidden=true;say("i-title",d?"Editar borrador":"Nuevo borrador");say("i-form-status","");renderLines();await Promise.all([customers(d?.customer_id),products(),orders()]);$("i-editor").scrollIntoView({block:"start"})
- }
- async function importOrder(){
-  if(busy||!$("i-order").value)return;if(lines.length&&!confirm("Reemplazar las líneas del borrador por las del pedido?"))return;setBusy(true);
-  try{const o=await rpc("edgar_order_detail",{p_id:$("i-order").value});orderId=o.id;draft={...draft,customer_id:o.customer_id,buyer:{name:o.customer_name}};await customers(o.customer_id);lines=o.items.map(l=>({source:l.source,catalog_id:l.catalog_id,code:"",aux:"",description:l.product_name,extra:l.presentation+" · "+l.sale_unit,quantity:Number(l.quantity),unit_net:Math.round(Number(l.unit_price)/1.15*1e6)/1e6,discount:0,rate:15}));renderLines();say("i-form-status","Pedido cargado. Verifica códigos, tarifa y precios sin IVA; se asumió 15 % para la conversión preliminar.")}
-  catch(e){say("i-form-status",e.message)}finally{setBusy(false)}
- }
- async function preview(d){
-  if(!issuer)issuer=await rpc("edgar_invoice_issuer");previewed=d;say("i-xml-status","");$("i-ride").innerHTML=window.NICOLE_RIDE.build(d,issuer);$("i-preview").hidden=false;$("i-preview").scrollIntoView({block:"start"})
- }
- $("i-new").onclick=()=>edit();$("i-cancel").onclick=()=>{if(!busy)$("i-editor").hidden=true};$("i-close-preview").onclick=()=>{$("i-preview").hidden=true};$("i-print").onclick=()=>window.print();
- $("i-xml").onclick=async()=>{if(!previewed||busy)return;const btn=$("i-xml");btn.disabled=true;try{
-  const d=await rpc("edgar_invoice_draft_get",{p_id:previewed.id});if(d.updated_at!==previewed.updated_at)throw Error("El borrador cambió. Vuelve a abrir la vista previa.");
-  if(!issuer)issuer=await rpc("edgar_invoice_issuer");
-  window.NICOLE_XML.build(d,issuer); // Validar antes de reservar.
-  const n=await rpc("edgar_invoice_test_number",{p_id:d.id,p_updated_at:d.updated_at});
-  if(n?.environment!=="1"||n.scope!=="laboratory_only")throw Error("Numeración de laboratorio inválida.");
-  const result=window.NICOLE_XML.build(d,issuer,{sequence:n.sequence,code:n.code});
-  const parsed=new DOMParser().parseFromString(result.xml,"application/xml");if(parsed.querySelector("parsererror"))throw Error("XML mal formado.");
-  const url=URL.createObjectURL(new Blob([result.xml],{type:"application/xml;charset=utf-8"}));const a=document.createElement("a");a.href=url;a.download="PRUEBA_LOCAL_NO_TRANSMITIR_"+result.sequence+".xml";document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),3000);
-  say("i-xml-status","XML de laboratorio "+result.sequence+" (ambiente 1). Número reservado solo para esta versión del borrador; sin firma ni transmisión. Validación interna correcta; no implica validación XSD de este archivo ni autorización SRI.");
- }catch(e){say("i-xml-status",e.message)}finally{btn.disabled=false}};
- $("i-csearch").oninput=()=>debounce("c",()=>customers());$("i-psearch").oninput=()=>debounce("p",products);$("i-osearch").oninput=()=>debounce("o",orders);$("i-product").onchange=suggest;$("i-rate").onchange=suggest;$("i-add").onclick=add;$("i-import").onclick=importOrder;
- $("i-lines").onclick=e=>{const b=e.target.closest("[data-line]");if(b&&!busy){lines.splice(Number(b.dataset.line),1);renderLines()}};
- $("i-form").onsubmit=async e=>{e.preventDefault();if(busy||!draft)return;if(!lines.length||!$("i-customer").value){say("i-form-status","Selecciona cliente y agrega productos.");return}setBusy(true);try{const d=await rpc("edgar_invoice_draft_save",{p_draft:{id:draft.id,updated_at:draft.updated_at,customer_id:$("i-customer").value,issue_date:$("i-date").value,payment_code:$("i-payment").value,order_id:orderId,lines}});draft=d;lines=d.lines;renderLines();say("i-form-status","Borrador guardado. No se ha emitido factura.");offset=0;await load();await preview(d)}catch(e){say("i-form-status",e.message)}finally{setBusy(false)}};
- $("i-list").onclick=async e=>{const b=e.target.closest("[data-edit],[data-preview]");if(!b||busy)return;b.disabled=true;try{const d=await rpc("edgar_invoice_draft_get",{p_id:b.dataset.edit||b.dataset.preview});if(b.dataset.edit)await edit(d);else await preview(d)}catch(e){say("i-status",e.message)}finally{b.disabled=false}};
- $("i-search").oninput=()=>{offset=0;version++;debounce("s",load)};$("i-refresh").onclick=load;$("i-prev").onclick=()=>{offset=Math.max(0,offset-50);load()};$("i-next").onclick=()=>{if(offset+50<total){offset+=50;load()}};load();
- const linked=new URLSearchParams(location.search).get("draft");if(linked&&/^[a-f0-9-]{36}$/i.test(linked)){rpc("edgar_invoice_draft_get",{p_id:linked}).then(preview).catch(e=>say("i-status",e.message));}
+ $("i-close-preview").onclick=()=>{$("i-preview").hidden=true;};
+ $("i-print").onclick=()=>{if(previewed&&!$("i-preview").hidden)window.print();};
+ $("i-xml").onclick=async()=>{if(!previewed)return;const btn=$("i-xml");btn.disabled=true;try{
+   const d=await rpc("edgar_invoice_draft_get",{p_id:previewed.id});if(d.updated_at!==previewed.updated_at)throw Error("El borrador cambió. Vuelve a abrir la vista previa.");
+   if(!issuer)issuer=await rpc("edgar_invoice_issuer");window.NICOLE_XML.build(d,issuer);
+   const n=await rpc("edgar_invoice_test_number",{p_id:d.id,p_updated_at:d.updated_at});if(n?.environment!=="1"||n.scope!=="laboratory_only")throw Error("Numeración de laboratorio inválida.");
+   const result=window.NICOLE_XML.build(d,issuer,{sequence:n.sequence,code:n.code});
+   if(new DOMParser().parseFromString(result.xml,"application/xml").querySelector("parsererror"))throw Error("XML mal formado.");
+   download(result.xml,"application/xml;charset=utf-8","PRUEBA_LOCAL_NO_TRANSMITIR_"+result.sequence+".xml");
+   say("i-xml-status","XML de laboratorio sin firma ni autorización. No transmitir.");
+  }catch(e){say("i-xml-status",e.message)}finally{btn.disabled=false}};
+ function download(content,type,name){const url=URL.createObjectURL(new Blob([content],{type})),a=document.createElement("a");a.href=url;a.download=name;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),3000);}
+ $("i-export").onclick=()=>{if(!report)return;const s=report.summary;const rows=[["Desde",$("i-from").value],["Hasta",$("i-to").value],["Busqueda",$("i-search").value],["Subtotal autorizado",s.subtotal],["IVA autorizado",s.tax],["Total autorizado",s.total],["Notas de credito autorizadas asociadas",report.credit_total],["Borradores",s.drafts],["Anuladas",s.cancelled]];const safe=v=>'"'+String(v??"").replace(/^[=+\-@\t\r]/,"'$&").replace(/"/g,'""')+'"';download("\uFEFF"+rows.map(x=>x.map(safe).join(";")).join("\r\n"),"text/csv;charset=utf-8","Nicole-Encajes-resumen-facturas.csv");};
+ for(const b of document.querySelectorAll("[data-panel],[data-open]"))b.onclick=()=>panel(b.dataset.panel||b.dataset.open);
+ const today=new Intl.DateTimeFormat("sv-SE",{timeZone:"America/Guayaquil",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date());
+ $("i-from").value=today.slice(0,7)+"-01";$("i-to").value=today;
+ $("i-refresh").onclick=()=>{offset=0;load();};$("i-prev").onclick=()=>{offset=Math.max(0,offset-50);load();};$("i-next").onclick=()=>{if(offset+50<total){offset+=50;load();}};
+ for(const id of ["i-from","i-to","i-state"])$(id).onchange=()=>{offset=0;load();};
+ $("i-search").oninput=()=>{offset=0;revision++;report=null;$("i-export").disabled=true;clearTimeout(timer);timer=setTimeout(load,250);};
+ load();
+ const linked=new URLSearchParams(location.search).get("draft");if(linked&&/^[a-f0-9-]{36}$/i.test(linked)){panel("history");openDraft(linked).catch(e=>say("i-status",e.message));}
 })();
