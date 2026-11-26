@@ -16,8 +16,8 @@ supabase functions deploy catalog-api --no-verify-jwt
 
 La verificación JWT de Supabase va desactivada porque la función hace su propia comprobación:
 
-- **Sin sesión (público):** `catalog`, `login`, `listSales`, `addSale`, `voidSale`, `exportSalesBackup`, `syncSnapshot`, `importExcel` y `uploadPhoto` (con `by` = `edgar` o `gloria`).
-- **Con sesión de PIN (`x-almacen-key`):** administración completa (`bootstrap`, productos, presentaciones, precios, costos, proveedores, fotos, `saveSettings`, `logout`); el catálogo Excel histórico se consulta públicamente en `excel-catalog`.
+- **Sin sesión (lectura pública autorizada previamente):** `catalog`, `login`, `syncSnapshot`. La consulta pública de precios aún incluye determinados costos comerciales; revisar el alcance de publicación antes de restringirla.
+- **Con sesión de PIN (`x-almacen-key`):** ventas y fotografías requieren sesión comercial válida o administrativa según operación; administración completa (`bootstrap`, productos, presentaciones, precios, costos, proveedores, fotos, `saveSettings`, `logout`); el catálogo Excel histórico se consulta públicamente en `excel-catalog`.
 
 ## 3. PIN de administración
 
@@ -49,3 +49,7 @@ npm test
 ```
 
 Revisar en GitHub Actions las pruebas, la publicación, la verificación de producción y el instalador de Windows.
+
+## Refuerzo de acceso comercial
+
+La edición de productos, opciones y presentaciones exige una sesión del PIN validada en Supabase. El antiguo identificador estático y la activación de dispositivos por invitación dejaron de autorizar cambios. La sesión comercial se recuerda por un máximo de 30 días; cerrar sesión la revoca. El respaldo de Edgar exige la misma sesión y nunca transfiere el token comercial a Google. Las fotografías requieren sesión y comprobación de tipo de archivo. La lectura familiar pública se conserva; falta decidir si restringir los costos y datos de proveedores a sesiones comerciales. La facturación real permanece bloqueada hasta completar su servicio privado y certificación.
