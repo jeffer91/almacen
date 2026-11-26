@@ -36,7 +36,8 @@
     el.textContent = message || "";
     el.className = success ? "good" : "error";
   }
-  let batch = crypto.randomUUID(), saving = false, retryPayload = null;
+  let batch = crypto.randomUUID(), saving = false, retryPayload = null, retryCustomer=null, retryAlias="", retryMode="save";
+  const comm=window.NICOLE_SALE_COMM;
   const rows = () => [...$("entryRows").rows];
   function updatePreview() {
     let total = 0;
@@ -88,9 +89,10 @@
     const body = table.createTBody();
     if (!sales.length) { const cell = body.insertRow().insertCell(); cell.colSpan = 8; cell.className = "empty-row"; cell.textContent = "Sin ventas registradas"; }
     const groups = new Map();
-    for (const sale of sales) { const g=groupInfo(sale); if(!groups.has(g.key))groups.set(g.key,{label:g.label,items:[]}); groups.get(g.key).items.push(sale); }
+    for (const sale of sales) { const g=groupInfo(sale); if(!groups.has(g.key))groups.set(g.key,{label:g.label,items:[],id:sale.sale_id||null}); groups.get(g.key).items.push(sale); }
     for(const group of groups.values()){
       const heading=body.insertRow().insertCell();heading.colSpan=8;heading.className="group-heading";heading.textContent=group.label+" · "+money(group.items.reduce((n,x)=>n+Number(x.total||0),0));
+      if(group.id){const actions=document.createElement("span");actions.className="sale-group-actions";for(const [label,mode] of [["Imagen / WhatsApp","receipt"],["Factura (borrador)","invoice"]]){const b=document.createElement("button");b.type="button";b.textContent=label;b.onclick=()=>comm.show(group.id,mode).catch(e=>setMessage("listError",e.message));actions.append(b);}heading.append(actions);}
       group.items.forEach((sale, index) => {
       const row = body.insertRow();
       row.insertCell().textContent = String(index + 1);
@@ -377,6 +379,8 @@
     for(const field of $("saleForm").querySelectorAll("input,select,button")) field.disabled=lock;
     $("saleDate").disabled=lock;
     $("saveSale").disabled=saving;
+    $("saveWhatsapp").disabled=saving||lock;
+    $("saveInvoice").disabled=saving||lock;
   }
   $("saleForm").addEventListener("submit", async (event) => {
     event.preventDefault();
@@ -387,26 +391,32 @@
       if(rows().some(row=>(row.familyCards||row.selectedCard||row.choices?.length)&&!row.catalogItem)){setMessage("saleMessage","Selecciona la presentación de cada producto.");return;}
       if(rows().some(row=>!validPrice(row.comparableCost))&&!confirm("Hay productos sin costo comparable. Verifica sus precios y unidades. ¿Guardar de todos modos?"))return;
       if(rows().some(row=>row.classList.contains("below-cost"))&&!confirm("Hay productos con precio de venta menor al costo neto registrado. ¿Guardar de todos modos?"))return;
+      retryCustomer=comm.customer()?.id||null;retryAlias=alias;retryMode=event.submitter?.dataset.mode||"save";
+      if(retryMode==="invoice"&&!retryCustomer){setMessage("saleMessage","Selecciona un cliente registrado para preparar la factura.");return;}
       retryPayload=rows().map(row=>({
         sale_date:$("saleDate").value,product_name:row.exactChoice?displayName(row.exactChoice.card):row.querySelector(".product").value.trim(),
         presentation_label:row.exactChoice?[row.exactChoice.variety,row.exactChoice.provider,row.querySelector(".detail").value.trim()].filter(Boolean).join(" · ").slice(0,100):row.querySelector(".detail").value.trim(),quantity:Number(row.querySelector(".qty").value),
         unit:row.querySelector(".unit").value,unit_price:Number(row.querySelector(".price").value),
-        payment_method:row.querySelector(".payment").value,notes:"[venta:"+batch+"] "+alias,request_key:row.dataset.key
+        payment_method:row.querySelector(".payment").value,notes:"[venta:"+batch+"] "+alias,request_key:row.dataset.key,
+        public_name:(row.exactChoice?.card.smart?.canonical_name||row.exactChoice?.card.name||row.querySelector(".product").value.trim()).replace(/\s*[-*]\s*[a-z]{2,4}\.?\s*$/i,"").trim().slice(0,180),
+        public_detail:(row.exactChoice?[row.exactChoice.variety,row.querySelector(".detail").value.trim()].filter(Boolean).join(" · "):row.querySelector(".detail").value.trim()).slice(0,100)
       }));
       if(retryPayload.some(x=>!x.product_name)){retryPayload=null;setMessage("saleMessage","Completa todos los productos.");return;}
     }
     saving=true;lockDraft(true);setMessage("saleMessage","Guardando venta…",true);
     try{
-      await api("addSalesBatch",{rows:retryPayload});
-      retryPayload=null;batch=crypto.randomUUID();$("customerAlias").value="";$("entryRows").replaceChildren();addLine();
+      const saved=await comm.rpc("edgar_sale_save",{p_id:batch,p_customer_id:retryCustomer,p_alias:retryAlias,p_rows:retryPayload});
+      const mode=retryMode;retryPayload=null;batch=crypto.randomUUID();comm.clear();$("entryRows").replaceChildren();addLine();
       setMessage("saleMessage","Venta del cliente registrada.",true);
       await loadSales();
+      if(mode!=="save"){try{await comm.show(saved.id,mode);}catch(e){setMessage("saleMessage","Venta guardada. "+e.message);}}
     }catch(error){
       setMessage("saleMessage","No se completó el guardado. Pulsa guardar de nuevo para reintentar sin duplicar: "+error.message);
       await loadSales();
     }finally{saving=false;lockDraft(Boolean(retryPayload));}
   });
   $("saleDate").addEventListener("change",()=>{sales=[];renderSales();loadSales();});
+  comm.init();
   addLine();
   $("reload").addEventListener("click", loadSales);
   $("refreshCatalog").addEventListener("click",loadProductNames);
