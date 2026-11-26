@@ -2,16 +2,15 @@
 "use strict";
 (function(scope){
  const e=v=>String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
- const fmt=v=>Number(v||0).toFixed(2);
+ const fmt=v=>precise(v,2,2);
  const pay={"01":"SIN UTILIZACION DEL SISTEMA FINANCIERO","16":"TARJETA DE DÉBITO","19":"TARJETA DE CRÉDITO","20":"OTROS CON UTILIZACION DEL SISTEMA FINANCIERO"};
  const rect=(x,y,w,h,rx=0)=>'<rect x="'+x+'" y="'+y+'" width="'+w+'" height="'+h+'" rx="'+rx+'" fill="none" stroke="#000" stroke-width="1"/>';
  const line=(x,y,x2,y2)=>'<path d="M'+x+' '+y+' H'+x2+(y2===y?'':' V'+y2)+'" fill="none" stroke="#000" stroke-width="1"/>';
  const text=(x,y,v,size=8,anchor="start",color="#000")=>'<text x="'+x+'" y="'+y+'" font-size="'+size+'" text-anchor="'+anchor+'" fill="'+color+'">'+e(v)+'</text>';
  const date=v=>String(v||"").split("-").reverse().join("/");
- // Helvetica metrics in points, independent of browser font loading.
- const narrow=new Set(" !'.,:;|ijlI");
- const wide=new Set("MWmw@%&");
- function width(v,size){return [...String(v??"")].reduce((n,c)=>n+(narrow.has(c)?0.32:wide.has(c)?0.9:/[A-ZÁÉÍÓÚÜÑ]/.test(c)?0.72:0.59)*size,0);}
+ // Standard Helvetica widths, in thousandths of a point at 1 pt.
+ const widths=[278,278,355,556,556,889,667,191,333,333,389,584,278,333,278,278,556,556,556,556,556,556,556,556,556,556,278,278,584,584,584,556,1015,667,667,722,722,667,611,778,722,278,500,667,556,833,722,778,667,778,722,667,611,722,667,944,667,667,611,278,278,278,469,556,333,556,556,500,556,556,278,556,556,222,222,500,222,833,556,556,556,556,333,500,278,556,500,722,500,500,500,334,260,334,584];
+ function width(v,size){return [...String(v??"")].reduce((n,c)=>{const normalized=c.normalize("NFD")[0],code=normalized.charCodeAt(0);return n+(widths[code-32]??1000)*size/1000;},0);}
  function wrap(value,w,size=7){
   const str=String(value??"").replace(/\s+/g," ").trim(),lines=[];
   let line="";
@@ -44,7 +43,8 @@
   if(firstY+25>lastLimit)throw Error("Los datos del comprador son demasiado extensos para este formato. Revisa nombre y dirección.");
   const rows=d.lines.map(r=>{
     const vals=[r.code,r.aux,precise(r.quantity),r.description,r.extra,precise(r.unit_net,0),fmt(0),fmt(0),fmt(r.discount),fmt(r.base)];
-    const lineCount=Math.max(...vals.map((v,j)=>wrap(v,cols[j+1]-cols[j]-4).length));
+    const lineCount=Math.max(...vals.map((v,j)=>j===2||j>=5?1:wrap(v,cols[j+1]-cols[j]-4).length));
+    for(const j of [2,5,6,7,8,9])if(width(vals[j],5)>cols[j+1]-cols[j]-4)throw Error("Importe demasiado largo para imprimir sin pérdida.");
     const h=Math.max(25,15+8*(lineCount-1)+5);
     if(h>lastLimit-firstY)throw Error("Una línea excede el espacio imprimible. Reduce el detalle del producto.");
     return {r,h,vals};
@@ -62,7 +62,7 @@
    s+=rect(20,383,555,77+buyerExtra)+text(21,398,"Razón Social / Nombres y Apellidos:")+multi(219,397,b.name,350)+text(21,414+buyerShift,"Identificación")+text(92,414+buyerShift,b.identification||"Pendiente",7)+text(21,425+buyerShift,"Fecha")+text(92,424+buyerShift,date(d.issue_date),7)+text(179,425+buyerShift,"Placa / Matrícula:")+text(375,425+buyerShift,"Guía")+text(21,439+buyerShift,"Direccion:")+multi(92,439+buyerShift,b.address,480);
    for(let j=0;j<10;j++){s+=rect(cols[j],463+buyerExtra,cols[j+1]-cols[j],30);let c=(cols[j]+cols[j+1])/2;headers[j].forEach((v,k)=>{s+=text(c,(headers[j].length===1?480:476+k*8)+buyerExtra,v,7,"middle")})}
    let y=firstY;
-   for(const {r,h,vals} of items){for(let j=0;j<10;j++){s+=rect(cols[j],y,cols[j+1]-cols[j],h);const align=j>=5?"end":j===3||j===4?"start":"middle";const x=align==="end"?cols[j+1]-2:align==="start"?cols[j]+2:(cols[j]+cols[j+1])/2;s+=multi(x,y+15,vals[j],cols[j+1]-cols[j]-4,7,align)}y+=h}
+   for(const {r,h,vals} of items){for(let j=0;j<10;j++){s+=rect(cols[j],y,cols[j+1]-cols[j],h);const align=j>=5?"end":j===3||j===4?"start":"middle";const x=align==="end"?cols[j+1]-2:align==="start"?cols[j]+2:(cols[j]+cols[j+1])/2;const w=cols[j+1]-cols[j]-4;if(j===2||j>=5){const size=Math.min(7,7*w/Math.max(width(vals[j],7),1));s+=text(x,y+15,vals[j],size,align);}else s+=multi(x,y+15,vals[j],w,7,align)}y+=h}
    if(page===groups.length-1){const sub15=d.lines.filter(l=>Number(l.rate)===15).reduce((n,l)=>n+Number(l.base),0);const sub0=d.lines.filter(l=>Number(l.rate)===0).reduce((n,l)=>n+Number(l.base),0);
     s+=rect(20,y+4,340,15)+text(190,y+14,"Información Adicional",7,"middle")+rect(20,y+19,340,phoneH+emailH)+text(23,y+26,"Telefono:",6)+multi(122,y+26,b.phone,235,6)+text(23,y+26+phoneH,"Email:",6)+multi(122,y+26+phoneH,b.email,235,6);
     const py=y+23+phoneH+emailH;s+=rect(20,py,160,15)+rect(180,py,100,15)+text(100,py+10,"Forma de pago",7,"middle")+text(230,py+10,"Valor",7,"middle")+rect(20,py+15,160,paymentH)+rect(180,py+15,100,paymentH)+multi(23,py+24,paymentText,154,6)+text(277,py+24,fmt(d.total),6,"end");
