@@ -128,5 +128,27 @@ const V = scope.NICOLE_VIEW;
     }
     return cards;
   }
-  scope.NICOLE_SALES_CATALOG = {build,rank,excelCards,canonical};
+  function smartCards(records) {
+    return records.filter(r=>r.source_kind==="excel").map(r=>{
+      const qty=String(r.presentation||"").trim(), qtyMatch=qty.match(/^(\d+(?:[.,]\d+)?)\s*(u\.?|unid(?:ades)?\.?|m\.?|mts\.?|metros?|y\.?|yd\.?|yardas?)$/i);
+      const count=qtyMatch?Number(qtyMatch[1].replace(",",".")):null, unit=qtyMatch?V.normalize(qtyMatch[2]):"";
+      const cost=r.cost==null?null:Number(r.cost);
+      const items=(r.tariffs||[]).map(t=>{
+        const raw=String(t.label), tariff=raw.replace(/[^a-z]/gi,""), main=tariff==="PxM"||tariff==="PXM";
+        const saleUnit=main&&count>1?(/^u/.test(unit)?"paquete":/^(m|y)/.test(unit)?"rollo":"otro"):main&&count===1?(/^u/.test(unit)?"unidad":/^m/.test(unit)?"metro":"yarda"):/^unid$/i.test(tariff)?"unidad":/^xm$/i.test(tariff)?"metro":/^rollo$/i.test(tariff)?"rollo":/^docena$/i.test(tariff)?"paquete":"otro";
+        return {label:[qty,main?"":raw].filter(Boolean).join(" · ")||"Presentación",referencePrice:Number(t.value),cost,comparableCost:main&&count!==null?cost:null,saleUnit,sourceTariff:raw};
+      });
+      if(!items.length)items.push({label:qty||"Presentación",cost,comparableCost:null});
+      return {id:r.source_id,name:r.original_name,brand:"",excel:true,items,haystack:r.search_text,category:r.category,smart:r};
+    });
+  }
+  function organize(cards,records){
+    const meta=new Map(records.map(r=>[r.source_id,r]));
+    return cards.map(c=>{
+      const smart=meta.get(String(c.id))||c.smart;
+      if(!smart)return c;
+      return {...c,smart,category:smart.category,haystack:[c.haystack,smart.search_text].filter(Boolean).join(" ")};
+    });
+  }
+  scope.NICOLE_SALES_CATALOG = {build,rank,excelCards,canonical,smartCards,organize};
 })(window);
