@@ -18,3 +18,30 @@ test("El costo se conserva por presentación y no se inventan tarifas",()=>{
  assert.equal(cards[3].items[0].cost,null);
  assert.equal(cards[3].items[0].referencePrice,undefined);
 });
+
+test("Selectores dependientes conservan la tarifa exacta de cada variedad y proveedor",()=>{
+ const base={...fixtures[0],size_unit:"mm"};
+ const records=[base,{...base,source_id:"p50s",original_name:"Pon Pon 50 mm Surt.",variety:"Surtido",cost:3.08,tariffs:[{label:"PxM.",value:4.5}]},{...base,source_id:"p50ic",provider:"IC",cost:3.1,tariffs:[{label:"PxM.",value:4.1}]},{...fixtures[1],size_unit:"mm"}];
+ const choices=core.saleChoices(core.smartCards(records));
+ assert.equal(choices.length,4);
+ assert.equal(core.facetValues(choices,"variety").join("|"),"Normal|Surtido");
+ const surt=core.filterChoices(choices,{variety:"Surtido"});
+ assert.equal(core.facetValues(surt,"measure").join("|"),"50 mm");
+ assert.equal(surt[0].item.referencePrice,4.5);
+ assert.equal(surt[0].item.cost,3.08);
+ const normal=core.filterChoices(choices,{variety:"Normal",measure:"50 mm"});
+ assert.equal(core.facetValues(normal,"provider").join("|"),"IC|IM");
+ assert.equal(core.filterChoices(normal,{provider:"IM"})[0].item.referencePrice,4.2);
+ assert.equal(core.filterChoices(normal,{provider:"IC"})[0].item.referencePrice,4.1);
+ assert.equal(core.filterChoices(choices,{variety:"Surtido",measure:"38 mm"}).length,0);
+});
+test("Las dos rutas de ventas muestran doce columnas, incluidas las variedades",()=>{
+ for(const file of ["ventas/index.html","edgar/ventas/index.html"]){
+  const html=fs.readFileSync(path.join(root,file),"utf8");
+  assert.match(html,/<th>Variedad<\/th><th>Medida \/ presentación<\/th><th>Proveedor<\/th>/);
+  assert.equal(html.match(/<thead><tr>(.*?)<\/tr><\/thead>/)[1].match(/<th>/g).length,12);
+ }
+ const js=fs.readFileSync(path.join(root,"ventas/sales.js"),"utf8");
+ assert.equal(js.match(/row.innerHTML = '([^']+)'/)[1].match(/<td(?:\s|>)/g).length,12);
+ assert.match(js,/product_name:row.exactChoice\?displayName\(row.exactChoice.card\)/);
+});
