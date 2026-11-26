@@ -40,8 +40,8 @@ test("TSV protege celdas frente a fórmulas y permite reemplazo íntegro",()=>{
 });
 test("panel de Edgar incluye botón y cuadro de Google Sheets; panel de Gloria no",()=>{
   const root=path.join(__dirname,"..","web");
-  const edgar=fs.readFileSync(path.join(root,"edgar","index.html"),"utf8");
-  const viewer=fs.readFileSync(path.join(root,"viewer.js"),"utf8");
+  const edgar=fs.readFileSync(path.join(root,"edgar","productos","index.html"),"utf8");
+  const viewer=fs.readFileSync(path.join(root,"edgar","productos","products.js"),"utf8");
   const gloria=fs.readFileSync(path.join(root,"index.html"),"utf8");
   assert.match(edgar,/id="sheets-sync-dialog"/);
   assert.match(edgar,/sheets-backup-core\.js/);
