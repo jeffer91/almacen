@@ -45,3 +45,20 @@ test("Las dos rutas de ventas muestran doce columnas, incluidas las variedades",
  assert.equal(js.match(/row.innerHTML = '([^']+)'/)[1].match(/<td(?:\s|>)/g).length,12);
  assert.match(js,/product_name:row.exactChoice\?displayName\(row.exactChoice.card\)/);
 });
+
+test("Colita de ratón: 100 yardas, costos comparables y código estable",()=>{
+ const record={source_id:"excel-Varios-751-A",source_kind:"excel",original_name:"Colita de Ratón -1mm *mz",presentation:"100 y.",cost:1.43,tariffs:[{label:"PxM.",value:2.5}]};
+ const card=core.smartCards([record])[0],item=card.items[0];
+ assert.equal(item.saleUnit,"rollo");
+ assert.equal(item.referencePrice,2.5);
+ assert.equal(core.packageCost(item,"rollo"),1.43);
+ assert.ok(Math.abs(core.packageCost(item,"yarda")-0.0143)<1e-10);
+ assert.ok(Math.abs(core.packageCost(item,"metro")-1.43/91.44)<1e-10);
+ assert.equal(core.packageCost(item,"unidad"),null);
+ assert.equal(core.productKey(card,item),"excel:excel-Varios-751-A");
+ const fallback=core.excelCards([{sheet_name:"Varios",headers:{A:"ARTICULO",C:"Neto.",D:"Cant.",E:"PxM."}}],[{sheet_name:"Varios",sheet_row:751,cells:{A:record.original_name,C:1.43,D:"100 y.",E:2.5}}])[0].items[0];
+ assert.equal(fallback.saleUnit,"rollo");
+ assert.ok(Math.abs(core.packageCost(fallback,"yarda")-0.0143)<1e-10);
+ const ambiguous=core.smartCards([{...record,tariffs:[{label:"pxm.",value:0.1}]}])[0].items[0];
+ assert.equal(core.packageCost(ambiguous,"yarda"),null);
+});
