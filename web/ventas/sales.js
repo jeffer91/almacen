@@ -40,9 +40,8 @@
   function renderSales() {
     $("count").textContent = String(sales.length);
     $("total").textContent = money(sales.reduce((sum, row) => sum + Number(row.total || 0), 0));
-    $("empty").hidden = sales.length > 0;
+    $("empty").hidden = true;
     $("history").replaceChildren();
-    if (!sales.length) return;
     const table = document.createElement("table");
     table.className = "invoice-table";
     const head = table.createTHead().insertRow();
@@ -51,6 +50,7 @@
       th.scope = "col"; th.textContent = label; head.append(th);
     }
     const body = table.createTBody();
+    if (!sales.length) { const cell = body.insertRow().insertCell(); cell.colSpan = 8; cell.className = "empty-row"; cell.textContent = "Sin ventas registradas"; }
     sales.forEach((sale, index) => {
       const row = body.insertRow();
       row.insertCell().textContent = String(index + 1);
@@ -168,6 +168,7 @@
   $("saleDate").addEventListener("change", () => { pendingKey = null; loadSales(); });
   $("reload").addEventListener("click", loadSales);
   $("exportCsv").addEventListener("click", exportCsv);
+  renderSales();
   Promise.all([loadSales(), loadProductNames()]);
   updatePreview();
 })();
