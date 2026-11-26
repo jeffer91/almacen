@@ -5,7 +5,7 @@
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob: https://*.supabase.co; connect-src 'self' https://*.supabase.co; object-src 'none'; base-uri 'self'; form-action 'self'">
 <title>Nicole Encajes · Ventas del día</title>
 <link rel="icon" href="../assets/nicole-icon.svg" type="image/svg+xml">
-<link rel="stylesheet" href="./sales.css?v=20261126-compacto"><link rel="stylesheet" href="../edgar/panel.css?v=1"></head>
+<link rel="stylesheet" href="./sales.css?v=20261126-clientes"><link rel="stylesheet" href="../edgar/panel.css?v=1"></head>
 <body><nav class="edgar-nav" aria-label="Menú comercial de Edgar"><div class="edgar-nav-inner"><a href="../edgar/">Inicio</a><a href="../edgar/precios/">Precios</a><a href="../edgar/productos/">Productos</a><a href="../edgar/facturacion/">Facturación</a><a href="../edgar/clientes/">Clientes</a><a href="../edgar/pedidos/">Pedidos</a><a href="../ventas/" aria-current="page">Ventas</a></div></nav>
 <header><a href="../" class="back">← Lista de precios</a><a href="../administrador/" class="back">Administrador</a><a href="../sincronizar/" class="back">Respaldo / Sheets</a><div class="brand"><img src="../assets/nicole-icon.svg" width="36" height="36" alt=""><div><strong>Nicole Encajes</strong><small>Ventas del día</small></div></div></header>
 <main>
@@ -19,18 +19,11 @@
       <div class="stat"><span>Registros del día</span><strong id="count">0</strong></div>
     </section></div>
     <section class="panel">
-      <h2>Nueva venta</h2>
       <form id="saleForm">
-        <div class="formgrid">
-          <div class="full"><label for="product">Producto</label><input id="product" list="catalogSuggestions" placeholder="Ej. Cinta N.º 4" maxlength="180" autocomplete="off" required><datalist id="catalogSuggestions"></datalist></div>
-          <div class="full"><label for="presentation">Presentación / detalle</label><input id="presentation" placeholder="Ej. Rollo de 50 yardas, color rojo" maxlength="100"></div>
-          <div><label for="quantity">Cantidad</label><input id="quantity" type="number" inputmode="decimal" min="0.001" max="1000000" step="0.001" value="1" required></div>
-          <div><label for="unit">Unidad</label><select id="unit"><option value="unidad">Unidad</option><option value="metro">Metro</option><option value="rollo">Rollo</option><option value="yarda">Yarda</option><option value="paquete">Paquete</option><option value="otro">Otro</option></select></div>
-          <div><label for="unitPrice">Precio unitario ($)</label><input id="unitPrice" type="number" inputmode="decimal" min="0" max="1000000" step="0.01" placeholder="0.00" required></div>
-          <div><label for="payment">Forma de pago</label><select id="payment"><option value="sin_especificar">Sin especificar</option><option value="efectivo">Efectivo</option><option value="transferencia">Transferencia</option><option value="tarjeta">Tarjeta</option><option value="otro">Otro</option></select></div>
-          <div class="full"><label for="notes">Observaciones (opcional)</label><input id="notes" maxlength="400" placeholder="Ej. Color beige"></div>
-        </div>
-        <div class="submitrow"><div>Importe <strong id="previewTotal">$0,00</strong></div><button type="submit" id="saveSale">Guardar venta</button></div>
+        <div class="customerbar"><label for="customerAlias">Cliente / referencia</label><input id="customerAlias" maxlength="70" placeholder="Ej. Cliente 01" required autocomplete="off"><button type="button" class="outline" id="addLine">+ Agregar producto</button></div>
+        <datalist id="catalogSuggestions"></datalist>
+        <div class="history"><table class="invoice-table entry-table"><thead><tr><th>N.º</th><th>Producto / detalle</th><th>Cantidad</th><th>Unidad</th><th>Precio unitario</th><th>Importe</th><th>Pago</th><th>Acción</th></tr></thead><tbody id="entryRows"></tbody></table></div>
+        <div class="submitrow"><div>Total del cliente <strong id="previewTotal">$0,00</strong></div><button type="submit" id="saveSale">Guardar venta del cliente</button></div>
       </form>
       <p id="saleMessage" role="status" aria-live="polite"></p>
     </section>
@@ -43,5 +36,5 @@
     </section>
   </div>
 </main>
-<script src="../config.js?v=20261124-publico-2"></script><script src="./sales.js?v=20261126-compacto"></script>
+<script src="../config.js?v=20261124-publico-2"></script><script src="./sales.js?v=20261126-clientes"></script>
 </body></html>
