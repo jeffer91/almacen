@@ -65,7 +65,15 @@
     row.querySelector(".variant").addEventListener("change",()=>chooseVariant(row));
     for(const [cls,level] of [[".variety-select",0],[".measure-select",1],[".provider-select",2]])row.querySelector(cls).addEventListener("change",()=>refreshFacets(row,level));
     row.querySelector(".price-mode").addEventListener("change",()=>choosePrice(row));
-    row.querySelector(".unit").addEventListener("change",()=>{const expected=row.expectedUnit;const changed=expected&&expected!==row.querySelector(".unit").value;row.comparableCost=changed?null:row.baseComparableCost;if(changed){row.querySelector(".price").value="";row.querySelector(".price-mode").value="";setMessage("saleMessage","Cambiaste la unidad. Ingresa el precio correspondiente a esa unidad.");}renderCost(row);updatePreview();});
+    row.querySelector(".unit").addEventListener("change",()=>{
+      const unit=row.querySelector(".unit").value,item=row.catalogItem;
+      const converted=unit===row.expectedUnit?row.baseComparableCost:window.NICOLE_SALES_CATALOG.packageCost(item,unit);
+      row.comparableCost=validPrice(converted)?converted:null;
+      row.displayCost=validPrice(converted)?converted:row.originalDisplayCost;
+      row.querySelector(".price").value="";row.querySelector(".price-mode").value="";
+      setMessage("saleMessage","Unidad cambiada. Ingresa el precio por "+unit+".");
+      renderCost(row);updatePreview();
+    });
     row.querySelector(".remove-line").addEventListener("click",()=>{if(saving||retryPayload)return;row.remove();if(!rows().length)addLine();updatePreview();});
     updatePreview();
     return row;
@@ -303,9 +311,9 @@
     const value=row.querySelector(".cost-value"),basis=row.querySelector(".cost-basis");
     value.textContent=validPrice(row.displayCost)?unitMoney(row.displayCost):"—";
     const uncertain=validPrice(row.displayCost)&&!validPrice(row.comparableCost);
-    basis.hidden=!uncertain;basis.textContent=uncertain?"Base distinta o por confirmar":"";
+    basis.hidden=!validPrice(row.displayCost);basis.textContent=uncertain?"Costo de origen · base no comparable":"Por "+row.querySelector(".unit").value;
   }
-  function setCost(row,cost,comparable,unit){row.displayCost=cost;row.baseComparableCost=comparable;row.comparableCost=comparable;row.expectedUnit=unit;renderCost(row);}
+  function setCost(row,cost,comparable,unit){row.displayCost=cost;row.originalDisplayCost=cost;row.baseComparableCost=comparable;row.comparableCost=comparable;row.expectedUnit=unit;renderCost(row);}
   function choosePrice(row) {
     const key=row.querySelector(".price-mode").value,item=row.catalogItem,price=row.querySelector(".price");
     if(!item){price.value="";setCost(row,null,null,null);updatePreview();return;}
@@ -400,6 +408,7 @@
         presentation_label:row.exactChoice?[row.exactChoice.variety,row.exactChoice.provider,row.querySelector(".detail").value.trim()].filter(Boolean).join(" · ").slice(0,100):row.querySelector(".detail").value.trim(),quantity:Number(row.querySelector(".qty").value),
         unit:row.querySelector(".unit").value,unit_price:Number(row.querySelector(".price").value),
         payment_method:row.querySelector(".payment").value,notes:"[venta:"+batch+"] "+alias,request_key:row.dataset.key,
+        product_key:window.NICOLE_SALES_CATALOG.productKey(row.catalogCard,row.catalogItem),
         public_name:(row.exactChoice?.card.smart?.canonical_name||row.exactChoice?.card.name||row.querySelector(".product").value.trim()).replace(/\s*[-*]\s*[a-z]{2,4}\.?\s*$/i,"").trim().slice(0,180),
         public_detail:(row.exactChoice?[row.exactChoice.variety,row.querySelector(".detail").value.trim()].filter(Boolean).join(" · "):row.querySelector(".detail").value.trim()).slice(0,100)
       }));
