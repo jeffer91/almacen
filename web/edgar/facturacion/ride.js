@@ -22,6 +22,8 @@
   }
   if(line||!lines.length)lines.push(line);return lines;
  }
+ const cents=v=>BigInt(fmt(v).replace(".",""));
+ const sumBase=(lines,rate)=>{const n=lines.filter(l=>Number(l.rate)===rate).reduce((sum,l)=>sum+cents(l.base),0n);const raw=n.toString().padStart(3,"0");return raw.slice(0,-2)+"."+raw.slice(-2);};
  const multi=(x,y,v,w,size=7,anchor="start")=>wrap(v,w,size).map((t,i)=>text(x,y+i*(size+1),t,size,anchor)).join("");
  function precise(v,min=2,max=6){
   const raw=String(v??"");if(!/^\d+(?:\.\d+)?$/.test(raw))throw Error("Valor numérico inválido en RIDE.");
@@ -63,10 +65,10 @@
    for(let j=0;j<10;j++){s+=rect(cols[j],463+buyerExtra,cols[j+1]-cols[j],30);let c=(cols[j]+cols[j+1])/2;headers[j].forEach((v,k)=>{s+=text(c,(headers[j].length===1?480:476+k*8)+buyerExtra,v,7,"middle")})}
    let y=firstY;
    for(const {r,h,vals} of items){for(let j=0;j<10;j++){s+=rect(cols[j],y,cols[j+1]-cols[j],h);const align=j>=5?"end":j===3||j===4?"start":"middle";const x=align==="end"?cols[j+1]-2:align==="start"?cols[j]+2:(cols[j]+cols[j+1])/2;const w=cols[j+1]-cols[j]-4;if(j===2||j>=5){const size=Math.min(7,7*w/Math.max(width(vals[j],7),1));s+=text(x,y+15,vals[j],size,align);}else s+=multi(x,y+15,vals[j],w,7,align)}y+=h}
-   if(page===groups.length-1){const sub15=d.lines.filter(l=>Number(l.rate)===15).reduce((n,l)=>n+Number(l.base),0);const sub0=d.lines.filter(l=>Number(l.rate)===0).reduce((n,l)=>n+Number(l.base),0);
+   if(page===groups.length-1){const sub15=sumBase(d.lines,15),sub0=sumBase(d.lines,0);
     s+=rect(20,y+4,340,15)+text(190,y+14,"Información Adicional",7,"middle")+rect(20,y+19,340,phoneH+emailH)+text(23,y+26,"Telefono:",6)+multi(122,y+26,b.phone,235,6)+text(23,y+26+phoneH,"Email:",6)+multi(122,y+26+phoneH,b.email,235,6);
     const py=y+23+phoneH+emailH;s+=rect(20,py,160,15)+rect(180,py,100,15)+text(100,py+10,"Forma de pago",7,"middle")+text(230,py+10,"Valor",7,"middle")+rect(20,py+15,160,paymentH)+rect(180,py+15,100,paymentH)+multi(23,py+24,paymentText,154,6)+text(277,py+24,fmt(d.total),6,"end");
-    const totals=[["SUBTOTAL 15%",sub15],...(sub0?[["SUBTOTAL 0%",sub0]]:[]),["SUBTOTAL NO OBJETO DE IVA",0],["SUBTOTAL EXENTO DE IVA",0],["SUBTOTAL SIN IMPUESTOS",d.subtotal],["TOTAL DESCUENTO",d.discount],["ICE",0],["IVA 15%",d.tax],["IRBPNR",0],["PROPINA",0],["VALOR TOTAL",d.total]];
+    const totals=[["SUBTOTAL 15%",sub15],...(sub0!=="0.00"?[["SUBTOTAL 0%",sub0]]:[]),["SUBTOTAL NO OBJETO DE IVA",0],["SUBTOTAL EXENTO DE IVA",0],["SUBTOTAL SIN IMPUESTOS",d.subtotal],["TOTAL DESCUENTO",d.discount],["ICE",0],["IVA 15%",d.tax],["IRBPNR",0],["PROPINA",0],["VALOR TOTAL",d.total]];
     totals.forEach(([k,v],i)=>{const yy=y+15*i;s+=rect(375,yy,150,15)+rect(525,yy,50,15)+text(377,yy+10,k,7)+text(573,yy+10,fmt(v),7,"end")});let end=y+totals.length*15+4;s+=rect(375,end,200,46)+text(377,end+10,"VALOR TOTAL SIN SUBSIDIO",7)+text(573,end+10,"0.00",7,"end")+text(377,end+28,"AHORRO POR SUBSIDIO:",7)+text(377,end+36,"(Incluye IVA cuando corresponda)",7)+text(573,end+25,"0.00",7,"end");
    }else{s+=text(575,y+16,"Continúa en la página siguiente",8,"end")}
    s+=text(297.5,827,"BORRADOR — NO ES COMPROBANTE FISCAL",11,"middle","#a12424")+text(575,838,(page+1)+" / "+groups.length,7,"end")+"</svg>";return s;
