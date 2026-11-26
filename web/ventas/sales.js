@@ -3,7 +3,7 @@
 (() => {
   const $ = (id) => document.getElementById(id);
   const url = String(window.ALMACEN_API_URL || "").replace(/\/$/, "");
-  let sales = [];
+  let sales = [], catalog = [], catalogVersion = 0;
   const money = (n) => new Intl.NumberFormat("es-EC", {
     style: "currency", currency: "USD", minimumFractionDigits: 2
   }).format(Number(n) || 0);
@@ -38,7 +38,7 @@
     let total = 0;
     rows().forEach((row,i) => {
       row.cells[0].textContent = i+1;
-      const amount = Math.round(Number(row.querySelector(".qty").value)*Number(row.querySelector(".price").value)*100)/100;
+      const amount = Math.round((Number(row.querySelector(".qty").value)*Number(row.querySelector(".price").value)+Number.EPSILON)*100)/100;
       row.querySelector(".line-total").textContent = money(amount);
       total += amount || 0;
     });
@@ -47,7 +47,10 @@
   function addLine() {
     const row = $("entryRows").insertRow();
     row.dataset.key = crypto.randomUUID();
-    row.innerHTML = '<td></td><td><input class="product" list="catalogSuggestions" maxlength="180" required placeholder="Producto" aria-label="Producto"><input class="detail" maxlength="100" placeholder="Detalle opcional" aria-label="Detalle"></td><td><input class="qty" type="number" min="0.001" max="1000000" step="0.001" value="1" required aria-label="Cantidad"></td><td><select class="unit" aria-label="Unidad"><option value="unidad">Unidad</option><option value="metro">Metro</option><option value="rollo">Rollo</option><option value="yarda">Yarda</option><option value="paquete">Paquete</option><option value="otro">Otro</option></select></td><td><input class="price" type="number" min="0" max="1000000" step="0.01" required placeholder="0.00" aria-label="Precio unitario"></td><td class="line-total">$0,00</td><td><select class="payment" aria-label="Pago"><option value="sin_especificar">Sin especificar</option><option value="efectivo">Efectivo</option><option value="transferencia">Transferencia</option><option value="tarjeta">Tarjeta</option><option value="otro">Otro</option></select></td><td><button type="button" class="remove-line">Quitar</button></td>';
+    row.innerHTML = '<td></td><td><input class="product" list="catalogSuggestions" maxlength="180" required placeholder="Producto" aria-label="Producto"><input class="detail" maxlength="100" placeholder="Detalle opcional" aria-label="Detalle"><select class="variant" aria-label="Presentación" hidden></select></td><td><input class="qty" type="number" min="0.001" max="1000000" step="0.001" value="1" required aria-label="Cantidad"></td><td><select class="unit" aria-label="Unidad"><option value="unidad">Unidad</option><option value="metro">Metro</option><option value="rollo">Rollo</option><option value="yarda">Yarda</option><option value="paquete">Paquete</option><option value="otro">Otro</option></select></td><td><input class="price" type="number" min="0" max="1000000" step="0.0001" required placeholder="0.00" aria-label="Precio unitario"><select class="price-mode" aria-label="Tipo de precio" hidden></select></td><td class="line-total">$0,00</td><td><select class="payment" aria-label="Pago"><option value="sin_especificar">Sin especificar</option><option value="efectivo">Efectivo</option><option value="transferencia">Transferencia</option><option value="tarjeta">Tarjeta</option><option value="otro">Otro</option></select></td><td><button type="button" class="remove-line">Quitar</button></td>';
+    row.querySelector(".product").addEventListener("input",()=>matchProduct(row));
+    row.querySelector(".variant").addEventListener("change",()=>chooseVariant(row));
+    row.querySelector(".price-mode").addEventListener("change",()=>choosePrice(row));
     row.querySelector(".remove-line").addEventListener("click",()=>{if(saving||retryPayload)return;row.remove();if(!rows().length)addLine();updatePreview();});
     updatePreview();
     return row;
@@ -115,17 +118,64 @@
       $("reload").disabled = false;
     }
   }
+  const normalize = x => window.NICOLE_VIEW.normalize(x);
+  const displayName = c => [c.name,c.brand].filter(Boolean).join(" · ");
+  const validPrice = n => n !== null && n !== undefined && n !== "" && Number.isFinite(Number(n)) && Number(n)>=0;
+  function option(select,label,value) { const o = document.createElement("option");o.textContent=label;o.value=value;select.append(o);return o; }
+  function matchProduct(row) {
+    const q=normalize(row.querySelector(".product").value);
+    const matches=catalog.filter(c=>normalize(displayName(c))===q || normalize(c.name)===q);
+    const card=matches.length===1?matches[0]:null;
+    if(row.catalogCard===card)return;
+    row.catalogCard=card;row.catalogItem=null;
+    const variant=row.querySelector(".variant"),mode=row.querySelector(".price-mode"),price=row.querySelector(".price");
+    variant.replaceChildren();mode.replaceChildren();variant.hidden=true;mode.hidden=true;
+    price.value="";row.querySelector(".detail").value="";
+    if(!card||!card.items.length){updatePreview();return;}
+    variant.hidden=false;option(variant,"Elegir presentación","");
+    card.items.forEach((i,n)=>option(variant,[i.label,i.supplier].filter(Boolean).join(" · "),String(n)));
+    if(card.items.length===1){variant.value="0";chooseVariant(row);}
+    else updatePreview();
+  }
+  function chooseVariant(row) {
+    const variant=row.querySelector(".variant"),mode=row.querySelector(".price-mode"),price=row.querySelector(".price");
+    const item=variant.value===""?null:row.catalogCard?.items[Number(variant.value)];
+    row.catalogItem=item;mode.replaceChildren();price.value="";mode.hidden=!item;
+    row.querySelector(".detail").value=item?String(item.label||""):"";
+    if(!item){updatePreview();return;}
+    option(mode,"Precio manual","");
+    for(const [key,label] of [["gross","Normal"],["meterPrice","Por metro"],["wholesale","Mayorista"]]){
+      if(validPrice(item[key]))option(mode,label+" · $"+Number(item[key]).toFixed(4).replace(/0{1,2}$/,""),key);
+    }
+    if(!validPrice(item.gross)&&validPrice(item.referencePrice))option(mode,"Referencia (confirmar unidad) · $"+Number(item.referencePrice),"referencePrice");
+    if(validPrice(item.gross))mode.value="gross";
+    else if(validPrice(item.meterPrice))mode.value="meterPrice";
+    else if(validPrice(item.wholesale))mode.value="wholesale";
+    choosePrice(row);
+  }
+  function choosePrice(row) {
+    const key=row.querySelector(".price-mode").value,item=row.catalogItem,price=row.querySelector(".price");
+    if(!key||!item){price.value="";updatePreview();return;}
+    if(key==="referencePrice"&&!confirm("Precio de referencia: confirma que corresponde a la unidad que vendes.")){row.querySelector(".price-mode").value="";price.value="";updatePreview();return;}
+    price.value=Number(item[key]).toFixed(4);
+    const unit=row.querySelector(".unit");
+    if(key==="meterPrice")unit.value="metro";
+    else {const u=normalize(item.unit);unit.value=/^(m|metro|metros)$/.test(u)&&Number(item.quantity)===1?"metro":/^(yd|yarda|yardas)$/.test(u)&&Number(item.quantity)===1?"yarda":/rollo/.test(normalize(item.label))?"rollo":/paquete/.test(normalize(item.label))?"paquete":"unidad";}
+    updatePreview();
+  }
   async function loadProductNames() {
+    const version=++catalogVersion;
+    $("catalogStatus").textContent="Actualizando catálogo…";
     try {
-      const data = await api("catalog");
-      const names = new Set((data.products || []).map((p) => p.name).filter(Boolean));
-      const opts = [...names].sort((a, b) => a.localeCompare(b, "es"));
-      $("catalogSuggestions").replaceChildren(...opts.map((name) => {
-        const option = document.createElement("option");
-        option.value = name;
-        return option;
-      }));
-    } catch { /* siempre se permite escribir el producto manualmente */ }
+      const [main,extra]=await Promise.allSettled([api("catalog"),fetch(new URL("/rest/v1/rpc/family_option_list",url),{method:"POST",headers:{apikey:window.ALMACEN_PUBLIC_KEY,"content-type":"application/json"},body:JSON.stringify({device:""}),cache:"no-store"}).then(async r=>{if(!r.ok)throw Error("Opciones no disponibles");const v=await r.json();if(!Array.isArray(v.options)||!v.assigned)throw Error("Opciones inválidas");return v;})]);
+      if(version!==catalogVersion)return;
+      if(main.status!=="fulfilled")throw main.reason;
+      catalog=window.NICOLE_SALES_CATALOG.build(main.value,extra.status==="fulfilled"?extra.value:undefined);
+      const names=[...new Set(catalog.flatMap(c=>[displayName(c),normalize(displayName(c))]))].sort((a,b)=>a.localeCompare(b,"es"));
+      const list=$("catalogSuggestions");list.replaceChildren();names.forEach(n=>option(list,n,n));
+      $("catalogStatus").textContent=catalog.length+" productos disponibles"+(extra.status==="fulfilled"?"":" · opciones adicionales no disponibles");
+      if(!saving&&!retryPayload)rows().forEach(row=>{if(row.querySelector(".product").value&&!row.querySelector(".price").value)matchProduct(row);});
+    } catch(error) {if(version===catalogVersion)$("catalogStatus").textContent="Catálogo no disponible: "+error.message+" · puedes registrar precios manualmente";}
   }
   async function voidSale(sale) {
     if (!confirm("¿Anular la venta de " + sale.product_name + " por " + money(sale.total) + "? La operación quedará en el historial de auditoría.")) return;
@@ -194,6 +244,7 @@
   $("saleDate").addEventListener("change",()=>{sales=[];renderSales();loadSales();});
   addLine();
   $("reload").addEventListener("click", loadSales);
+  $("refreshCatalog").addEventListener("click",loadProductNames);
   $("exportCsv").addEventListener("click", exportCsv);
   renderSales();
   Promise.all([loadSales(), loadProductNames()]);
