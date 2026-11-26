@@ -310,8 +310,18 @@ Deno.serve(async (request: Request) => {
   const action = txt(body?.action, 50);
   const authenticatedRole = await getRole(request);
   // Acceso público solicitado para los módulos web. Lista cerrada: no concede una sesión administrativa.
-  const publicWeb = !authenticatedRole && new Set(["listSales", "addSale", "voidSale", "exportSalesBackup", "syncSnapshot"]).has(action);
-  const role = authenticatedRole || (publicWeb ? "jefferson" : null);
+  const salesAction = new Set(["listSales","addSale","addSalesBatch","voidSale","exportSalesBackup"]).has(action);
+  let edgarSales = false;
+  if(salesAction&&!authenticatedRole){
+    const token=request.headers.get("x-almacen-key")||"";
+    if(/^[a-f0-9]{64}$/.test(token)){
+      const checked=await db.rpc("edgar_pin_validate",{p_token:token});
+      edgarSales=!checked.error&&checked.data===true;
+    }
+  }
+  if(salesAction&&authenticatedRole!=="jefferson"&&!edgarSales)return fail("Inicia sesión en el panel comercial",401);
+  const publicWeb = !authenticatedRole && action==="syncSnapshot";
+  const role = authenticatedRole || (edgarSales ? "edgar" : publicWeb ? "jefferson" : null);
   if (!role) {
     // Acceso público de la familia: ver precios y subir fotos de productos.
     try {
@@ -375,7 +385,7 @@ Deno.serve(async (request: Request) => {
       return response({ ok: true, products, presentations, prices, settings: { iva_rate } });
     }
     if (action === "exportSalesBackup") {
-      if (role !== "jefferson") return fail("Solo administración puede respaldar ventas", 403);
+      if (role !== "jefferson" && !edgarSales) return fail("Solo administración puede respaldar ventas", 403);
       const sales = await listAll("family_daily_sales",
         "id,sale_date,product_name,presentation_label,quantity,unit,unit_price,total,payment_method,notes,created_at,voided_at");
       return response({ ok: true, sales, server_time: new Date().toISOString() });
@@ -403,10 +413,10 @@ Deno.serve(async (request: Request) => {
       return response({ ok: true, settings: value });
     }
 
-    // Ventas del día: acceso público; no se verifica identidad.
+    // Ventas del día: sesión comercial o administrativa validada en el servidor.
     // El nombre del artículo puede ser libre mientras se completa el catálogo.
     if (action === "listSales") {
-      if (role !== "jefferson") return fail("Solo administración puede consultar ventas", 403);
+      if (role !== "jefferson" && !edgarSales) return fail("Solo administración puede consultar ventas", 403);
       const day = txt(body.sale_date, 10);
       if (!/^\d{4}-\d{2}-\d{2}$/.test(day) || !Number.isFinite(Date.parse(day + "T00:00:00Z")) ||
           new Date(day + "T00:00:00Z").toISOString().slice(0, 10) !== day)
@@ -417,6 +427,22 @@ Deno.serve(async (request: Request) => {
         .order("created_at", { ascending: false }).limit(1000);
       if (error) throw error;
       return response({ ok: true, sales: data || [], truncated: (data || []).length >= 1000 });
+    }
+    if (action === "addSalesBatch") {
+      if (role !== "jefferson" && !edgarSales) return fail("Acceso denegado",403);
+      if(!Array.isArray(body.rows)||body.rows.length<1||body.rows.length>100)return fail("La venta debe contener entre 1 y 100 artículos");
+      const rows=body.rows.map((r:any)=>{
+        const day=txt(r.sale_date,10), name=txt(r.product_name,180), qty=Number(r.quantity), price=Number(r.unit_price);
+        if(!/^\d{4}-\d{2}-\d{2}$/.test(day)||!Number.isFinite(Date.parse(day+"T00:00:00Z"))||new Date(day+"T00:00:00Z").toISOString().slice(0,10)!==day||!name)throw Error("Fecha o producto inválido");
+        if(r.quantity==null||r.quantity===""||!Number.isFinite(qty)||qty<0.001||qty>1000000||Number(qty.toFixed(3))!==qty)throw Error("Cantidad inválida");
+        if(r.unit_price==null||r.unit_price===""||!Number.isFinite(price)||price<0||price>1000000||Number(price.toFixed(4))!==price)throw Error("Precio inválido");
+        if(!["unidad","metro","rollo","yarda","paquete","otro"].includes(r.unit)||!["sin_especificar","efectivo","transferencia","tarjeta","otro"].includes(r.payment_method))throw Error("Unidad o pago inválido");
+        return {sale_date:day,product_name:name,presentation_label:txt(r.presentation_label,100),quantity:qty,unit:r.unit,unit_price:price,payment_method:r.payment_method,notes:txt(r.notes,400),request_key:requiredId(r.request_key)};
+      });
+      if(rows.some((r:any)=>r.sale_date!==rows[0].sale_date||r.notes!==rows[0].notes))return fail("Todos los artículos deben pertenecer a la misma venta");
+      const {data,error}=await db.rpc("family_add_sales_batch",{p_rows:rows,p_actor:edgarSales?"edgar":"jefferson"});
+      if(error)throw error;
+      return response({ok:true,sales:data});
     }
     if (action === "addSale") {
       if (role !== "jefferson") return fail("Solo administración puede registrar ventas", 403);
@@ -451,7 +477,7 @@ Deno.serve(async (request: Request) => {
       return response({ ok: true, sale: data });
     }
     if (action === "voidSale") {
-      if (role !== "jefferson") return fail("Solo administración puede anular ventas", 403);
+      if (role !== "jefferson" && !edgarSales) return fail("Solo administración puede anular ventas", 403);
       const id = requiredId(body.id);
       const { data, error } = await db.from("family_daily_sales")
         .update({ voided_at: new Date().toISOString(), void_reason: txt(body.reason, 200) || "Anulada desde ventas" })
