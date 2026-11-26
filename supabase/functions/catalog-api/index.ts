@@ -282,8 +282,12 @@ async function uploadPhoto(role: Shop, body: any, limitPerProduct = 0) {
   const mime = txt(body.mime, 30);
   if (!["image/jpeg","image/png","image/webp"].includes(mime)) return fail("Formato de imagen no permitido");
   if (!base64 || base64.length > 2700000) return fail("La fotografía es demasiado grande");
-  const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
-  if (bytes.byteLength > 2097152) return fail("Máximo 2 MB por fotografía");
+  let bytes:Uint8Array;try{bytes=Uint8Array.from(atob(base64),(c)=>c.charCodeAt(0));}catch{return fail("Fotografía inválida");}
+  if (bytes.byteLength < 128 || bytes.byteLength > 2097152) return fail("Fotografía inválida o mayor a 2 MB");
+  const jpeg=mime==="image/jpeg"&&bytes[0]===255&&bytes[1]===216&&bytes[2]===255;
+  const png=mime==="image/png"&&[137,80,78,71,13,10,26,10].every((x,i)=>bytes[i]===x);
+  const webp=mime==="image/webp"&&[82,73,70,70].every((x,i)=>bytes[i]===x)&&[87,69,66,80].every((x,i)=>bytes[i+8]===x);
+  if(!jpeg&&!png&&!webp)return fail("El archivo no coincide con el formato de imagen indicado");
   const { count } = await db.from("family_photos").select("id", { count: "exact", head: true }).eq("product_id", product_id);
   if (limitPerProduct && (count || 0) >= limitPerProduct) return fail("Este producto ya tiene suficientes fotos");
   const extension = mime === "image/png" ? "png" : mime === "image/webp" ? "webp" : "jpg";
@@ -331,7 +335,8 @@ Deno.serve(async (request: Request) => {
   // Acceso público solicitado para los módulos web. Lista cerrada: no concede una sesión administrativa.
   const salesAction = new Set(["listSales","addSale","addSalesBatch","voidSale","exportSalesBackup"]).has(action);
   let edgarSales = false;
-  if(salesAction&&!authenticatedRole){
+  const photoAction=action==="uploadPhoto";
+  if((salesAction||photoAction)&&!authenticatedRole){
     const token=request.headers.get("x-almacen-key")||"";
     if(/^[a-f0-9]{64}$/.test(token)){
       const checked=await db.rpc("edgar_pin_validate",{p_token:token});
@@ -339,18 +344,14 @@ Deno.serve(async (request: Request) => {
     }
   }
   if(salesAction&&authenticatedRole!=="jefferson"&&!edgarSales)return fail("Inicia sesión en el panel comercial",401);
+  if(photoAction&&authenticatedRole!=="jefferson"&&!edgarSales)return fail("Inicia sesión en el panel comercial para subir fotos",401);
   const publicWeb = !authenticatedRole && action==="syncSnapshot";
   const role = authenticatedRole || (edgarSales ? "edgar" : publicWeb ? "jefferson" : null);
   if (!role) {
-    // Acceso público de la familia: ver precios y subir fotos de productos.
+    // Acceso público: lectura de catálogo y acceso por PIN.
     try {
       if (action === "catalog") return await publicCatalog();
       if (action === "login") return await login(body);
-      if (action === "uploadPhoto") {
-        const by = txt(body.by, 20).toLowerCase();
-        if (by !== "edgar" && by !== "gloria") return fail("Indica quién toma la foto");
-        return await uploadPhoto(by as Shop, body, 12);
-      }
     } catch (error) {
       console.error(action, error);
       return fail(message(error), 400);
@@ -666,7 +667,7 @@ Deno.serve(async (request: Request) => {
       await audit(role, action, id, { shop });
       return response({ ok: true });
     }
-    if (action === "uploadPhoto") return await uploadPhoto(role, body);
+    if (action === "uploadPhoto") return await uploadPhoto(role, body, role==="edgar"?12:0);
     if (action === "setPrimaryPhoto") {
       const product_id = requiredId(body.product_id);
       const photo_id = requiredId(body.photo_id);
