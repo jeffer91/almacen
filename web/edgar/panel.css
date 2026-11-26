@@ -20,3 +20,5 @@
 .edgar-home .edgar-notice{padding:20px;border:1px solid #e1dcec;border-radius:14px;background:white}
 .edgar-home .edgar-back{display:inline-block;color:#44269b;font-weight:700;padding:12px 0}
 @media(max-width:600px){.edgar-nav-inner{padding:6px 8px}.edgar-nav a{padding:10px 12px}.edgar-home .edgar-main{padding:20px 14px 40px}.edgar-home .edgar-card{min-height:auto;padding:17px}}
+
+.edgar-product-tools{position:relative}.edgar-product-tools summary{cursor:pointer;padding:10px 14px;border:1px solid #d9d2e7;border-radius:8px;background:#fff;font-weight:650;color:#44269b}.edgar-product-tools[open]>div{position:absolute;right:0;top:100%;min-width:230px;z-index:35;display:grid;gap:6px;background:white;border:1px solid #ded7ea;border-radius:9px;padding:10px;box-shadow:0 5px 14px #0002}.edgar-product-tools[open]>div>*{text-align:left;white-space:normal}.edgar-admin-link{margin-top:24px;padding-top:16px;border-top:1px solid #e1dcec;font-size:14px}.edgar-admin-link a{color:#44269b;text-decoration:underline;font-weight:600}
