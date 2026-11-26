@@ -11,7 +11,7 @@ test("Ventas integra los clientes, las acciones por compra y la facturación sin
  for(const p of ["ventas/index.html","edgar/ventas/index.html"]){
   const html=read(p);
   for(const id of ["saleCustomerSearch","saleCustomerDialog","saveWhatsapp","saveInvoice","saleReceiptImage","saleFiscalForm"])assert.ok(html.includes('id="'+id+'"'),id);
-  assert.doesNotMatch(html,/>Facturación<\/a>/);
+  assert.match(html,/>Facturas<\/a>/);
  }
  assert.match(js,/edgar_sale_save/);assert.match(js,/edgar_sale_statuses/);
  assert.match(comm,/edgar_sale_detail/);assert.match(comm,/edgar_sale_invoice_draft/);
