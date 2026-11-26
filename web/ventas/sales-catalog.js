@@ -68,7 +68,8 @@ const V = scope.NICOLE_VIEW;
       const nq=compact(words.join(" ")), nn=compact(name.split(" ").filter(w=>!["de","del","la","el","los","las"].includes(w)).join(" "));
       const requestedNumbers=words.filter(w=>/^\d/.test(w));
       if(requestedNumbers.some(w=>!tokens.some(t=>t===w||t.startsWith(w)&&!/^\d+$/.test(w))))return {card,score:0};
-      let score=name===q?100:name.startsWith(q)?65:name.includes(q)?45:nn===nq?80:nn.startsWith(nq)?60:nn.includes(nq)?40:0;
+      const fullName=compact(name),fullQuery=compact(q);
+      let score=name===q?100:name.startsWith(q)?65:name.includes(q)?45:nn===nq||fullName===fullQuery?80:nn.startsWith(nq)||fullName.startsWith(fullQuery)?60:nn.includes(nq)||fullName.includes(fullQuery)?40:0;
       if(!score){
         let sum=0;
         for(const w of words){
