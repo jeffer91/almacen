@@ -22,7 +22,7 @@ test("Edgar: no se simula la funcionalidad pendiente",()=>{
 });
 test("Edgar: se conserva el catálogo editable y el registro de ventas",()=>{
  const products=fs.readFileSync(path.join(web,"edgar/productos/index.html"),"utf8");
- assert.match(products,/id="price-editor"/);assert.match(products,/id="new-product-form"/);assert.match(products,/edgar\/access\.js/);
+ assert.match(products,/id="price-editor"/);assert.match(products,/id="new-product-form"/);assert.doesNotMatch(products,/edgar\/access\.js/);assert.match(products,/edgar\/auth\.js/);
  const prices=fs.readFileSync(path.join(web,"edgar/precios/index.html"),"utf8");assert.doesNotMatch(prices,/id="price-editor"/);
  const sales=fs.readFileSync(path.join(web,"ventas/index.html"),"utf8");assert.match(sales,/id="saleForm"/);assert.match(sales,/sales\.js/);
 });
