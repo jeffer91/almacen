@@ -91,6 +91,48 @@ const V = scope.NICOLE_VIEW;
       return {card,score};
     }).filter(x=>x.score>0).sort((a,b)=>b.score-a.score||Number(Boolean(a.card.excel))-Number(Boolean(b.card.excel))||a.card.name.localeCompare(b.card.name,"es",{numeric:true})).slice(0,limit).map(x=>x.card);
   }
+  // Search product names first; do not rank by supplier, category or packaging.
+  function directRank(cards,query,limit=40){
+    const clean=x=>V.normalize(x).replace(/[^a-z0-9]+/g," ").trim();
+    const ignored=new Set(["de","del","la","el","los","las"]);
+    const words=x=>clean(x).split(" ").filter(w=>w&&!ignored.has(w));
+    const original=words(query);
+    const expanded=/^pon(?:\s+\d|$)/.test(clean(query))?clean(query).replace(/^pon\b/,"pompon"):canonical(query);
+    const q=words(expanded);
+    if(!q.length)return [];
+    const normalized=cards.map(card=>({...card,haystack:[card.name,card.smart?.canonical_name||""].join(" "),originalCard:card}));
+    const ranked=rank(normalized,expanded,normalized.length);
+    const scored=ranked.map((c,index)=>{
+      const names=[words(c.name),words(canonical(c.name)),words(c.smart?.canonical_name||"")];
+      let score=0,errors=Infinity;
+      for(const ns of names)for(const qs of [q,original]){
+        if(!qs.length||!ns.length)continue;
+        const n=ns.join(" "),term=qs.join(" "),joined=ns.join(""),queryJoined=qs.join("");
+        if(n===term||joined===queryJoined)score=Math.max(score,100);
+        else if(n.startsWith(term)||joined.startsWith(queryJoined))score=Math.max(score,80);
+        else if(qs.every(w=>ns.some(t=>t.startsWith(w))))score=Math.max(score,60);
+        else if(qs.every(w=>ns.some(t=>t.includes(w))))score=Math.max(score,40);
+        let penalty=0;
+        for(const w of qs){
+          const d=Math.min(...ns.map(t=>t.startsWith(w)?0:w.length>=4&&!/^\d/.test(w)&&!/^\d/.test(t)?Math.min(distance(w,t),distance(w,t.slice(0,w.length)),w.endsWith("s")?distance(w.slice(0,-1),t):Infinity):Infinity));
+          penalty+=d<=(w.length>=6?2:1)?d:Infinity;
+        }
+        errors=Math.min(errors,penalty);
+      }
+      return {card:c.originalCard,score,errors,index};
+    });
+    const best=Math.max(0,...scored.map(x=>x.score));
+    let matches=scored;
+    if(best>=60)matches=scored.filter(x=>x.score>=60);
+    else if(best>=40)matches=scored.filter(x=>x.score>=40);
+    else {
+      if(q.join("").length<=3)return [];
+      const min=Math.min(...scored.map(x=>x.errors));
+      matches=Number.isFinite(min)?scored.filter(x=>x.errors===min):[];
+    }
+    if(original.length===1&&original[0].length<=3&&best>=80)matches=matches.filter(x=>x.score>=80);
+    return matches.sort((a,b)=>b.score-a.score||a.errors-b.errors||a.index-b.index).slice(0,limit).map(x=>x.card);
+  }
   function excelCards(sheets,rows){
     const meta=new Map(sheets.map(s=>[s.sheet_name,s]));
     const cards=[];
@@ -201,5 +243,5 @@ const V = scope.NICOLE_VIEW;
   function facetValues(choices,key){
     return [...new Set(choices.map(c=>c[key]))].sort((a,b)=>a.localeCompare(b,"es",{numeric:true}));
   }
-  scope.NICOLE_SALES_CATALOG = {build,rank,excelCards,canonical,smartCards,organize,saleChoices,filterChoices,facetValues,packageCost,productKey};
+  scope.NICOLE_SALES_CATALOG = {build,rank,directRank,excelCards,canonical,smartCards,organize,saleChoices,filterChoices,facetValues,packageCost,productKey};
 })(window);
