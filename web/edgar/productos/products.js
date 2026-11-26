@@ -112,7 +112,7 @@
     if (!state.data) render();
     try {
       const [catalog, variants] = await Promise.allSettled([call("catalog"),
-        rpc("family_option_list", { device: editor ? String(window.EDGAR_EDIT_DEVICE || "") : "" })]);
+        rpc("family_option_list", { device: editor ? String(window.NICOLE_EDGAR_SESSION?.getToken() || "") : "" })]);
       if (variants.status === "rejected") throw variants.reason;
       options = variants.value;
       store.set("nicole-option-cache", JSON.stringify({ ...options, suppliers: null }));
@@ -285,7 +285,7 @@
     state.saving = true; render();
     try {
       await call("uploadPhoto", { product_id: state.photoFor, by, mime: "image/jpeg",
-        color_label: String(data.get("color") || "").trim(), data: await toBase64(state.draft.blob) });
+        color_label: String(data.get("color") || "").trim(), data: await toBase64(state.draft.blob) }, String(window.NICOLE_EDGAR_SESSION?.getToken() || ""));
       closeDraft(); toast("¡Foto guardada! Gracias.");
       await load();
     } catch (error) {
@@ -342,10 +342,10 @@
             (other.supplier || "").trim().toLowerCase() === entry.supplier.toLowerCase())) throw Error("Ya existe esta combinación de presentación y proveedor.");
         const canonical = !adding && !current.optionId && /^[0-9a-f-]{36}$/i.test(current.id || "") && current.updated_at;
         if (canonical) {
-          await rpc("family_edgar_update_presentation", { device: String(window.EDGAR_EDIT_DEVICE || ""),
+          await rpc("family_edgar_update_presentation", { device: String(window.NICOLE_EDGAR_SESSION?.getToken() || ""),
             entry: { ...entry, presentation_id: current.id, updated_at: current.updated_at } });
         } else {
-          await rpc("family_save_option", { device: String(window.EDGAR_EDIT_DEVICE || ""), entry });
+          await rpc("family_save_option", { device: String(window.NICOLE_EDGAR_SESSION?.getToken() || ""), entry });
         }
         editor.close();
         await load();
@@ -396,7 +396,7 @@
         }
         const supplier = options.suppliers.find(n => V.normalize(n) === V.normalize(entry.supplier));
         if (supplier) entry.supplier = supplier;
-        await rpc("family_edgar_add_product", { device: String(window.EDGAR_EDIT_DEVICE || ""), entry });
+        await rpc("family_edgar_add_product", { device: String(window.NICOLE_EDGAR_SESSION?.getToken() || ""), entry });
         productEditor.close();
         state.query = entry.product;
         state.category = "";
@@ -433,7 +433,7 @@
       const target=apiUrl.replace(/\/catalog-api$/,"/sync-sheets");
       if(target===apiUrl) throw Error("No está configurada la dirección de sincronización.");
       const response=await fetch(target,{method:"POST",headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({device:String(window.EDGAR_EDIT_DEVICE||"")}),cache:"no-store"});
+        body:JSON.stringify({p_token:String(window.NICOLE_EDGAR_SESSION?.getToken() || "")}),cache:"no-store"});
       const result=await response.json().catch(()=>({}));
       if(!response.ok || !result.ok) {
         if(result.code==="GOOGLE_NOT_CONNECTED" || result.needs_setup) {
@@ -517,7 +517,7 @@
       case "skip": state.skipped.push(id); render(); break;
       case "hidePending": state.hidePending = true; store.session(HIDE, "1"); render(); break;
       case "showPending": state.hidePending = false; store.session(HIDE, "0"); render(); break;
-      case "photo": state.photoFor = id; picker.click(); break;
+      case "photo": if(!window.NICOLE_EDGAR_SESSION?.getToken()){location.href="./edgar/productos/";break;} state.photoFor = id; picker.click(); break;
       case "cancel": closeDraft(); render(); break;
       case "who-reset": store.set(WHO, ""); render(); break;
       case "view": state.viewer = id; render(); break;
