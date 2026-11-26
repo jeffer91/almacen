@@ -220,8 +220,8 @@
       const button=document.createElement("button");button.type="button";
       const title=document.createElement("strong");title.textContent=displayName(c);
       const info=document.createElement("small");
-      const item=c.items[0],prices=c.items.map(i=>i.gross??i.referencePrice??i.meterPrice??i.wholesale).filter(validPrice).map(Number);
-      info.textContent=[item?.label,prices.length?unitMoney(Math.min(...prices)):"Sin precio"].filter(Boolean).join(" · ");
+      const item=c.items[0],price=item?.gross??item?.referencePrice??item?.meterPrice??item?.wholesale;
+      info.textContent=[item?.label,validPrice(price)?unitMoney(price):"Sin precio",c.items.length>1?"Más presentaciones":""].filter(Boolean).join(" · ");
       button.append(title,info);
       if(c.smart?.conflict||c.smart?.needs_review){const warning=document.createElement("small");warning.className="smart-warning";warning.textContent=c.smart.conflict?"Tarifas por verificar":"Datos por verificar";button.append(warning);}
       button.addEventListener("click",()=>{if((c.smart?.conflict||c.smart?.needs_review)&&!confirm("Los datos de este producto necesitan revisión. Verifica el costo, el precio y la unidad antes de vender. ¿Continuar?"))return;row.selectedCard=c;row.reviewConfirmed=c;input.value=displayName(c);box.hidden=true;matchProduct(row);input.focus();});
