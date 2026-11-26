@@ -188,6 +188,7 @@
     if(validPrice(item.gross))mode.value="gross";
     else if(validPrice(item.meterPrice))mode.value="meterPrice";
     else if(validPrice(item.wholesale))mode.value="wholesale";
+    else if(validPrice(item.referencePrice))mode.value="referencePrice";
     choosePrice(row);
   }
   function choosePrice(row) {
