@@ -441,7 +441,7 @@ Deno.serve(async (request: Request) => {
           new Date(day + "T00:00:00Z").toISOString().slice(0, 10) !== day)
         return fail("Fecha inválida");
       const { data, error } = await db.from("family_daily_sales")
-        .select("id,sale_date,product_name,presentation_label,quantity,unit,unit_price,total,payment_method,notes,created_at")
+        .select("id,sale_id,sale_date,product_name,presentation_label,quantity,unit,unit_price,total,payment_method,notes,created_at")
         .eq("sale_date", day).is("voided_at", null)
         .order("created_at", { ascending: false }).limit(1000);
       if (error) throw error;
