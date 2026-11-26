@@ -1,4 +1,4 @@
-/* Nicole Encajes · ventas diarias. Acceso público sin PIN. */
+/* Nicole Encajes · ventas diarias. Sesión comercial validada. */
 "use strict";
 (() => {
   const $ = (id) => document.getElementById(id);
@@ -19,12 +19,14 @@
   async function api(action, fields = {}) {
     if (!url) throw new Error("La aplicación no está conectada a Supabase");
     const headers = { "content-type": "application/json" };
+    if(action!=="catalog"){const token=window.NICOLE_EDGAR_SESSION?.getToken();if(!token)throw Error("Inicia sesión en el panel comercial");headers["x-almacen-key"]=token;}
     const res = await fetch(url, {
       method: "POST", headers, cache: "no-store",
       body: JSON.stringify({ action, ...fields })
     });
     const body = await res.json().catch(() => ({}));
     if (!res.ok || !body.ok) {
+      if(res.status===401&&action!=="catalog")throw Error("Sesión vencida. Recarga la página e inicia sesión nuevamente.");
       throw new Error(body.error || "No se pudo contactar a Supabase");
     }
     return body;
@@ -61,7 +63,7 @@
     row.addEventListener("focusout",e=>{if(!row.contains(e.relatedTarget))row.querySelector(".product-matches").hidden=true;});
     row.querySelector(".variant").addEventListener("change",()=>chooseVariant(row));
     row.querySelector(".price-mode").addEventListener("change",()=>choosePrice(row));
-    row.querySelector(".unit").addEventListener("change",()=>{const expected=row.expectedUnit;row.comparableCost=expected&&expected!==row.querySelector(".unit").value?null:row.baseComparableCost;renderCost(row);updatePreview();});
+    row.querySelector(".unit").addEventListener("change",()=>{const expected=row.expectedUnit;const changed=expected&&expected!==row.querySelector(".unit").value;row.comparableCost=changed?null:row.baseComparableCost;if(changed){row.querySelector(".price").value="";row.querySelector(".price-mode").value="";setMessage("saleMessage","Cambiaste la unidad. Ingresa el precio correspondiente a esa unidad.");}renderCost(row);updatePreview();});
     row.querySelector(".remove-line").addEventListener("click",()=>{if(saving||retryPayload)return;row.remove();if(!rows().length)addLine();updatePreview();});
     updatePreview();
     return row;
@@ -136,7 +138,7 @@
   function matchProduct(row) {
     const q=normalize(row.querySelector(".product").value);
     const matches=catalog.filter(c=>normalize(displayName(c))===q || normalize(c.name)===q);
-    const card=row.selectedCard||(matches.length===1&&!matches[0].smart?.conflict?matches[0]:null);
+    const card=row.selectedCard||(matches.length===1&&!matches[0].smart?.conflict&&!matches[0].smart?.needs_review?matches[0]:null);
     if(row.catalogCard===card)return;
     row.catalogCard=card;row.catalogItem=null;
     const variant=row.querySelector(".variant"),mode=row.querySelector(".price-mode"),price=row.querySelector(".price");
@@ -189,7 +191,7 @@
         info.textContent=[smart?.variety,smart?.provider&&smart.provider!=="Sin especificar"?smart.provider:"",c.items[0]?.label,Number.isFinite(price)?unitMoney(price):"Sin precio",Number.isFinite(cost)?"Costo "+unitMoney(cost):"Sin costo"].filter(Boolean).join(" · ");
         button.append(title,info);
         if(smart?.conflict||smart?.needs_review){const warning=document.createElement("small");warning.className="smart-warning";warning.textContent=smart.conflict?"Varias tarifas: comprobar antes de vender":"Datos por verificar";button.append(warning);}
-        button.addEventListener("click",()=>{if(c.smart?.conflict&&!confirm("Hay otro registro similar con distinto costo o precio. ¿Usar esta opción en esta venta?"))return;row.selectedCard=c;input.value=displayName(c);box.hidden=true;matchProduct(row);input.focus();});
+        button.addEventListener("click",()=>{if((c.smart?.conflict||c.smart?.needs_review)&&!confirm("Los datos de este producto necesitan revisión. Verifica el costo, el precio y la unidad antes de vender. ¿Continuar?"))return;row.selectedCard=c;input.value=displayName(c);box.hidden=true;matchProduct(row);input.focus();});
         results.append(button);
       }
     }
@@ -258,6 +260,7 @@
     else if(key==="wholesale"||key==="referencePrice")comparable=null;
     const shown=validPrice(comparable)?comparable:item.cost;
     setCost(row,shown,comparable,unit.value);
+    if(row.catalogCard?.excel&&(!item.saleUnit||item.saleUnit==="otro")){price.value="";row.querySelector(".price-mode").value="";setMessage("saleMessage","Unidad de tarifa por confirmar. Selecciona la unidad e ingresa el precio correcto.");}
     updatePreview();
   }
   async function loadProductNames() {
@@ -309,7 +312,7 @@
   }
   $("saleDate").value = localDate();
   $("saleForm").addEventListener("input", updatePreview);
-  $("addLine").addEventListener("click",()=>{if(!saving&&!retryPayload)addLine().querySelector(".product").focus();});
+  $("addLine").addEventListener("click",()=>{if(!saving&&!retryPayload){if(rows().length>=100){setMessage("saleMessage","Máximo 100 productos por venta.");return;}addLine().querySelector(".product").focus();}});
   function lockDraft(lock) {
     for(const field of $("saleForm").querySelectorAll("input,select,button")) field.disabled=lock;
     $("saleDate").disabled=lock;
@@ -321,6 +324,8 @@
     if(!retryPayload){
       const alias=$("customerAlias").value.trim();
       if(!alias){setMessage("saleMessage","Indica una referencia de cliente.");return;}
+      if(rows().some(row=>row.catalogCard&&!row.catalogItem)){setMessage("saleMessage","Selecciona la presentación de cada producto.");return;}
+      if(rows().some(row=>!validPrice(row.comparableCost))&&!confirm("Hay productos sin costo comparable. Verifica sus precios y unidades. ¿Guardar de todos modos?"))return;
       if(rows().some(row=>row.classList.contains("below-cost"))&&!confirm("Hay productos con precio de venta menor al costo neto registrado. ¿Guardar de todos modos?"))return;
       retryPayload=rows().map(row=>({
         sale_date:$("saleDate").value,product_name:row.querySelector(".product").value.trim(),
@@ -332,7 +337,7 @@
     }
     saving=true;lockDraft(true);setMessage("saleMessage","Guardando venta…",true);
     try{
-      for(const line of retryPayload) await api("addSale",line);
+      await api("addSalesBatch",{rows:retryPayload});
       retryPayload=null;batch=crypto.randomUUID();$("customerAlias").value="";$("entryRows").replaceChildren();addLine();
       setMessage("saleMessage","Venta del cliente registrada.",true);
       await loadSales();
