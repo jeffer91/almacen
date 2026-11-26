@@ -331,6 +331,28 @@ Deno.serve(async (request: Request) => {
   try {
     if (action === "catalog") return await publicCatalog();
     if (action === "bootstrap") return await bootstrap(role);
+    if (action === "smartCorrect") {
+      if (authenticatedRole !== "jefferson") return fail("Solo administración puede corregir clasificaciones",403);
+      const sourceId=txt(body.source_id,250);
+      const {data:current,error:readError}=await db.from("family_smart_catalog").select("source_id,category,variety,provider,canonical_name").eq("source_id",sourceId).maybeSingle();
+      if(readError)throw readError;
+      if(!current)return fail("Producto no encontrado",404);
+      const category=txt(body.category,100),variety=txt(body.variety,100),provider=txt(body.provider,100),canonical=txt(body.canonical_name,180);
+      if(!category||!variety||!provider||!canonical)return fail("Completa los atributos de clasificación");
+      const {data:known,error:catError}=await db.from("family_categories").select("name").eq("name",category).maybeSingle();
+      if(catError)throw catError;
+      if(!known&&category!==current.category)return fail("Selecciona una categoría existente");
+      const {error}=await db.from("family_smart_overrides").upsert({source_id:sourceId,category,variety,provider,canonical_name:canonical,updated_at:new Date().toISOString()});
+      if(error)throw error;
+      await audit(role,action,sourceId,{category,variety,provider,canonical_name:canonical});
+      return response({ok:true});
+    }
+    if (action === "smartCategories") {
+      if(authenticatedRole!=="jefferson")return fail("Solo administración",403);
+      const {data,error}=await db.from("family_categories").select("name").order("name");
+      if(error)throw error;
+      return response({ok:true,categories:(data||[]).map(x=>x.name)});
+    }
     if (["sheetStatus","sheetSearch","sheetProductGroups","sheetProductDetails","refreshSheetStagingManual","refreshSheetStaging","readSheetChanges","configureSheetBridge","probeSheetBridge"].includes(action)) {
       if (authenticatedRole !== "jefferson") return fail("Solo administración puede sincronizar Google Sheets",403);
       if(action==="sheetStatus")return await sheetStatus();
