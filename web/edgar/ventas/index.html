@@ -5,19 +5,19 @@
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob: https://*.supabase.co; connect-src 'self' https://*.supabase.co; object-src 'none'; base-uri 'self'; form-action 'self'">
 <base href="../../"><title>Nicole Encajes · Ventas del día</title>
 <link rel="icon" href="./assets/nicole-icon.svg" type="image/svg+xml">
-<link rel="stylesheet" href="./ventas/sales.css?v=20261126-tabla"><link rel="stylesheet" href="./edgar/panel.css?v=1"><link rel="stylesheet" href="./edgar/auth.css?v=3"></head>
-<body><div id="edgar-login" class="edgar-login"><section class="edgar-login-card"><img src="./assets/nicole-icon.svg" width="56" height="56" alt=""><h1>Nicole Encajes</h1><p>Ingresa el PIN del panel comercial. Recordaremos este navegador.</p><form id="edgar-pin-form" hidden><label for="edgar-pin">PIN de acceso</label><input id="edgar-pin" type="password" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" minlength="4" autocomplete="off" required><button id="edgar-enter" type="submit">Ingresar</button></form><p id="edgar-login-status" role="status" aria-live="polite">Verificando acceso…</p><noscript>Activa JavaScript para ingresar al panel.</noscript></section></div><div id="edgar-protected" hidden data-scripts="./ventas/sales.js?v=20261126-tabla"><nav class="edgar-nav" aria-label="Menú comercial de Edgar"><div class="edgar-nav-inner"><a href="./edgar/">Inicio</a><a href="./edgar/precios/">Precios</a><a href="./edgar/productos/">Productos</a><a href="./edgar/facturacion/">Facturación</a><a href="./edgar/clientes/">Clientes</a><a href="./edgar/pedidos/">Pedidos</a><a href="./edgar/ventas/" aria-current="page">Ventas</a></div></nav>
+<link rel="stylesheet" href="./ventas/sales.css?v=20261126-compacto"><link rel="stylesheet" href="./edgar/panel.css?v=1"><link rel="stylesheet" href="./edgar/auth.css?v=3"></head>
+<body><div id="edgar-login" class="edgar-login"><section class="edgar-login-card"><img src="./assets/nicole-icon.svg" width="56" height="56" alt=""><h1>Nicole Encajes</h1><p>Ingresa el PIN del panel comercial. Recordaremos este navegador.</p><form id="edgar-pin-form" hidden><label for="edgar-pin">PIN de acceso</label><input id="edgar-pin" type="password" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" minlength="4" autocomplete="off" required><button id="edgar-enter" type="submit">Ingresar</button></form><p id="edgar-login-status" role="status" aria-live="polite">Verificando acceso…</p><noscript>Activa JavaScript para ingresar al panel.</noscript></section></div><div id="edgar-protected" hidden data-scripts="./ventas/sales.js?v=20261126-compacto"><nav class="edgar-nav" aria-label="Menú comercial de Edgar"><div class="edgar-nav-inner"><a href="./edgar/">Inicio</a><a href="./edgar/precios/">Precios</a><a href="./edgar/productos/">Productos</a><a href="./edgar/facturacion/">Facturación</a><a href="./edgar/clientes/">Clientes</a><a href="./edgar/pedidos/">Pedidos</a><a href="./edgar/ventas/" aria-current="page">Ventas</a></div></nav>
 <header><a href="./edgar/precios/" class="back">← Lista de precios</a><a href="./administrador/" class="back">Administrador</a><a href="./sincronizar/" class="back">Respaldo / Sheets</a><div class="brand"><img src="./assets/nicole-icon.svg" width="36" height="36" alt=""><div><strong>Nicole Encajes</strong><small>Ventas del día</small></div></div></header>
 <main>
   <div id="salesSection">
     <div class="page-title"><div><h1>Ventas del día</h1><p>Registra cada artículo vendido. Puedes escribir productos que aún no estén en el catálogo.</p></div></div>
-    <section class="panel daybar">
+    <div class="sales-toolbar"><section class="panel daybar">
       <label for="saleDate">Fecha de la venta</label><input id="saleDate" type="date" required><button id="exportCsv" type="button" class="outline">Descargar Excel (CSV)</button>
     </section>
     <section class="stats">
       <div class="stat"><span>Total vendido</span><strong id="total">$0,00</strong></div>
       <div class="stat"><span>Registros del día</span><strong id="count">0</strong></div>
-    </section>
+    </section></div>
     <section class="panel">
       <h2>Nueva venta</h2>
       <form id="saleForm">
