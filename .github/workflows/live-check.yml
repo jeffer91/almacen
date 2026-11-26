@@ -32,10 +32,13 @@ jobs:
             grep -q 'url=../' /tmp/old.html
           done
           curl -fLsS --max-time 25 "$base/edgar/" -o /tmp/edgar.html
-          grep -q 'id="price-editor"' /tmp/edgar.html
-          grep -q 'edgar/access.js' /tmp/edgar.html
-          grep -q 'id="sheets-sync-dialog"' /tmp/edgar.html
-          grep -q 'sheets-backup-core.js' /tmp/edgar.html
+          grep -q 'id="edgar-protected" hidden' /tmp/edgar.html
+          grep -q 'edgar/productos/' /tmp/edgar.html
+          curl -fLsS --max-time 25 "$base/edgar/productos/" -o /tmp/products.html
+          grep -q 'id="price-editor"' /tmp/products.html
+          grep -q 'edgar/access.js' /tmp/products.html
+          grep -q 'id="sheets-sync-dialog"' /tmp/products.html
+          grep -q 'sheets-backup-core.js' /tmp/products.html
           curl -fLsS --max-time 25 "$base/sheets-backup-core.js" -o /tmp/sheet-backup.js
           grep -q 'NICOLE_SHEETS_BACKUP' /tmp/sheet-backup.js
           ! grep -q 'id="activation-editor"' /tmp/edgar.html
@@ -48,11 +51,15 @@ jobs:
           curl -fLsS --retry 3 --max-time 25 "$base/ventas/?v=20261124-publico-2" -o /tmp/ventas.html
           ! grep -q 'id="loginForm"' /tmp/ventas.html
           grep -q 'id="salesSection">' /tmp/ventas.html
-          grep -q 'sales.js?v=20261124-publico-2' /tmp/ventas.html
+          grep -q 'id="edgar-protected" hidden' /tmp/ventas.html
+          grep -q 'ventas/sales.js' /tmp/ventas.html
+          grep -q 'Costo neto' /tmp/ventas.html
+          curl -fLsS --max-time 25 "$base/catalogo-inteligente/" -o /tmp/smart.html
+          grep -q 'id="editor"' /tmp/smart.html
           curl -fLsS --retry 3 --max-time 25 "$base/sincronizar/?v=20261124-publico-2" -o /tmp/sync.html
           ! grep -q 'id="loginForm"' /tmp/sync.html
           grep -q 'id="syncSection">' /tmp/sync.html
-          grep -q 'sync.js?v=20261125-sync-4' /tmp/sync.html
+          grep -q 'sync.js?v=' /tmp/sync.html
           curl -fLsS --retry 3 --max-time 25 "$base/catalogo-excel/?v=20261124-publico-2" -o /tmp/excel.html
           ! grep -q 'id="login-form"' /tmp/excel.html
           grep -q 'id="catalog-content">' /tmp/excel.html
@@ -82,7 +89,8 @@ jobs:
           grep -q 'importExcel' /tmp/sync.js
           ! grep -q 'loginForm' /tmp/sync.js
           curl -fLsS --max-time 25 "$base/ventas/sales.js?v=20261124-publico-2" -o /tmp/sales.js
-          grep -q 'addSale' /tmp/sales.js
+          grep -q 'addSalesBatch' /tmp/sales.js
+          grep -q 'NICOLE_EDGAR_SESSION' /tmp/sales.js
           ! grep -q 'loginForm' /tmp/sales.js
           code=$(curl -sS -o /dev/null -w "%{http_code}" --max-time 25 "$base/jefferson/")
           test "$code" = "404"
@@ -101,15 +109,17 @@ jobs:
           if grep -q '"costs"\|"suppliers"\|storage_path\|supplier_id' /tmp/catalog; then echo "La lista pública expone datos internos"; exit 1; fi
           code=$(curl -sS -o /dev/null -w "%{http_code}" -X POST --max-time 25 -H "Content-Type: application/json" --data '{"action":"setPrice"}' "$url")
           test "$code" = "401"
-          for action in listSales exportSalesBackup syncSnapshot; do
+          for action in syncSnapshot; do
             payload=$(printf '{"action":"%s","sale_date":"2026-11-20"}' "$action")
             code=$(curl -sS -o /dev/null -w "%{http_code}" -X POST --max-time 25 -H "Content-Type: application/json" --data "$payload" "$url")
             test "$code" = "200"
           done
-          for action in bootstrap saveSettings archiveProduct sheetStatus sheetSearch sheetProductGroups sheetProductDetails refreshSheetStagingManual refreshSheetStaging readSheetChanges configureSheetBridge probeSheetBridge importExcel importPricesExcel; do
+          for action in listSales addSale addSalesBatch voidSale exportSalesBackup smartCorrect smartCategories bootstrap saveSettings archiveProduct sheetStatus sheetSearch sheetProductGroups sheetProductDetails refreshSheetStagingManual refreshSheetStaging readSheetChanges configureSheetBridge probeSheetBridge importExcel importPricesExcel; do
             code=$(curl -sS -o /dev/null -w "%{http_code}" -X POST --max-time 25 -H "Content-Type: application/json" --data "{\"action\":\"$action\"}" "$url")
             test "$code" = "401"
           done
           code=$(curl -sS -o /dev/null -w "%{http_code}" -X POST --max-time 25 -H "Content-Type: application/json" --data '{"action":"importCommercialExcel","mode":"products","rows":[]}' "$url")
           test "$code" = "401"
-          echo "Módulos públicos disponibles; administración completa protegida."
+          code=$(curl -sS -o /tmp/bridge-denied -w "%{http_code}" -X POST --max-time 25 -H "Content-Type: application/json" --data '{"action":"pushLiveSheets","secret":""}' "$url")
+          test "$code" = "403"
+          echo "Módulos públicos disponibles; ventas, importación y administración protegidas."
