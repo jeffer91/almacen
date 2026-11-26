@@ -7,21 +7,15 @@ const headers={"content-type":"application/json;charset=utf-8","cache-control":"
   "access-control-allow-origin":"https://jeffer91.github.io",
   "access-control-allow-methods":"POST,OPTIONS","access-control-allow-headers":"content-type"};
 const reply=(body:unknown,status=200)=>new Response(JSON.stringify(body),{headers,status});
-async function digest(v:string){
-  const bits=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(v));
-  return Array.from(new Uint8Array(bits),b=>b.toString(16).padStart(2,"0")).join("");
-}
 Deno.serve(async(request:Request)=>{
   if(request.method==="OPTIONS")return new Response(null,{status:204,headers});
   if(request.method!=="POST")return reply({ok:false,error:"Método no permitido"},405);
   try{
     const body=await request.json();
-    const device=String(body?.device||"");
-    if(!/^[0-9a-f]{64}$/.test(device))return reply({ok:false,error:"Acceso denegado"},403);
-    const {data:access,error:accessError}=await db.from("family_editor_keys").select("fingerprint")
-      .eq("fingerprint",await digest(device)).eq("invitation",false).maybeSingle();
-    if(accessError)throw accessError;
-    if(!access)return reply({ok:false,error:"Acceso denegado"},403);
+    const token=String(body?.p_token||"");
+    if(!/^[0-9a-f]{64}$/.test(token))return reply({ok:false,error:"Inicia sesión en el panel comercial"},401);
+    const {data:access,error:accessError}=await db.rpc("edgar_pin_validate",{p_token:token});
+    if(accessError||access!==true)return reply({ok:false,error:"Sesión comercial no válida"},401);
     const {data:bridge,error:bridgeError}=await db.from("family_sheet_bridge").select("webhook,secret").eq("id",1).maybeSingle();
     if(bridgeError)throw bridgeError;
     const webhook=bridge?.webhook||Deno.env.get("EDGAR_SHEETS_WEBHOOK_URL")||"";
@@ -33,7 +27,7 @@ Deno.serve(async(request:Request)=>{
     if(last?.at && Date.now()-Date.parse(last.at)<25000)
       return reply({ok:false,error:"Sincronización reciente. Revisa Google Sheets y vuelve a intentar después."},429);
     const resp=await fetch(webhook,{method:"POST",headers:{"content-type":"application/json"},
-      body:JSON.stringify({secret,device}),redirect:"follow",signal:AbortSignal.timeout(45000)});
+      body:JSON.stringify({secret,device:"0".repeat(64)}),redirect:"follow",signal:AbortSignal.timeout(45000)});
     const data=await resp.json().catch(()=>null);
     if(!resp.ok || !data?.ok || !Number.isInteger(data?.rows))
       return reply({ok:false,error:"Google Sheets no confirmó el respaldo. Supabase no se modificó."},502);
