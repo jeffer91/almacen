@@ -120,15 +120,46 @@ const V = scope.NICOLE_VIEW;
           const main=tariff==="PxM"||tariff==="PXM";
           const unitary=/^(unid|xm)$/i.test(tariff);
           const label=[qty,main?"":header].filter(Boolean).join(" · ")||"Presentación";
-          const saleUnit=main&&packCount>1?(/^u|^unid/.test(packUnit)?"paquete":/^(m|mts|metro)/.test(packUnit)?"rollo":"otro"):main&&packCount===1?(/^u/.test(packUnit)?"unidad":/^m/.test(packUnit)?"metro":"yarda"):/^unid$/i.test(tariff)?"unidad":/^xm$/i.test(tariff)?"metro":/^rollo$/i.test(tariff)?"rollo":"otro";
+          const saleUnit=main&&packCount>1?(/^u|^unid/.test(packUnit)?"paquete":/^(m|y)/.test(packUnit)?"rollo":"otro"):main&&packCount===1?(/^u/.test(packUnit)?"unidad":/^m/.test(packUnit)?"metro":"yarda"):/^unid$/i.test(tariff)?"unidad":/^xm$/i.test(tariff)?"metro":/^rollo$/i.test(tariff)?"rollo":"otro";
           // El costo neto de la fuente se conserva. No se convierte entre tarifas ambiguas.
-          items.push({label,referencePrice:val,cost,comparableCost:main&&packCount!==null?cost:null,saleUnit,sourceTariff:header,sourceRow:row.sheet_row,sourceSheet:row.sheet_name,sourceQuantity:qty});
+          items.push({label,referencePrice:val,cost,comparableCost:main&&packCount!==null?cost:null,saleUnit,sourceTariff:header,sourceRow:row.sheet_row,sourceSheet:row.sheet_name,sourceQuantity:qty,packInfo:packInfo(qty),packCostKnown:main&&packCount!==null&&packCount>0});
         }
         if(!items.length)items.push({label:qty||"Presentación",cost,comparableCost:null,sourceQuantity:qty,sourceSheet:row.sheet_name,sourceRow:row.sheet_row});
         cards.push({id:"excel-"+row.sheet_name+"-"+row.sheet_row+"-"+k,name:raw.trim(),brand:"",excel:true,items,haystack:[raw,row.sheet_name,qty].join(" ")});
       }
     }
     return cards;
+  }
+  // Only convert explicitly known package quantities. A yard is exactly 0.9144 m.
+  function packInfo(text){
+    const m=String(text||"").trim().match(/^(\d+(?:[.,]\d+)?)\s*(u\.?|unid(?:ades)?\.?|m\.?|mts\.?|metros?|y\.?|yd\.?|yardas?)$/i);
+    if(!m)return null;
+    const count=Number(m[1].replace(",",".")),unit=V.normalize(m[2]);
+    if(!(count>0))return null;
+    return {count,unit:/^u/.test(unit)?"unidad":/^m/.test(unit)?"metro":"yarda"};
+  }
+  function packageCost(item,unit){
+    if(!item||item.cost==null||!Number.isFinite(Number(item.cost)))return null;
+    const p=item.packInfo;
+    if(!p||!item.packCostKnown)return null;
+    const cost=Number(item.cost);
+    if(unit===item.saleUnit)return item.comparableCost==null?null:Number(item.comparableCost);
+    if(p.unit==="unidad"&&unit==="unidad")return cost/p.count;
+    if(p.unit==="unidad"&&unit==="paquete"&&p.count>1)return cost;
+    if(p.unit==="metro"||p.unit==="yarda"){
+      const metres=p.count*(p.unit==="yarda"?0.9144:1);
+      if(unit==="rollo"&&p.count>1)return cost;
+      if(unit==="metro")return cost/metres;
+      if(unit==="yarda")return cost/(metres/0.9144);
+    }
+    return null;
+  }
+  function productKey(card,item){
+    if(!card||!item)return null;
+    if(card.excel&&String(card.id).startsWith("excel-"))return "excel:"+card.id;
+    if(item.optionId)return "option:"+item.optionId;
+    if(item.id&&/^[0-9a-f-]{36}$/i.test(item.id))return "presentation:"+item.id;
+    return null;
   }
   function smartCards(records) {
     return records.filter(r=>r.source_kind==="excel").map(r=>{
@@ -138,7 +169,7 @@ const V = scope.NICOLE_VIEW;
       const items=(r.tariffs||[]).map(t=>{
         const raw=String(t.label), tariff=raw.replace(/[^a-z]/gi,""), main=tariff==="PxM"||tariff==="PXM";
         const saleUnit=main&&count>1?(/^u/.test(unit)?"paquete":/^(m|y)/.test(unit)?"rollo":"otro"):main&&count===1?(/^u/.test(unit)?"unidad":/^m/.test(unit)?"metro":"yarda"):/^unid$/i.test(tariff)?"unidad":/^xm$/i.test(tariff)?"metro":/^rollo$/i.test(tariff)?"rollo":/^docena$/i.test(tariff)?"paquete":"otro";
-        return {label:[qty,main?"":raw].filter(Boolean).join(" · ")||"Presentación",referencePrice:Number(t.value),cost,comparableCost:main&&count!==null?cost:null,saleUnit,sourceTariff:raw};
+        return {label:[qty,main?"":raw].filter(Boolean).join(" · ")||"Presentación",referencePrice:Number(t.value),cost,comparableCost:main&&count!==null?cost:null,saleUnit,sourceTariff:raw,packInfo:packInfo(qty),packCostKnown:main&&count!==null&&count>0};
       });
       if(!items.length)items.push({label:qty||"Presentación",cost,comparableCost:null});
       return {id:r.source_id,name:r.original_name,brand:"",excel:true,items,haystack:r.search_text,category:r.category,smart:r};
@@ -170,5 +201,5 @@ const V = scope.NICOLE_VIEW;
   function facetValues(choices,key){
     return [...new Set(choices.map(c=>c[key]))].sort((a,b)=>a.localeCompare(b,"es",{numeric:true}));
   }
-  scope.NICOLE_SALES_CATALOG = {build,rank,excelCards,canonical,smartCards,organize,saleChoices,filterChoices,facetValues};
+  scope.NICOLE_SALES_CATALOG = {build,rank,excelCards,canonical,smartCards,organize,saleChoices,filterChoices,facetValues,packageCost,productKey};
 })(window);
