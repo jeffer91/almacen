@@ -3,7 +3,7 @@
 (() => {
   const $ = (id) => document.getElementById(id);
   const url = String(window.ALMACEN_API_URL || "").replace(/\/$/, "");
-  let sales = [], catalog = [], catalogVersion = 0;
+  let sales = [], catalog = [], catalogVersion = 0, documentStatuses = {}, historyRevision=0;
   const money = (n) => new Intl.NumberFormat("es-EC", {
     style: "currency", currency: "USD", minimumFractionDigits: 2
   }).format(Number(n) || 0);
@@ -92,7 +92,7 @@
     for (const sale of sales) { const g=groupInfo(sale); if(!groups.has(g.key))groups.set(g.key,{label:g.label,items:[],id:sale.sale_id||null}); groups.get(g.key).items.push(sale); }
     for(const group of groups.values()){
       const heading=body.insertRow().insertCell();heading.colSpan=8;heading.className="group-heading";heading.textContent=group.label+" · "+money(group.items.reduce((n,x)=>n+Number(x.total||0),0));
-      if(group.id){const actions=document.createElement("span");actions.className="sale-group-actions";for(const [label,mode] of [["Imagen / WhatsApp","receipt"],["Factura (borrador)","invoice"]]){const b=document.createElement("button");b.type="button";b.textContent=label;b.onclick=()=>comm.show(group.id,mode).catch(e=>setMessage("listError",e.message));actions.append(b);}heading.append(actions);}
+      if(group.id){const actions=document.createElement("span");actions.className="sale-group-actions";const status=documentStatuses[group.id];const badge=document.createElement("small");badge.textContent=status?.draft_id?"Borrador fiscal creado":status?"Sin borrador fiscal":"Estado fiscal sin consultar";actions.append(badge);for(const [label,mode] of [[status?.has_phone?"Imagen / WhatsApp":"Imagen de compra","receipt"],[status?.draft_id?"Ver factura (borrador)":"Crear factura (borrador)","invoice"]]){const b=document.createElement("button");b.type="button";b.textContent=label;b.onclick=()=>comm.show(group.id,mode).catch(e=>setMessage("listError",e.message));actions.append(b);}heading.append(actions);}
       group.items.forEach((sale, index) => {
       const row = body.insertRow();
       row.insertCell().textContent = String(index + 1);
@@ -119,19 +119,21 @@
     $("history").append(table);
   }
   async function loadSales() {
-    const day = $("saleDate").value;
+    const day = $("saleDate").value, revision=++historyRevision;
     setMessage("listError", "");
     $("reload").disabled = true;
     try {
       const data = await api("listSales", { sale_date: day });
-      if ($("saleDate").value !== day) return;
+      if ($("saleDate").value !== day||revision!==historyRevision) return;
       sales = data.sales || [];
+      documentStatuses={};
       $("truncated").hidden = !data.truncated;
       renderSales();
+      try{const status=await comm.rpc("edgar_sale_statuses",{p_date:day});if(revision===historyRevision&&$("saleDate").value===day){documentStatuses=status||{};renderSales();}}catch(e){if(revision===historyRevision)setMessage("listError","Ventas disponibles; no se pudo consultar el estado fiscal: "+e.message);}
     } catch (error) {
-      setMessage("listError", error.message);
+      if(revision===historyRevision)setMessage("listError", error.message);
     } finally {
-      $("reload").disabled = false;
+      if(revision===historyRevision)$("reload").disabled = false;
     }
   }
   const normalize = x => window.NICOLE_VIEW.normalize(x);
@@ -415,7 +417,7 @@
       await loadSales();
     }finally{saving=false;lockDraft(Boolean(retryPayload));}
   });
-  $("saleDate").addEventListener("change",()=>{sales=[];renderSales();loadSales();});
+  $("saleDate").addEventListener("change",()=>{sales=[];documentStatuses={};renderSales();loadSales();});
   comm.init();
   addLine();
   $("reload").addEventListener("click", loadSales);
