@@ -7,6 +7,8 @@
   const money = (n) => new Intl.NumberFormat("es-EC", {
     style: "currency", currency: "USD", minimumFractionDigits: 2
   }).format(Number(n) || 0);
+  const unitMoney = n => new Intl.NumberFormat("es-EC",{style:"currency",currency:"USD",minimumFractionDigits:2,maximumFractionDigits:4}).format(Number(n));
+  const inputPrice = n => Number(n).toFixed(4).replace(/(\.\d{2})0+$/,"$1");
   const localDate = () => {
     const parts = new Intl.DateTimeFormat("en-US", {
       timeZone: "America/Guayaquil", year: "numeric", month: "2-digit", day: "2-digit"
@@ -41,13 +43,17 @@
       const amount = Math.round((Number(row.querySelector(".qty").value)*Number(row.querySelector(".price").value)+Number.EPSILON)*100)/100;
       row.querySelector(".line-total").textContent = money(amount);
       total += amount || 0;
+      const price=row.querySelector(".price"), warning=row.querySelector(".cost-warning");
+      const below=price.value!==""&&validPrice(row.comparableCost)&&Number(price.value)<Number(row.comparableCost);
+      row.classList.toggle("below-cost",below);warning.hidden=!below;
+      warning.textContent=below?"Menor al costo neto":"";
     });
     $("previewTotal").textContent = money(total);
   }
   function addLine() {
     const row = $("entryRows").insertRow();
     row.dataset.key = crypto.randomUUID();
-    row.innerHTML = '<td></td><td><input class="product" maxlength="180" required placeholder="Producto" aria-label="Producto" autocomplete="off"><div class="product-matches" hidden></div><input class="detail" maxlength="100" placeholder="Detalle opcional" aria-label="Detalle"><select class="variant" aria-label="Presentación" hidden></select></td><td><input class="qty" type="number" min="0.001" max="1000000" step="0.001" value="1" required aria-label="Cantidad"></td><td><select class="unit" aria-label="Unidad"><option value="unidad">Unidad</option><option value="metro">Metro</option><option value="rollo">Rollo</option><option value="yarda">Yarda</option><option value="paquete">Paquete</option><option value="otro">Otro</option></select></td><td><input class="price" type="number" min="0" max="1000000" step="0.0001" required placeholder="0.00" aria-label="Precio unitario"><select class="price-mode" aria-label="Tipo de precio" hidden></select></td><td class="line-total">$0,00</td><td><select class="payment" aria-label="Pago"><option value="sin_especificar">Sin especificar</option><option value="efectivo">Efectivo</option><option value="transferencia">Transferencia</option><option value="tarjeta">Tarjeta</option><option value="otro">Otro</option></select></td><td><button type="button" class="remove-line">Quitar</button></td>';
+    row.innerHTML = '<td></td><td><input class="product" maxlength="180" required placeholder="Producto" aria-label="Producto" autocomplete="off"><div class="product-matches" hidden></div><input class="detail" maxlength="100" placeholder="Detalle opcional" aria-label="Detalle"><select class="variant" aria-label="Presentación" hidden></select></td><td><input class="qty" type="number" min="0.001" max="1000000" step="0.001" value="1" required aria-label="Cantidad"></td><td><select class="unit" aria-label="Unidad"><option value="unidad">Unidad</option><option value="metro">Metro</option><option value="rollo">Rollo</option><option value="yarda">Yarda</option><option value="paquete">Paquete</option><option value="otro">Otro</option></select></td><td class="cost-cell"><span class="cost-value">—</span><small class="cost-basis" hidden></small></td><td><input class="price" type="number" min="0" max="1000000" step="0.0001" required placeholder="0.00" aria-label="Precio unitario"><select class="price-mode" aria-label="Tipo de precio" hidden></select><small class="cost-warning" role="status" hidden></small></td><td class="line-total">$0,00</td><td><select class="payment" aria-label="Pago"><option value="sin_especificar">Sin especificar</option><option value="efectivo">Efectivo</option><option value="transferencia">Transferencia</option><option value="tarjeta">Tarjeta</option><option value="otro">Otro</option></select></td><td><button type="button" class="remove-line">Quitar</button></td>';
     const product=row.querySelector(".product");
     product.addEventListener("input",()=>{row.selectedCard=null;matchProduct(row);suggest(row);});
     product.addEventListener("focus",()=>suggest(row));
@@ -55,6 +61,7 @@
     row.addEventListener("focusout",e=>{if(!row.contains(e.relatedTarget))row.querySelector(".product-matches").hidden=true;});
     row.querySelector(".variant").addEventListener("change",()=>chooseVariant(row));
     row.querySelector(".price-mode").addEventListener("change",()=>choosePrice(row));
+    row.querySelector(".unit").addEventListener("change",()=>{const expected=row.expectedUnit;row.comparableCost=expected&&expected!==row.querySelector(".unit").value?null:row.baseComparableCost;renderCost(row);updatePreview();});
     row.querySelector(".remove-line").addEventListener("click",()=>{if(saving||retryPayload)return;row.remove();if(!rows().length)addLine();updatePreview();});
     updatePreview();
     return row;
@@ -134,11 +141,12 @@
     row.catalogCard=card;row.catalogItem=null;
     const variant=row.querySelector(".variant"),mode=row.querySelector(".price-mode"),price=row.querySelector(".price");
     variant.replaceChildren();mode.replaceChildren();variant.hidden=true;mode.hidden=true;
-    price.value="";row.querySelector(".detail").value="";
+    price.value="";row.querySelector(".detail").value="";row.querySelector(".detail").hidden=false;row.querySelector(".detail").readOnly=false;setCost(row,null,null,null);
     if(!card||!card.items.length){updatePreview();return;}
+    row.querySelector(".detail").hidden=true;
     variant.hidden=false;option(variant,"Elegir presentación","");
     card.items.forEach((i,n)=>option(variant,[i.label,i.supplier].filter(Boolean).join(" · "),String(n)));
-    if(card.items.length===1){variant.value="0";chooseVariant(row);}
+    if(card.items.length===1){variant.value="0";chooseVariant(row);variant.hidden=true;row.querySelector(".detail").hidden=false;row.querySelector(".detail").readOnly=true;}
     else updatePreview();
   }
   function suggest(row) {
@@ -153,7 +161,7 @@
       const info=document.createElement("small");
       const prices=c.items.map(i=>i.gross??i.referencePrice??i.meterPrice??i.wholesale).filter(validPrice);
       const detail=c.items[0]?.label||"";
-      info.textContent=(c.excel?"Excel · referencia":"Catálogo comercial")+(detail?" · "+detail:"")+(prices.length?" · "+money(Math.min(...prices))+(prices.length>1?" desde":""):" · Sin precio confirmado");
+      info.textContent=(detail?detail+" · ":"")+(prices.length?unitMoney(Math.min(...prices))+(prices.length>1?" desde":""):"Sin precio")+(c.items.length===1&&validPrice(c.items[0].cost)?" · Costo "+unitMoney(c.items[0].cost):"");
       button.append(title,info);
       button.addEventListener("click",()=>{row.selectedCard=c;input.value=displayName(c);box.hidden=true;matchProduct(row);input.focus();});
       box.append(button);
@@ -179,26 +187,44 @@
     const item=variant.value===""?null:row.catalogCard?.items[Number(variant.value)];
     row.catalogItem=item;mode.replaceChildren();price.value="";mode.hidden=!item;
     row.querySelector(".detail").value=item?String(item.label||""):"";
-    if(!item){updatePreview();return;}
+    if(!item){setCost(row,null,null,null);updatePreview();return;}
     option(mode,"Precio manual","");
     for(const [key,label] of [["gross","Normal"],["meterPrice","Por metro"],["wholesale","Mayorista"]]){
-      if(validPrice(item[key]))option(mode,label+" · $"+Number(item[key]).toFixed(4).replace(/0{1,2}$/,""),key);
+      if(validPrice(item[key]))option(mode,label,key);
     }
-    if(!validPrice(item.gross)&&validPrice(item.referencePrice))option(mode,"Referencia (confirmar unidad) · $"+Number(item.referencePrice),"referencePrice");
+    if(!validPrice(item.gross)&&validPrice(item.referencePrice))option(mode,"Precio de lista","referencePrice");
     if(validPrice(item.gross))mode.value="gross";
     else if(validPrice(item.meterPrice))mode.value="meterPrice";
     else if(validPrice(item.wholesale))mode.value="wholesale";
     else if(validPrice(item.referencePrice))mode.value="referencePrice";
+    mode.hidden=mode.options.length<=2;
     choosePrice(row);
   }
+  function renderCost(row){
+    const value=row.querySelector(".cost-value"),basis=row.querySelector(".cost-basis");
+    value.textContent=validPrice(row.displayCost)?unitMoney(row.displayCost):"—";
+    const uncertain=validPrice(row.displayCost)&&!validPrice(row.comparableCost);
+    basis.hidden=!uncertain;basis.textContent=uncertain?"Base distinta o por confirmar":"";
+  }
+  function setCost(row,cost,comparable,unit){row.displayCost=cost;row.baseComparableCost=comparable;row.comparableCost=comparable;row.expectedUnit=unit;renderCost(row);}
   function choosePrice(row) {
     const key=row.querySelector(".price-mode").value,item=row.catalogItem,price=row.querySelector(".price");
-    if(!key||!item){price.value="";updatePreview();return;}
-    if(key==="referencePrice"&&!confirm("Precio de referencia: confirma que corresponde a la unidad que vendes.")){row.querySelector(".price-mode").value="";price.value="";updatePreview();return;}
-    price.value=Number(item[key]).toFixed(4);
-    const unit=row.querySelector(".unit");
-    if(key==="meterPrice")unit.value="metro";
-    else {const u=normalize(item.unit);unit.value=/^(m|metro|metros)$/.test(u)&&Number(item.quantity)===1?"metro":/^(yd|yarda|yardas)$/.test(u)&&Number(item.quantity)===1?"yarda":/rollo/.test(normalize(item.label))?"rollo":/paquete/.test(normalize(item.label))?"paquete":"unidad";}
+    if(!item){price.value="";setCost(row,null,null,null);updatePreview();return;}
+    if(key)price.value=inputPrice(item[key]);else price.value="";
+    const unit=row.querySelector(".unit"), u=normalize(item.unit), label=normalize(item.label);
+    if(item.saleUnit)unit.value=item.saleUnit;
+    else if(key==="meterPrice")unit.value="metro";
+    else if(/rollo/.test(label))unit.value="rollo";
+    else if(/paquete|docena/.test(label)||(/^(u|unidad|unidades)$/.test(u)&&Number(item.quantity)>1))unit.value="paquete";
+    else if(/^(m|metro|metros)$/.test(u))unit.value=Number(item.quantity)>1?"rollo":"metro";
+    else if(/^(yd|yarda|yardas)$/.test(u))unit.value=Number(item.quantity)>1?"rollo":"yarda";
+    else unit.value="unidad";
+    let comparable=item.cost;
+    if(row.catalogCard?.excel)comparable=item.comparableCost;
+    else if(key==="meterPrice")comparable=item.costMeter??null;
+    else if(key==="wholesale"||key==="referencePrice")comparable=null;
+    const shown=validPrice(comparable)?comparable:item.cost;
+    setCost(row,shown,comparable,unit.value);
     updatePreview();
   }
   async function loadProductNames() {
@@ -213,7 +239,7 @@
       if(excel.status==="fulfilled")catalog.push(...excel.value);
       const names=[...new Set(catalog.flatMap(c=>[displayName(c),normalize(displayName(c))]))].sort((a,b)=>a.localeCompare(b,"es"));
       const list=$("catalogSuggestions");list.replaceChildren();names.forEach(n=>option(list,n,n));
-      $("catalogStatus").textContent=commercialCount+" comerciales · "+(excel.status==="fulfilled"?excel.value.length+" referencias Excel":"Excel no disponible")+(extra.status==="fulfilled"?"":" · opciones adicionales no disponibles");
+      $("catalogStatus").textContent=commercialCount+" comerciales · "+(excel.status==="fulfilled"?excel.value.length+" productos adicionales":"Catálogo adicional no disponible")+(extra.status==="fulfilled"?"":" · opciones adicionales no disponibles");
       if(!saving&&!retryPayload)rows().forEach(row=>{if(row.querySelector(".product").value&&!row.querySelector(".price").value){matchProduct(row);if(document.activeElement===row.querySelector(".product"))suggest(row);}});
     } catch(error) {if(version===catalogVersion)$("catalogStatus").textContent="Catálogo no disponible: "+error.message+" · puedes registrar precios manualmente";}
   }
@@ -262,6 +288,7 @@
     if(!retryPayload){
       const alias=$("customerAlias").value.trim();
       if(!alias){setMessage("saleMessage","Indica una referencia de cliente.");return;}
+      if(rows().some(row=>row.classList.contains("below-cost"))&&!confirm("Hay productos con precio de venta menor al costo neto registrado. ¿Guardar de todos modos?"))return;
       retryPayload=rows().map(row=>({
         sale_date:$("saleDate").value,product_name:row.querySelector(".product").value.trim(),
         presentation_label:row.querySelector(".detail").value.trim(),quantity:Number(row.querySelector(".qty").value),
