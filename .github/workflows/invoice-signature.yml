@@ -27,3 +27,6 @@ jobs:
 
       - name: Test SRI SOAP protocol with synthetic replies only
         run: /tmp/nicole-lab/bin/python tests/test_sri_transport.py
+
+      - name: Test certificate preflight without real keys
+        run: /tmp/nicole-lab/bin/python tests/test_certificate_preflight.py
