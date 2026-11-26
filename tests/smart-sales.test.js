@@ -62,3 +62,16 @@ test("Colita de ratón: 100 yardas, costos comparables y código estable",()=>{
  const ambiguous=core.smartCards([{...record,tariffs:[{label:"pxm.",value:0.1}]}])[0].items[0];
  assert.equal(core.packageCost(ambiguous,"yarda"),null);
 });
+
+test("El buscador directo prioriza productos y no muestra coincidencias en metadatos",()=>{
+ const cards=[{name:"Pinzas Madera Mult - 2,5 cm",haystack:"pinzas pon",id:"pinzas"},{name:"Pon Pon 50 mm",id:"p50",smart:{canonical_name:"pompon 50 mm"}},{name:"Pon Pon 38 mm",id:"p38",smart:{canonical_name:"pompon 38 mm"}},{name:"Pompón 20 mm",id:"p20"},{name:"Esponja",id:"esp"},{name:"Colita de Ratón 1mm",id:"col"},{name:"Cinta Raso 4",id:"cinta"},{name:"Fleco 8 cm",id:"fleco"}];
+ assert.equal(core.directRank(cards,"pon").map(c=>c.id).sort().join(","),"p20,p38,p50");
+ assert.equal(core.directRank(cards,"pompn 50").map(c=>c.id).join(","),"p50");
+ assert.equal(core.directRank(cards,"sintas")[0].id,"cinta");
+ assert.equal(core.directRank(cards,"fleko")[0].id,"fleco");
+ assert.equal(core.directRank(cards,"colita raton")[0].id,"col");
+ const js=fs.readFileSync(path.join(root,"ventas/sales.js"),"utf8");
+ const suggest=js.slice(js.indexOf("  function suggest(row)"),js.indexOf("  async function excelReferences()"));
+ assert.match(suggest,/C\.directRank/);
+ assert.doesNotMatch(suggest,/smart-filters|family-choices|Elegir familia/);
+});
