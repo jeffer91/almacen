@@ -82,3 +82,23 @@ main{width:min(920px,100%);margin:0 auto;padding:20px 16px 70px}h1{font-size:28p
 #salesSection .smart-results{max-height:180px}
 #salesSection .product-matches{max-height:410px}
 #salesSection .entry-table .variant{font-size:11px}
+
+.sale-customer-picker{position:relative;flex:1;min-width:190px;max-width:320px}
+#saleCustomerResults{position:absolute;top:100%;left:0;right:0;z-index:15;background:white;border:1px solid #ccc4df;border-radius:6px;max-height:220px;overflow:auto;box-shadow:0 4px 12px #0002}
+#saleCustomerResults button{display:block;width:100%;text-align:left;padding:7px;background:#fff;color:#30215e;border:0;border-bottom:1px solid #eee;border-radius:0}
+#saleCustomerResults button:hover{background:#f0ecf7}
+#salesSection .customerbar #saleCustomerNew,#salesSection .customerbar #saleCustomerClear{margin:0}
+#saleCustomerPhone,#saleCustomerStatus{font-size:12px;color:#61566d}
+#salesSection .submitrow{flex-wrap:wrap}
+#salesSection .whatsapp,.sale-action-link.whatsapp{background:#168348;color:white;border-color:#168348}
+.sale-group-actions{display:inline-flex;gap:8px;flex-wrap:wrap;margin-left:15px}
+#salesSection .invoice-table .sale-group-actions button{color:#493092;font-weight:600;text-decoration:none;border:1px solid #cfc4e6;border-radius:4px;padding:4px 8px}
+.sale-modal{width:min(700px,94vw);max-height:90vh;overflow:auto;border:1px solid #d9d5e2;border-radius:10px;padding:20px;background:white;color:#30215e;box-sizing:border-box}
+.sale-modal::backdrop{background:#0006}
+.sale-modal-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.sale-modal label{display:block;margin:6px 0}.sale-modal input:not([type=checkbox]),.sale-modal select{width:100%;box-sizing:border-box}
+.sale-modal-actions{display:flex;gap:8px;justify-content:flex-end;align-items:center;flex-wrap:wrap;margin-top:10px}
+.sale-action-link{background:#5633bd;color:white;padding:9px 13px;border-radius:6px;text-decoration:none;font-weight:600}
+.sale-receipt-image{display:block;max-width:100%;max-height:55vh;object-fit:contain;margin:auto}
+.sale-modal [hidden]{display:none!important}.sale-modal .invoice-table{min-width:440px}.sale-modal .invoice-table td{white-space:normal}.sale-confirm{display:flex!important;gap:8px;align-items:center}
+@media(max-width:580px){.sale-modal-grid{grid-template-columns:1fr}}
