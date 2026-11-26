@@ -36,14 +36,14 @@ jobs:
           grep -q 'edgar/productos/' /tmp/edgar.html
           curl -fLsS --max-time 25 "$base/edgar/productos/" -o /tmp/products.html
           grep -q 'id="price-editor"' /tmp/products.html
-          grep -q 'edgar/access.js' /tmp/products.html
+          ! grep -q 'edgar/access.js' /tmp/products.html
           grep -q 'id="sheets-sync-dialog"' /tmp/products.html
           grep -q 'sheets-backup-core.js' /tmp/products.html
           curl -fLsS --max-time 25 "$base/sheets-backup-core.js" -o /tmp/sheet-backup.js
           grep -q 'NICOLE_SHEETS_BACKUP' /tmp/sheet-backup.js
           ! grep -q 'id="activation-editor"' /tmp/edgar.html
           curl -fLsS --max-time 25 "$base/edgar/access.js" -o /tmp/edgar-access.js
-          grep -q 'EDGAR_EDIT_DEVICE' /tmp/edgar-access.js
+          ! grep -Eq 'EDGAR_EDIT_DEVICE|[a-f0-9]{64}' /tmp/edgar-access.js
           curl -fLsS --max-time 25 "$base/viewer.js" -o /tmp/viewer.js
           grep -q 'class="v-pencil"' /tmp/viewer.js
           grep -q 'legacy_references' /tmp/viewer.js
@@ -123,7 +123,7 @@ jobs:
             code=$(curl -sS -o /dev/null -w "%{http_code}" -X POST --max-time 25 -H "Content-Type: application/json" --data "$payload" "$url")
             test "$code" = "200"
           done
-          for action in listSales addSale addSalesBatch voidSale exportSalesBackup smartCorrect smartCategories bootstrap saveSettings archiveProduct sheetStatus sheetSearch sheetProductGroups sheetProductDetails refreshSheetStagingManual refreshSheetStaging readSheetChanges configureSheetBridge probeSheetBridge importExcel importPricesExcel; do
+          for action in uploadPhoto listSales addSale addSalesBatch voidSale exportSalesBackup smartCorrect smartCategories bootstrap saveSettings archiveProduct sheetStatus sheetSearch sheetProductGroups sheetProductDetails refreshSheetStagingManual refreshSheetStaging readSheetChanges configureSheetBridge probeSheetBridge importExcel importPricesExcel; do
             code=$(curl -sS -o /dev/null -w "%{http_code}" -X POST --max-time 25 -H "Content-Type: application/json" --data "{\"action\":\"$action\"}" "$url")
             test "$code" = "401"
           done
