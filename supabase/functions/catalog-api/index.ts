@@ -404,7 +404,7 @@ Deno.serve(async (request: Request) => {
       return response({ ok: true, products, presentations, prices, settings: { iva_rate } });
     }
     if (action === "exportSalesBackup") {
-      if (role !== "jefferson" && !edgarSales) return fail("Solo administración puede respaldar ventas", 403);
+      if (role !== "jefferson") return fail("Solo administración puede respaldar ventas", 403);
       const sales = await listAll("family_daily_sales",
         "id,sale_date,product_name,presentation_label,quantity,unit,unit_price,total,payment_method,notes,created_at,voided_at");
       return response({ ok: true, sales, server_time: new Date().toISOString() });
