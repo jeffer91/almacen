@@ -99,3 +99,16 @@ La función `sync-sheets` verifica la existencia del dispositivo Edgar, pero **e
 4. En /sincronizar/#google-bridge, pega ambos datos en el formulario y pulsa Autorizar y comprobar conexión. Ingresa el PIN administrativo en el diálogo de Almacén. El servidor comprueba el ID de la hoja y su acceso antes de guardar la configuración privada en Supabase. No se requiere introducir secretos en el chat ni en el panel de Supabase.
 5. Usa Sincronizar desde Google Sheets y verifica el resultado; el mismo puente sirve para el respaldo de Edgar. No se modifican automáticamente precios oficiales.
 6. La aplicación consulta las 92 referencias que antes residían en sheet-catalog.json desde Supabase; el archivo queda como archivo histórico, no como fuente operativa. La navegación Referencias de precios abre la consulta privada de las 40 categorías y las filas sincronizadas, separada de la lista comercial.
+
+
+## Importación automática del catálogo XLS_
+
+El script `integrations/google-apps-script/Code.gs` incluye `importarPreciosAlmacen` y `activarImportacion`. La hoja permanece privada.
+
+1. En el Google Sheets maestro, abre **Extensiones > Apps Script** y actualiza el archivo con Code.gs del repositorio.
+2. Guarda e implementa una versión como aplicación web, ejecutada como propietario. Conserva los permisos privados de la hoja.
+3. Ejecuta `prepararConexion` desde la hoja para obtener la URL de la implementación /exec y el secreto privado. Configúralos en Almacén > Sincronización > Google bridge con PIN de administración. No compartas el secreto.
+4. Ejecuta `activarImportacion` desde el menú Almacén de Google Sheets y concede permisos a Google. El script realiza primero una importación verificada y solo después instala el activador de 15 minutos.
+5. Comprueba el historial de ejecuciones de Apps Script. Supabase registra la última importación correcta en `family_live_sync_status` aunque no existan cambios.
+
+No cambies los encabezados ni los identificadores de las filas originales. Las cargas incompletas, duplicadas o con encabezados incompatibles se rechazan completas; no se borran filas ni se modifican los precios oficiales. Los registros ambiguos requieren confirmación comercial. Las hojas PRODUCTOS, PRESENTACIONES y PRECIOS_LOTE no se sobrescriben por este proceso.
