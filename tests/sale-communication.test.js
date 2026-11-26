@@ -20,3 +20,17 @@ test("Ventas integra los clientes, las acciones por compra y la facturación sin
  assert.doesNotMatch(image,/\.cost\b|\.provider\b|\.profit\b/);
  assert.match(image,/image\/png/);
 });
+
+test("Ventas usa un único buscador de cliente e IVA fijo del 15%",()=>{
+ const sales=read("ventas/sales.js"),comm=read("ventas/sales-communication.js");
+ for(const p of ["ventas/index.html","edgar/ventas/index.html"]){
+  const html=read(p);
+  assert.match(html,/id="saleCustomerSearch"/);
+  assert.doesNotMatch(html,/customerAlias|Cliente \/ referencia/);
+ }
+ assert.doesNotMatch(sales+comm,/customerAlias/);
+ assert.match(sales,/retryCustomer=selectedCustomer\.id/);
+ assert.match(comm,/saleCustomerSearch"\)\.value=c\?\.name/);
+ assert.match(comm,/tr\.insertCell\(\)\.textContent="15 %"/);
+ assert.match(comm,/id:tr\.dataset\.id,rate:15/);
+});
