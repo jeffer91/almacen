@@ -56,3 +56,29 @@ main{width:min(920px,100%);margin:0 auto;padding:20px 16px 70px}h1{font-size:28p
 #salesSection .smart-count{display:block;font-size:11px;margin:3px 7px;color:var(--muted)}
 #salesSection .smart-results{max-height:235px;overflow-y:auto}
 #salesSection .product-matches .smart-warning{color:#a06a16;font-weight:600;font-size:10px}
+
+/* Selectores dependientes de producto: 12 columnas compactas. */
+#salesSection .entry-table{min-width:1190px;table-layout:fixed}
+#salesSection .entry-table th:nth-child(1){width:3%}
+#salesSection .entry-table th:nth-child(2){width:18%}
+#salesSection .entry-table th:nth-child(3){width:10%}
+#salesSection .entry-table th:nth-child(4){width:12%}
+#salesSection .entry-table th:nth-child(5){width:8%}
+#salesSection .entry-table th:nth-child(6){width:6%}
+#salesSection .entry-table th:nth-child(7){width:8%}
+#salesSection .entry-table th:nth-child(8){width:8%}
+#salesSection .entry-table th:nth-child(9){width:8%}
+#salesSection .entry-table th:nth-child(10){width:7%}
+#salesSection .entry-table th:nth-child(11){width:8%}
+#salesSection .entry-table th:nth-child(12){width:4%}
+#salesSection .entry-table td{font-size:12px;text-align:left;white-space:normal}
+#salesSection .entry-table td.cost-cell,#salesSection .entry-table td.line-total{text-align:right}
+#salesSection .entry-table th{font-size:12px;padding:6px 5px}
+#salesSection .entry-table input,#salesSection .entry-table select{font-size:12px;box-sizing:border-box;padding:4px;min-height:30px}
+#salesSection .entry-table [hidden]{display:none!important}
+#salesSection .family-choices{max-height:105px;overflow:auto;background:#f2eff8}
+#salesSection .product-matches .family-choices button{font-weight:700;color:#493092;padding:6px}
+#salesSection .smart-filters{grid-template-columns:repeat(2,minmax(0,1fr))}
+#salesSection .smart-results{max-height:180px}
+#salesSection .product-matches{max-height:410px}
+#salesSection .entry-table .variant{font-size:11px}
