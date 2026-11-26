@@ -414,7 +414,7 @@ Deno.serve(async (request: Request) => {
       const requestKey = body.request_key ? requiredId(body.request_key) : null;
       const sale = {
         sale_date: day, product_name: productName, presentation_label: txt(body.presentation_label, 100),
-        quantity: Number(qty.toFixed(3)), unit, unit_price: Number(unitPrice.toFixed(2)),
+        quantity: Number(qty.toFixed(3)), unit, unit_price: Number(unitPrice.toFixed(4)),
         payment_method: method, notes: txt(body.notes, 400),
         created_by: "jefferson", request_key: requestKey
       };
