@@ -53,7 +53,7 @@
     return row;
   }
   function groupInfo(sale) {
-    const match = /^\\[venta:([a-f0-9-]{36})\\] (.*)$/.exec(sale.notes || "");
+    const match = /^\[venta:([a-f0-9-]{36})\] (.*)$/.exec(sale.notes || "");
     return match ? {key:match[1],label:match[2]} : {key:"legacy",label:"Registros anteriores"};
   }
   function renderSales() {
