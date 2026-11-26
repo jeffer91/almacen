@@ -48,3 +48,11 @@ main{width:min(920px,100%);margin:0 auto;padding:20px 16px 70px}h1{font-size:28p
 #salesSection .entry-table .cost-warning{color:#a23036;font-size:11px;line-height:1.2;font-weight:600}
 #salesSection .entry-table .below-cost .price{border-color:#a23036;background:#fff3f3}
 #salesSection .entry-table .line-total{white-space:nowrap}
+
+/* Catálogo inteligente: filtros compactos y resultados independientes. */
+#salesSection .product-matches{max-height:340px;overflow:hidden}
+#salesSection .smart-filters{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px;padding:6px;background:#f5f2fa;border-bottom:1px solid var(--line)}
+#salesSection .smart-filters select{font-size:11px;min-height:27px;padding:3px;white-space:nowrap}
+#salesSection .smart-count{display:block;font-size:11px;margin:3px 7px;color:var(--muted)}
+#salesSection .smart-results{max-height:235px;overflow-y:auto}
+#salesSection .product-matches .smart-warning{color:#a06a16;font-weight:600;font-size:10px}
