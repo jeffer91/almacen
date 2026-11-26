@@ -43,7 +43,7 @@ const V = scope.NICOLE_VIEW;
       for (const i of c.items) i.supplier = options.assigned[i.id] || "";
       for (const o of matches) {
         const base = originals.find(i => o.source_label && V.normalize(i.label) === V.normalize(o.source_label));
-        c.items.push({ ...o, optionId: o.id, referencePrice: base?.referencePrice, net: null });
+        c.items.push({ ...o, optionId: o.id, referencePrice: base?.referencePrice, cost: o.cost ?? base?.cost ?? null, net: null });
       }
       c.items.sort((a,b) => a.label.localeCompare(b.label,"es") || (a.supplier || "").localeCompare(b.supplier || "","es"));
       c.haystack = V.normalize([c.name, c.brand, c.category, ...c.items.map(i => i.label + " " + (i.unit || "") + " " + (i.supplier || ""))].join(" "));
@@ -103,15 +103,26 @@ const V = scope.NICOLE_VIEW;
         const qtyCol=cols.find(c=>/^(cant|mts|metros)/.test(V.normalize(h[c])));
         const qty=qtyCol?String(cells[qtyCol]??"").trim():"";
         const items=[];
+        const costCol=cols.find(c=>/^(neto|costo)$/.test(V.normalize(h[c])));
+        const cost=costCol&&typeof cells[costCol]==="number"&&Number.isFinite(cells[costCol])&&cells[costCol]>=0?cells[costCol]:null;
+        const qtyMatch=qty.match(/^(\d+(?:[.,]\d+)?)\s*(u\.?|unid(?:ades)?\.?|m\.?|mts\.?|metros?|yd\.?|yardas?)$/i);
+        const packCount=qtyMatch?Number(qtyMatch[1].replace(",",".")):null;
+        const packUnit=qtyMatch?V.normalize(qtyMatch[2]):"";
         for(const col of cols){
           const header=String(h[col]), val=cells[col];
           if(!/^(pxm|pieza|docena|unid|rollo|xm)$/.test(header.toLowerCase().replace(/[^a-z]/g,"")))continue;
           if(typeof val!=="number"||!Number.isFinite(val)||val<=0||val>=100000)continue;
           // Dates stored as Excel serials are not commercial prices.
           if(Number.isInteger(val)&&val>=40000&&val<=60000)continue;
-          items.push({label:[qty,header,"Hoja "+row.sheet_name+" · fila "+row.sheet_row].filter(Boolean).join(" · "),referencePrice:val});
+          const tariff=header.replace(/[^a-z]/gi,"");
+          const main=tariff==="PxM"||tariff==="PXM";
+          const unitary=/^(unid|xm)$/i.test(tariff);
+          const label=[qty,main?"":header].filter(Boolean).join(" · ")||"Presentación";
+          const saleUnit=main&&packCount>1?(/^u|^unid/.test(packUnit)?"paquete":/^(m|mts|metro)/.test(packUnit)?"rollo":"otro"):main&&packCount===1?(/^u/.test(packUnit)?"unidad":/^m/.test(packUnit)?"metro":"yarda"):/^unid$/i.test(tariff)?"unidad":/^xm$/i.test(tariff)?"metro":/^rollo$/i.test(tariff)?"rollo":"otro";
+          // El costo neto de la fuente se conserva. No se convierte entre tarifas ambiguas.
+          items.push({label,referencePrice:val,cost,comparableCost:main&&packCount!==null?cost:null,saleUnit,sourceTariff:header,sourceRow:row.sheet_row,sourceSheet:row.sheet_name,sourceQuantity:qty});
         }
-        if(!items.length)items.push({label:[qty,"Hoja "+row.sheet_name+" · fila "+row.sheet_row].filter(Boolean).join(" · ")});
+        if(!items.length)items.push({label:qty||"Presentación",cost,comparableCost:null,sourceQuantity:qty,sourceSheet:row.sheet_name,sourceRow:row.sheet_row});
         cards.push({id:"excel-"+row.sheet_name+"-"+row.sheet_row+"-"+k,name:raw.trim(),brand:"",excel:true,items,haystack:[raw,row.sheet_name,qty].join(" ")});
       }
     }
