@@ -29,7 +29,7 @@
   for(const x of data.items||[]){
    const tr=list.insertRow();cell(tr,x.fiscal_number||"Borrador "+x.id.slice(0,8));cell(tr,x.issue_date);cell(tr,x.customer);cell(tr,fmt(x.subtotal));cell(tr,fmt(x.tax));cell(tr,fmt(x.total));
    const st=cell(tr,states[x.status]||"Estado desconocido");st.dataset.state=x.status;
-   const td=tr.insertCell();action(td,x.status==="draft"?"Ver borrador":"Ver datos",async()=>{if(x.status!=="draft"){say("i-status","Estado registrado: "+states[x.status]+". Clave: "+(x.access_key||"no disponible")+". Consulta el SRI para verificar el documento.");return;}await openDraft(x.id);});
+   const td=tr.insertCell();action(td,x.status==="draft"?"Ver borrador":"Ver datos",async()=>{if(x.status!=="draft"){await openDocument(x.id);return;}await openDraft(x.id);});
    if(x.sale_id){const a=document.createElement("a");a.href="./edgar/ventas/?date="+encodeURIComponent(x.issue_date);a.textContent="Ventas del día";td.append(" ",a);}
    if(x.access_key){const a=document.createElement("a");a.href="https://www.sri.gob.ec/";a.target="_blank";a.rel="noopener noreferrer";a.textContent="Portal SRI";td.append(" ",a);}
   }
@@ -47,6 +47,20 @@
   const rev=++revision;report=null;$("i-export").disabled=true;say("i-status","Consultando documentos…");
   try{const data=await rpc("edgar_invoice_management",{p_from:$("i-from").value,p_to:$("i-to").value,p_query:$("i-search").value,p_status:$("i-state").value,p_offset:offset});if(rev!==revision)return;render(data);say("i-status",total+" documento(s) encontrados.");}catch(e){if(rev===revision)say("i-status",e.message);}
  }
+ async function openDocument(id){
+  const doc=await rpc("edgar_invoice_document_get",{p_draft_id:id});
+  say("i-document-number",doc.fiscal_number||"Sin número fiscal");
+  say("i-document-state",states[doc.status]||"Estado desconocido");
+  say("i-document-key",doc.access_key||"No disponible");
+  say("i-document-auth",doc.authorization_at?new Date(doc.authorization_at).toLocaleString("es-EC"):"No disponible");
+  say("i-document-cancel",doc.cancelled_at?new Date(doc.cancelled_at).toLocaleString("es-EC"):"No disponible");
+  const events=$("i-document-events");events.replaceChildren();
+  for(const event of doc.events||[]){const li=document.createElement("li");li.textContent=event.event_type+" · "+new Date(event.occurred_at).toLocaleString("es-EC");events.append(li);}
+  if(!events.children.length){const li=document.createElement("li");li.textContent="Sin eventos registrados.";events.append(li);}
+  const b=$("i-document-xml");b.disabled=!doc.authorized_xml;b.onclick=()=>{if(doc.authorized_xml)download(doc.authorized_xml,"application/xml;charset=utf-8","Factura-"+(doc.access_key||id)+".xml");};
+  $("i-document-dialog").showModal();
+ }
+ $("i-document-close").onclick=()=>{$("i-document-dialog").close();$("i-document-xml").onclick=null;};
  async function openDraft(id){
   const d=await rpc("edgar_invoice_draft_get",{p_id:id});if(!issuer)issuer=await rpc("edgar_invoice_issuer");
   previewed=d;say("i-xml-status","");$("i-ride").innerHTML=window.NICOLE_RIDE.build(d,issuer);$("i-preview").hidden=false;$("i-preview").scrollIntoView({block:"start"});
