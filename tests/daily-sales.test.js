@@ -5,28 +5,28 @@ const { readFileSync } = require("node:fs");
 const { join } = require("node:path");
 const read = (p) => readFileSync(join(__dirname, "..", p), "utf8");
 
-test("El registro de ventas es independiente del catálogo público", () => {
-  const html = read("web/ventas/index.html");
+test("Ambas rutas de ventas exigen sesión comercial", () => {
   const js = read("web/ventas/sales.js");
-  assert.doesNotMatch(html, /id="loginForm"/);
-  assert.match(html, /id="saleForm"/);
-  assert.match(html, /id="saleDate"/);
-  assert.doesNotMatch(js, /api\("login"/);
-  assert.match(js, /api\("listSales"/);
-  assert.match(js, /api\("addSale"/);
-  assert.match(js, /api\("voidSale"/);
-  assert.doesNotMatch(js, /"x-almacen-key"/);
-  assert.doesNotMatch(js, /localStorage\.|sessionStorage\./);
-});
-
-test("La API limita las operaciones públicas a una lista explícita", () => {
-  const ts = read("supabase/functions/catalog-api/index.ts");
-  assert.match(ts, /const publicWeb = !authenticatedRole && new Set\(\["listSales", "addSale", "voidSale", "exportSalesBackup", "syncSnapshot"\]\)\.has\(action\)/);
-  for (const action of ["listSales", "addSale", "voidSale"]) {
-    const start = ts.indexOf('if (action === "' + action + '")');
-    assert.ok(start >= 0, action + " debe existir");
-    assert.match(ts.slice(start, start + 170), /role !== "jefferson"/);
+  for(const path of ["web/ventas/index.html","web/edgar/ventas/index.html"]){
+    const html=read(path);
+    assert.match(html,/id="edgar-protected" hidden/);
+    assert.match(html,/id="edgar-pin-form"/);
+    assert.match(html,/id="saleForm"/);
+    assert.match(html,/id="saleDate"/);
   }
+  assert.match(js,/NICOLE_EDGAR_SESSION/);
+  assert.match(js,/"x-almacen-key"/);
+  assert.match(js,/api\("listSales"/);
+  assert.match(js,/api\("addSalesBatch"/);
+  assert.match(js,/api\("voidSale"/);
+});
+test("La API valida la sesión antes de cualquier operación de ventas", () => {
+  const ts=read("supabase/functions/catalog-api/index.ts");
+  assert.match(ts,/const salesAction = new Set\(\["listSales","addSale","addSalesBatch","voidSale","exportSalesBackup"\]\)/);
+  assert.match(ts,/db\.rpc\("edgar_pin_validate"/);
+  assert.match(ts,/if\(salesAction&&authenticatedRole!=="jefferson"&&!edgarSales\)return fail/);
+  assert.match(ts,/const publicWeb = !authenticatedRole && action==="syncSnapshot"/);
+  assert.match(ts,/db\.rpc\("family_add_sales_batch"/);
 });
 
 test("La tabla de ventas tiene control de acceso y total calculado", () => {
