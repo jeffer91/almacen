@@ -39,21 +39,30 @@
    for(const a of (data.adjustments||[]).filter(x=>x.kind===kind)){const tr=tbody.insertRow();cell(tr,a.fiscal_number);cell(tr,String(a.created_at).slice(0,10));cell(tr,a.reason);if(kind==="credit_note")cell(tr,a.amount==null?"—":fmt(a.amount));cell(tr,adjustmentStates[a.status]||a.status);}
    if(!tbody.rows.length)empty(tbody,n,"No hay operaciones registradas.");
   }
-  const sign=data.signing||{};
-  say("i-signing-state","Proveedor: "+(sign.provider||"Security Data")+" · Firmador: "+(sign.signer_ready?"configurado":"no configurado")+" · SRI: "+(sign.sri_ready?"configurado":"sin conexión de emisión")+" · Vencimiento: "+(sign.valid_until?new Date(sign.valid_until).toLocaleDateString("es-EC"):"sin certificado registrado"));
   say("i-page",total?(offset+1)+"–"+Math.min(offset+50,total)+" de "+total:"0");$("i-prev").disabled=offset===0;$("i-next").disabled=offset+50>=total;
  }
- async function loadReadiness(rev){
-  const labels={signer_ready:"Servicio privado de firma",certificate_current:"Vigencia del certificado",certificate_trust_verified:"Cadena de confianza",certificate_revocation_verified:"Estado de revocación",issuer_identity_verified:"Identidad del emisor",official_schema_verified:"XSD oficial verificado",provider_rule_verified:"Requisitos del proveedor",sequence_verified:"Secuencial fiscal conciliado",sri_ready:"Conexión con el SRI",certification_authorized:"Autorización en certificación",ride_verified:"PDF definitivo verificado",delivery_verified:"Entrega del comprobante",owner_release_approved:"Aprobación del titular"};
+ function resetReadiness(){
+  say("i-signing-state","Comprobando configuración…");say("i-sign-cert","No comprobado");say("i-sign-expiry","No comprobado");say("i-sign-sri","No comprobada");
+  $("i-signing-state").dataset.state="unknown";
+  say("i-release-banner","Modo borrador — sin validez tributaria. Comprobando el estado del servicio.");
+ }
+ async function loadReadiness(rev,sign){
   try{
    const r=await rpc("edgar_invoice_readiness");if(rev!==revision)return;
-   kpis("i-release-checks",Object.entries(labels).map(([key,label])=>[label,r[key]===true?"Verificado":"Pendiente"]));
-   say("i-release-banner",r.production_enabled===true?"Requisitos de liberación registrados. La emisión requiere el servicio privado conectado.":"Modo borrador — sin validez tributaria. Emisión productiva bloqueada hasta superar todas las verificaciones.");
-  }catch(e){if(rev!==revision)return;kpis("i-release-checks",[["Estado","No comprobado"]]);say("i-release-banner","No se pudo verificar el estado de producción. No emitir documentos fiscales.");}
+   const ready=r.production_enabled===true&&r.signer_ready===true&&r.sri_ready===true&&r.certificate_current===true;
+   const expiry=Date.parse(sign?.valid_until);
+   say("i-sign-cert",r.certificate_current===true?"Vigente según registro":Number.isFinite(expiry)?"No vigente":"Sin certificado registrado");
+   say("i-sign-expiry",Number.isFinite(expiry)?new Intl.DateTimeFormat("es-EC",{dateStyle:"medium",timeZone:"America/Guayaquil"}).format(new Date(expiry)):"—");
+   say("i-sign-sri",r.sri_ready===true?"Configurada según registro":"Pendiente");
+   // No UI flag is sufficient to enable certificate upload or issuance.
+   say("i-signing-state",ready?"Requisitos registrados; servicio de emisión por comprobar.":"Configuración pendiente");
+   $("i-signing-state").dataset.state="warning";
+   say("i-release-banner",ready?"Requisitos registrados. Emisión aún no habilitada desde esta aplicación.":"Modo borrador — sin validez tributaria. Facturación electrónica aún no disponible.");
+  }catch(e){if(rev!==revision)return;resetReadiness();say("i-signing-state","Estado no comprobado");say("i-release-banner","No se pudo verificar la facturación. No emitir documentos fiscales.");}
  }
  async function load(){
-  const rev=++revision;report=null;$("i-export").disabled=true;say("i-status","Consultando documentos…");
-  try{const data=await rpc("edgar_invoice_management",{p_from:$("i-from").value,p_to:$("i-to").value,p_query:$("i-search").value,p_status:$("i-state").value,p_offset:offset});if(rev!==revision)return;render(data);say("i-status",total+" documento(s) encontrados.");await loadReadiness(rev);}catch(e){if(rev===revision)say("i-status",e.message);}
+  const rev=++revision;report=null;$("i-export").disabled=true;resetReadiness();say("i-status","Consultando documentos…");
+  try{const data=await rpc("edgar_invoice_management",{p_from:$("i-from").value,p_to:$("i-to").value,p_query:$("i-search").value,p_status:$("i-state").value,p_offset:offset});if(rev!==revision)return;render(data);say("i-status",total+" documento(s) encontrados.");await loadReadiness(rev,data.signing);}catch(e){if(rev===revision){for(const id of ["i-kpis","i-report","i-list","i-cancellations","i-credits"])$(id).replaceChildren();$("i-prev").disabled=true;$("i-next").disabled=true;say("i-page","—");say("i-status",e.message);say("i-signing-state","Estado no comprobado");say("i-release-banner","No se pudo verificar la facturación. No emitir documentos fiscales.");}}
  }
  async function openDocument(id){
   const doc=await rpc("edgar_invoice_document_get",{p_draft_id:id});
