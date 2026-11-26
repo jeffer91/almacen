@@ -5,6 +5,8 @@ on:
     paths:
       - 'server/facturacion/**'
       - 'tests/*xades*'
+      - 'tests/test_sri_transport.py'
+      - 'tests/test_certificate_preflight.py'
       - 'tests/invoice_xsd_fixtures.js'
       - 'vendor/sri/xsd/**'
       - 'web/edgar/facturacion/xml-test.js'
@@ -22,3 +24,6 @@ jobs:
         run: python3 -m venv /tmp/nicole-lab && /tmp/nicole-lab/bin/pip install -r server/facturacion/requirements-lab.txt
       - name: Test synthetic XAdES and reference XSD
         run: /tmp/nicole-lab/bin/python tests/test_xades_lab.py
+
+      - name: Test SRI SOAP protocol with synthetic replies only
+        run: /tmp/nicole-lab/bin/python tests/test_sri_transport.py
