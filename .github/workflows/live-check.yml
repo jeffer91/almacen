@@ -89,7 +89,13 @@ jobs:
           grep -q 'importExcel' /tmp/sync.js
           ! grep -q 'loginForm' /tmp/sync.js
           curl -fLsS --max-time 25 "$base/ventas/sales.js?v=20261124-publico-2" -o /tmp/sales.js
-          grep -q 'addSalesBatch' /tmp/sales.js
+          grep -q 'edgar_sale_save' /tmp/sales.js
+          grep -q 'edgar_sale_statuses' /tmp/sales.js
+          grep -q 'sales-communication.js' /tmp/ventas.html
+          curl -fLsS --max-time 25 "$base/ventas/sales-communication.js?v=2" -o /tmp/communication.js
+          grep -q 'edgar_sale_invoice_draft' /tmp/communication.js
+          grep -q 'image/png' /tmp/communication.js
+          ! grep -q '>Facturación</a>' /tmp/edgar.html
           grep -q 'NICOLE_EDGAR_SESSION' /tmp/sales.js
           ! grep -q 'loginForm' /tmp/sales.js
           code=$(curl -sS -o /dev/null -w "%{http_code}" --max-time 25 "$base/jefferson/")
