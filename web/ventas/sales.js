@@ -169,7 +169,7 @@
     const {sheets}=await query("sheets");
     const all=[];
     for(let offset=0;offset<20000;offset+=500){
-      const {rows:part}=await query("rows",{offset,limit:500});all.push(...part);
+      const {rows:part}=await query("salesRows",{offset,limit:500});all.push(...part);
       if(part.length<500)break;
     }
     return window.NICOLE_SALES_CATALOG.excelCards(sheets,all);
@@ -287,5 +287,7 @@
   $("exportCsv").addEventListener("click", exportCsv);
   renderSales();
   Promise.all([loadSales(), loadProductNames()]);
+  setInterval(()=>{if(!document.hidden&&!saving&&!retryPayload)loadProductNames();},120000);
+  document.addEventListener("visibilitychange",()=>{if(!document.hidden&&!saving&&!retryPayload)loadProductNames();});
   updatePreview();
 })();
