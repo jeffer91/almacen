@@ -59,12 +59,16 @@ const V = scope.NICOLE_VIEW;
     return prev[b.length];
   }
   function rank(cards,query,limit=12){
-    const q=canonical(query), words=q.split(" ").filter(Boolean);
-    if(!q)return [];
+    const q=canonical(query), words=q.split(" ").filter(w=>w&&!["de","del","la","el","los","las"].includes(w));
+    if(!words.length)return [];
     return cards.map(card=>{
       const name=canonical([card.name,card.brand].join(" ")), hay=canonical([card.name,card.brand,card.haystack].join(" "));
       const tokens=hay.split(" ").filter(Boolean);
-      let score=name===q?100:name.startsWith(q)?65:name.includes(q)?45:0;
+      const compact=x=>x.replace(/[^a-z0-9]/g,"");
+      const nq=compact(words.join(" ")), nn=compact(name.split(" ").filter(w=>!["de","del","la","el","los","las"].includes(w)).join(" "));
+      const requestedNumbers=words.filter(w=>/^\d/.test(w));
+      if(requestedNumbers.some(w=>!tokens.some(t=>t===w||t.startsWith(w)&&!/^\d+$/.test(w))))return {card,score:0};
+      let score=name===q?100:name.startsWith(q)?65:name.includes(q)?45:nn===nq?80:nn.startsWith(nq)?60:nn.includes(nq)?40:0;
       if(!score){
         let sum=0;
         for(const w of words){
@@ -73,7 +77,7 @@ const V = scope.NICOLE_VIEW;
             if(t.startsWith(w))best=Math.max(best,12);
             else if(t.includes(w))best=Math.max(best,9);
             else if(w.length>=3&&!/^\d/.test(w)&&!/^\d/.test(t)){
-              const d=distance(w,t.slice(0,w.length));if(d<= (w.length>=6?2:1))best=Math.max(best,5-d);
+              const d=Math.min(distance(w,t),distance(w,t.slice(0,w.length)));if(d<= (w.length>=6?2:1))best=Math.max(best,5-d);
             }
           }
           if(!best)return {card,score:0};
