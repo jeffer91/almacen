@@ -10,7 +10,8 @@ test("un solo link familiar en GitHub Pages y la app de Jefferson solo en Electr
   assert.ok(read("web/index.html").includes('data-profile="familia"'));
   assert.ok(read("web/jefferson/index.html").includes('data-profile="jefferson"'));
   assert.ok(read("web/gloria/index.html").includes("url=../"));
-  assert.ok(read("web/edgar/index.html").includes('id="price-editor"'));
+  assert.ok(read("web/edgar/index.html").includes('id="edgar-protected" hidden'));
+  assert.ok(read("web/edgar/productos/index.html").includes('id="price-editor"'));
   const deploy = read(".github/workflows/web-deploy.yml");
   assert.ok(deploy.includes("rm -rf site/jefferson site/app.js site/admin-core.js"));
   assert.ok(fs.existsSync(path.join(root, "web/app.js")));
