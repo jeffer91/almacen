@@ -85,9 +85,12 @@ test("Gloria consulta el catálogo y Edgar dispone del editor de precios", () =>
   assert.doesNotMatch(index, /id="price-editor"/);
   const gloria = fs.readFileSync(path.join(web, "gloria", "index.html"), "utf8");
   assert.ok(gloria.includes("url=../"));
-  const edgar = fs.readFileSync(path.join(web, "edgar", "index.html"), "utf8");
+  const home = fs.readFileSync(path.join(web, "edgar", "index.html"), "utf8");
+  assert.match(home, /edgar\/productos\//);
+  assert.match(home, /id="edgar-protected" hidden/);
+  const edgar = fs.readFileSync(path.join(web, "edgar", "productos", "index.html"), "utf8");
   assert.match(edgar, /id="price-editor"/);
-  assert.match(edgar, /data-profile="edgar"/);
+  assert.match(edgar, /id="edgar-protected" hidden/);
   assert.match(edgar, /id="product-editor"/);
   assert.match(edgar, /id="new-product-form"/);
   assert.doesNotMatch(edgar, /app\.js/);
@@ -127,8 +130,8 @@ test("Edgar puede crear productos oficiales y editar precios desde su panel", ()
 
 test("Edgar abre el lápiz directamente sin solicitar código de activación", () => {
   const web = path.join(__dirname, "..", "web");
-  const html = fs.readFileSync(path.join(web, "edgar", "index.html"), "utf8");
-  const js = fs.readFileSync(path.join(web, "viewer.js"), "utf8");
+  const html = fs.readFileSync(path.join(web, "edgar", "productos", "index.html"), "utf8");
+  const js = fs.readFileSync(path.join(web, "edgar", "productos", "products.js"), "utf8");
   const css = fs.readFileSync(path.join(web, "viewer.css"), "utf8");
   const access = fs.readFileSync(path.join(web, "edgar", "access.js"), "utf8");
   assert.match(html, /id="price-editor"/);
