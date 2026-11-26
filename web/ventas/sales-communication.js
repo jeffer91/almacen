@@ -7,10 +7,10 @@
   const response=await fetch(new URL("/rest/v1/rpc/"+name,window.ALMACEN_API_URL),{method:"POST",headers:{apikey:window.ALMACEN_PUBLIC_KEY,"content-type":"application/json"},body:JSON.stringify({p_token:token,...fields}),cache:"no-store"});
   const data=await response.json().catch(()=>null);if(!response.ok)throw Error(data?.message==="SESSION_INVALID"?"Sesión vencida. Recarga la página.":data?.message||"Operación no completada");return data;
  }
- function select(c){version++;clearTimeout(timer);customer=c||null;$("customerAlias").value=c?.name?.slice(0,70)||"";$("customerAlias").readOnly=!!c;$("saleCustomerPhone").textContent=c?.phone||"Sin WhatsApp";$("saleCustomerResults").replaceChildren();$("saleCustomerResults").hidden=true;}
+ function select(c){version++;clearTimeout(timer);customer=c||null;$("saleCustomerSearch").value=c?.name||"";$("saleCustomerStatus").textContent=c?"Cliente seleccionado":"";$("saleCustomerPhone").textContent=c?.phone||"Sin WhatsApp";$("saleCustomerResults").replaceChildren();$("saleCustomerResults").hidden=true;}
  async function search(){
   const rev=++version,q=$("saleCustomerSearch").value.trim();if(!q){$("saleCustomerResults").hidden=true;return;}
-  try{const data=await rpc("edgar_customer_list",{p_query:q,p_offset:0,p_limit:30,p_include_archived:false});if(rev!==version)return;customers=data.items||[];const box=$("saleCustomerResults");box.replaceChildren();for(const c of customers){const b=document.createElement("button");b.type="button";b.textContent=[c.name,c.identification,c.phone].filter(Boolean).join(" · ");b.onclick=()=>{select(c);$("saleCustomerSearch").value="";};box.append(b);}if(!customers.length)box.textContent="No hay coincidencias";box.hidden=false;}catch(e){if(rev===version)$("saleCustomerStatus").textContent=e.message;}
+  try{const data=await rpc("edgar_customer_list",{p_query:q,p_offset:0,p_limit:30,p_include_archived:false});if(rev!==version)return;customers=data.items||[];const box=$("saleCustomerResults");box.replaceChildren();for(const c of customers){const b=document.createElement("button");b.type="button";b.textContent=[c.name,c.identification,c.phone].filter(Boolean).join(" · ");b.onclick=()=>{select(c);};box.append(b);}if(!customers.length)box.textContent="No hay coincidencias";box.hidden=false;}catch(e){if(rev===version)$("saleCustomerStatus").textContent=e.message;}
  }
  function phone(raw){let n=String(raw||"").trim();if(!n||!(/^\+?[\d\s().-]+$/.test(n)))return "";const international=n.startsWith("+");n=n.replace(/\D/g,"");if(/^09\d{8}$/.test(n))return "593"+n.slice(1);if(/^9\d{8}$/.test(n))return "593"+n;if(/^5939\d{8}$/.test(n))return n;return international&&/^[1-9]\d{7,14}$/.test(n)?n:"";}
  function wrap(ctx,text,width){const out=[];let line="";for(const word of String(text||"").split(/\s+/)){if(ctx.measureText(word).width>width){if(line)out.push(line);line="";let chunk="";for(const ch of word){if(chunk&&ctx.measureText(chunk+ch).width>width){out.push(chunk);chunk="";}chunk+=ch;}line=chunk;}else if(line&&ctx.measureText(line+" "+word).width>width){out.push(line);line=word;}else line+=(line?" ":"")+word;}if(line)out.push(line);return out.length?out:[""];}
@@ -45,19 +45,17 @@
     const config=await rpc("edgar_sale_fiscal_defaults",{p_id:id});
     if(config.mixed_payment)throw Error("Esta compra tiene formas de pago mixtas; el borrador actual admite una sola.");
     const defaults=new Map(config.items.map(x=>[x.id,x]));
-    const tbody=$("saleFiscalRows");tbody.replaceChildren();let missing=0;
+    const tbody=$("saleFiscalRows");tbody.replaceChildren();
     for(const item of current.items){
       const settings=defaults.get(item.id);if(!settings?.code)throw Error("Código de producto no disponible");
       const tr=tbody.insertRow();tr.dataset.id=item.id;tr.insertCell().textContent=item.description;tr.insertCell().textContent=money(item.total);
       const code=document.createElement("span");code.className="sale-product-code";code.textContent=settings.code;tr.insertCell().append(code);
-      const rate=document.createElement("select");rate.required=true;rate.setAttribute("aria-label","IVA "+item.description);
-      for(const [v,label] of [["","Confirmar una vez"],["0","0 %"],["15","15 %"]])rate.add(new Option(label,v));
-      if(settings.rate!=null){rate.value=String(settings.rate);rate.disabled=true;}else missing++;
-      tr.insertCell().append(rate);
+      if(Number(settings.rate)!==15)throw Error("La configuración fiscal no está actualizada. Recarga la página.");
+      tr.insertCell().textContent="15 %";
     }
     const pay=$("saleFiscalPay");pay.value=config.payment_code||"";pay.disabled=!!config.payment_code;
     $("saleFiscalConfirm").checked=false;
-    $("saleActionStatus").textContent=missing?missing+" producto(s) sin tarifa confirmada. Selecciona el IVA correcto una sola vez; se recordará al guardar el borrador.":"Códigos e IVA recuperados automáticamente.";
+    $("saleActionStatus").textContent="Códigos automáticos e IVA fijo del 15 %.";
 
    }else{
     receiptFile=await image(current);if(receiptUrl)URL.revokeObjectURL(receiptUrl);receiptUrl=URL.createObjectURL(receiptFile);$("saleReceiptImage").src=receiptUrl;$("saleDownload").href=receiptUrl;$("saleDownload").download=receiptFile.name;
@@ -69,14 +67,14 @@
   }finally{working=false;}
  }
  function init(){
-  $("saleCustomerSearch").addEventListener("input",()=>{clearTimeout(timer);version++;timer=setTimeout(search,250);});
+  $("saleCustomerSearch").addEventListener("input",()=>{customer=null;$("saleCustomerPhone").textContent="Sin WhatsApp";$("saleCustomerStatus").textContent="Selecciona un cliente de los resultados";$("saleCustomerResults").replaceChildren();$("saleCustomerResults").hidden=true;clearTimeout(timer);version++;timer=setTimeout(search,250);});
   $("saleCustomerClear").onclick=()=>{version++;select(null);$("saleCustomerSearch").value="";};
   $("saleCustomerNew").onclick=()=>{$("saleCustomerForm").reset();$("saleCustomerNote").textContent="";$("saleCustomerDialog").showModal();};
   $("saleCustomerCancel").onclick=()=>{$("saleCustomerDialog").close();};
   $("saleCustomerForm").onsubmit=async e=>{e.preventDefault();const b=$("saleCustomerSave");b.disabled=true;try{const d=Object.fromEntries(new FormData(e.target));const c=await rpc("edgar_customer_save",{p_customer:d});select(c);$("saleCustomerDialog").close();}catch(err){$("saleCustomerNote").textContent=err.message;}finally{b.disabled=false;}};
   $("saleActionClose").onclick=()=>{$("saleActionDialog").close();};
   $("saleShare").onclick=async()=>{try{await navigator.share({files:[receiptFile],title:"Detalle de compra Nicole Encajes"});$("saleActionStatus").textContent="Imagen compartida desde el dispositivo; confirma el destinatario y envío en WhatsApp.";}catch(e){if(e.name!=="AbortError")$("saleActionStatus").textContent="No se pudo compartir. Descarga el PNG y adjúntalo en WhatsApp.";}};
-  $("saleFiscalForm").onsubmit=async e=>{e.preventDefault();if(working||!current)return;working=true;$("saleFiscalSave").disabled=true;try{const fiscal=[...$("saleFiscalRows").rows].map(tr=>({id:tr.dataset.id,rate:tr.querySelector("select").value===""?null:Number(tr.querySelector("select").value)}));const d=await rpc("edgar_sale_invoice_draft",{p_id:current.id,p_payment:$("saleFiscalPay").value,p_fiscal:fiscal});location.href=invoiceLink(d.id);}catch(err){$("saleActionStatus").textContent=err.message;}finally{working=false;$("saleFiscalSave").disabled=false;}};
+  $("saleFiscalForm").onsubmit=async e=>{e.preventDefault();if(working||!current)return;working=true;$("saleFiscalSave").disabled=true;try{const fiscal=[...$("saleFiscalRows").rows].map(tr=>({id:tr.dataset.id,rate:15}));const d=await rpc("edgar_sale_invoice_draft",{p_id:current.id,p_payment:$("saleFiscalPay").value,p_fiscal:fiscal});location.href=invoiceLink(d.id);}catch(err){$("saleActionStatus").textContent=err.message;}finally{working=false;$("saleFiscalSave").disabled=false;}};
  }
  window.NICOLE_SALE_COMM={init,rpc,customer:()=>customer,clear:()=>{select(null);$("saleCustomerSearch").value="";},show,phone};
 })();
