@@ -27,3 +27,24 @@ main{width:min(920px,100%);margin:0 auto;padding:20px 16px 70px}h1{font-size:28p
 #salesSection .entry-table .variant,#salesSection .entry-table .price-mode{margin-top:3px;font-size:12px}#salesSection #catalogStatus{color:var(--muted);font-size:12px}#salesSection #refreshCatalog{margin-left:0}
 
 #salesSection .product-matches{background:#fff;border:1px solid #bdb2dc;border-radius:6px;max-height:240px;overflow-y:auto;margin:3px 0;box-shadow:0 3px 10px #241f311a}#salesSection .product-matches button{display:block;width:100%;text-align:left;color:var(--ink);text-decoration:none;padding:7px 9px;border-bottom:1px solid var(--line)}#salesSection .product-matches button:hover,#salesSection .product-matches button:focus{background:#f2eff8;outline:1px solid var(--primary)}#salesSection .product-matches small{font-size:11px;line-height:1.3}
+
+/* Caja: cada control queda dentro de su columna. */
+#salesSection .entry-table{table-layout:fixed;min-width:980px}
+#salesSection .entry-table th{white-space:normal}
+#salesSection .entry-table th:nth-child(1){width:4%}
+#salesSection .entry-table th:nth-child(2){width:29%}
+#salesSection .entry-table th:nth-child(3){width:8%}
+#salesSection .entry-table th:nth-child(4){width:11%}
+#salesSection .entry-table th:nth-child(5){width:10%}
+#salesSection .entry-table th:nth-child(6){width:12%}
+#salesSection .entry-table th:nth-child(7){width:9%}
+#salesSection .entry-table th:nth-child(8){width:12%}
+#salesSection .entry-table th:nth-child(9){width:5%}
+#salesSection .entry-table td{white-space:normal;min-width:0;overflow-wrap:anywhere}
+#salesSection .entry-table input,#salesSection .entry-table select{display:block;width:100%;max-width:100%;min-width:0}
+#salesSection .entry-table .detail[readonly]{border:0;background:transparent;padding:0 2px;min-height:20px;color:var(--muted)}
+#salesSection .entry-table .cost-cell{text-align:right;background:#f7f7fa;font-weight:650}
+#salesSection .entry-table .cost-basis{font-size:10px;font-weight:400;line-height:1.2;white-space:normal}
+#salesSection .entry-table .cost-warning{color:#a23036;font-size:11px;line-height:1.2;font-weight:600}
+#salesSection .entry-table .below-cost .price{border-color:#a23036;background:#fff3f3}
+#salesSection .entry-table .line-total{white-space:nowrap}
