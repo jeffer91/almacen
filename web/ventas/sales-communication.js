@@ -42,9 +42,23 @@
    $("saleActionStatus").textContent="";$("saleReceiptPane").hidden=mode==="invoice";$("saleInvoicePane").hidden=mode!=="invoice";
    if(mode==="invoice"){
     if(!current.customer_id){throw Error("La compra debe estar asociada a un cliente identificado. Completa sus datos en Clientes antes de facturar.");}
-    const tbody=$("saleFiscalRows");tbody.replaceChildren();
-    for(const item of current.items){const tr=tbody.insertRow();tr.dataset.id=item.id;tr.insertCell().textContent=item.description;tr.insertCell().textContent=money(item.total);const code=document.createElement("input");code.required=true;code.maxLength=25;code.placeholder="Código fiscal";code.setAttribute("aria-label","Código "+item.description);tr.insertCell().append(code);const rate=document.createElement("select");rate.required=true;rate.setAttribute("aria-label","IVA "+item.description);for(const [v,label] of [["","Confirmar"],["0","0 %"],["15","15 %"]])rate.add(new Option(label,v));tr.insertCell().append(rate);}
-    $("saleFiscalPay").value="";$("saleFiscalConfirm").checked=false;
+    const config=await rpc("edgar_sale_fiscal_defaults",{p_id:id});
+    if(config.mixed_payment)throw Error("Esta compra tiene formas de pago mixtas; el borrador actual admite una sola.");
+    const defaults=new Map(config.items.map(x=>[x.id,x]));
+    const tbody=$("saleFiscalRows");tbody.replaceChildren();let missing=0;
+    for(const item of current.items){
+      const settings=defaults.get(item.id);if(!settings?.code)throw Error("Código de producto no disponible");
+      const tr=tbody.insertRow();tr.dataset.id=item.id;tr.insertCell().textContent=item.description;tr.insertCell().textContent=money(item.total);
+      const code=document.createElement("span");code.className="sale-product-code";code.textContent=settings.code;tr.insertCell().append(code);
+      const rate=document.createElement("select");rate.required=true;rate.setAttribute("aria-label","IVA "+item.description);
+      for(const [v,label] of [["","Confirmar una vez"],["0","0 %"],["15","15 %"]])rate.add(new Option(label,v));
+      if(settings.rate!=null){rate.value=String(settings.rate);rate.disabled=true;}else missing++;
+      tr.insertCell().append(rate);
+    }
+    const pay=$("saleFiscalPay");pay.value=config.payment_code||"";pay.disabled=!!config.payment_code;
+    $("saleFiscalConfirm").checked=false;
+    $("saleActionStatus").textContent=missing?missing+" producto(s) sin tarifa confirmada. Selecciona el IVA correcto una sola vez; se recordará al guardar el borrador.":"Códigos e IVA recuperados automáticamente.";
+
    }else{
     receiptFile=await image(current);if(receiptUrl)URL.revokeObjectURL(receiptUrl);receiptUrl=URL.createObjectURL(receiptFile);$("saleReceiptImage").src=receiptUrl;$("saleDownload").href=receiptUrl;$("saleDownload").download=receiptFile.name;
     const n=phone(current.buyer.phone),link=$("saleWhatsapp");link.hidden=!n;if(n)link.href="https://wa.me/"+n+"?text="+encodeURIComponent("Hola, "+current.buyer.name+". Te compartimos el detalle de tu compra en Nicole Encajes. Total: "+money(current.total)+".");
@@ -62,7 +76,7 @@
   $("saleCustomerForm").onsubmit=async e=>{e.preventDefault();const b=$("saleCustomerSave");b.disabled=true;try{const d=Object.fromEntries(new FormData(e.target));const c=await rpc("edgar_customer_save",{p_customer:d});select(c);$("saleCustomerDialog").close();}catch(err){$("saleCustomerNote").textContent=err.message;}finally{b.disabled=false;}};
   $("saleActionClose").onclick=()=>{$("saleActionDialog").close();};
   $("saleShare").onclick=async()=>{try{await navigator.share({files:[receiptFile],title:"Detalle de compra Nicole Encajes"});$("saleActionStatus").textContent="Imagen compartida desde el dispositivo; confirma el destinatario y envío en WhatsApp.";}catch(e){if(e.name!=="AbortError")$("saleActionStatus").textContent="No se pudo compartir. Descarga el PNG y adjúntalo en WhatsApp.";}};
-  $("saleFiscalForm").onsubmit=async e=>{e.preventDefault();if(working||!current)return;working=true;$("saleFiscalSave").disabled=true;try{const fiscal=[...$("saleFiscalRows").rows].map(tr=>({id:tr.dataset.id,code:tr.querySelector("input").value.trim(),rate:Number(tr.querySelector("select").value)}));const d=await rpc("edgar_sale_invoice_draft",{p_id:current.id,p_payment:$("saleFiscalPay").value,p_fiscal:fiscal});location.href=invoiceLink(d.id);}catch(err){$("saleActionStatus").textContent=err.message;}finally{working=false;$("saleFiscalSave").disabled=false;}};
+  $("saleFiscalForm").onsubmit=async e=>{e.preventDefault();if(working||!current)return;working=true;$("saleFiscalSave").disabled=true;try{const fiscal=[...$("saleFiscalRows").rows].map(tr=>({id:tr.dataset.id,rate:tr.querySelector("select").value===""?null:Number(tr.querySelector("select").value)}));const d=await rpc("edgar_sale_invoice_draft",{p_id:current.id,p_payment:$("saleFiscalPay").value,p_fiscal:fiscal});location.href=invoiceLink(d.id);}catch(err){$("saleActionStatus").textContent=err.message;}finally{working=false;$("saleFiscalSave").disabled=false;}};
  }
  window.NICOLE_SALE_COMM={init,rpc,customer:()=>customer,clear:()=>{select(null);$("saleCustomerSearch").value="";},show,phone};
 })();
