@@ -331,6 +331,15 @@ Deno.serve(async (request: Request) => {
       return response({ok:true,changed_rows:data,total_rows:body.rows.length});
     }catch(error){console.error("pushLiveSheets: error de importación");return fail("No se pudo importar la hoja",503);}
   }
+  // Diagnostics requires a fresh administrative PIN session, not a legacy link or commercial token.
+  if(action==="systemDiagnostics"){
+    const token=request.headers.get("x-almacen-key")||"";
+    if(!/^[a-f0-9]{64}$/.test(token))return fail("Inicia sesión de administración",401);
+    const {data,error}=await db.rpc("family_admin_diagnostics",{p_token:token});
+    if(error){if(error.code==="28000")return fail("Sesión administrativa no válida",401);console.error("systemDiagnostics: database check failed");return fail("No se pudo completar el diagnóstico",503);}
+    if(!data||typeof data!=="object")return fail("Diagnóstico no disponible",503);
+    return response({ok:true,diagnostics:data});
+  }
   const authenticatedRole = await getRole(request);
   // Acceso público solicitado para los módulos web. Lista cerrada: no concede una sesión administrativa.
   const salesAction = new Set(["listSales","addSale","addSalesBatch","voidSale","exportSalesBackup"]).has(action);
